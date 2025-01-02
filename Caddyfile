@@ -1,17 +1,15 @@
 {
-	admin off
+    http_port 80
 }
 
-:80 {
-    log {
-        output stdout
-        level DEBUG
-    }
+localhost {
     route {
         waf {
             rule_file rules.json
             log_all
+            ip_blacklist_file ip_blacklist.txt
+            dns_blacklist_file dns_blacklist.txt
         }
-        respond "Hello, World!"
+        respond "Hello, world!"
     }
 }
