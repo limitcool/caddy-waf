@@ -13,7 +13,7 @@
 
     route {
         waf {
-            rate_limit 100 5s  
+            rate_limit 1000 1m  
             rule_file rules.json
             log_all
             ip_blacklist_file ip_blacklist.txt
