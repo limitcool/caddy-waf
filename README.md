@@ -8,8 +8,7 @@ This is a Web Application Firewall (WAF) middleware for the Caddy web server. It
 -   Support for different targets like ARGS, BODY, HEADERS and URL.
 -   Customizable severity levels and actions (block, alert).
 -   Log all functionality.
--   IP and DNS Blacklist functionality (under development)
-
+-   IP and DNS Blacklist functionality
 ## Example
 
 - curl to caddy blocked
