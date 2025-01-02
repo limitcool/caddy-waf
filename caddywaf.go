@@ -18,6 +18,7 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"github.com/oschwald/maxminddb-golang"
 	"go.uber.org/zap"
 )
 
@@ -50,6 +51,19 @@ type RateLimiter struct {
 	config   RateLimit
 }
 
+type CountryBlocking struct {
+	Enabled     bool     `json:"enabled"`
+	BlockList   []string `json:"block_list"`
+	GeoIPDBPath string   `json:"geoip_db_path"`
+	geoIP       *maxminddb.Reader
+}
+
+type GeoIPRecord struct {
+	Country struct {
+		ISOCode string `maxminddb:"iso_code"`
+	} `maxminddb:"country"`
+}
+
 type Rule struct {
 	ID       string   `json:"id"`
 	Phase    int      `json:"phase"`
@@ -63,13 +77,14 @@ type Rule struct {
 }
 
 type Middleware struct {
-	RuleFiles        []string  `json:"rule_files"`
-	IPBlacklistFile  string    `json:"ip_blacklist_file"`
-	DNSBlacklistFile string    `json:"dns_blacklist_file"`
-	LogAll           bool      `json:"log_all"`
-	AnomalyThreshold int       `json:"anomaly_threshold"`
-	RateLimit        RateLimit `json:"rate_limit"`
-	Rules            []Rule    `json:"-"`
+	RuleFiles        []string        `json:"rule_files"`
+	IPBlacklistFile  string          `json:"ip_blacklist_file"`
+	DNSBlacklistFile string          `json:"dns_blacklist_file"`
+	LogAll           bool            `json:"log_all"`
+	AnomalyThreshold int             `json:"anomaly_threshold"`
+	RateLimit        RateLimit       `json:"rate_limit"`
+	CountryBlock     CountryBlocking `json:"country_block"`
+	Rules            []Rule          `json:"-"`
 	logger           *zap.Logger
 	ipBlacklist      map[string]bool `json:"-"`
 	dnsBlacklist     []string        `json:"-"`
@@ -116,25 +131,38 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					Requests: requests,
 					Window:   window,
 				}
+			case "block_countries":
+				m.CountryBlock.Enabled = true
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				m.CountryBlock.GeoIPDBPath = d.Val()
+				for d.NextArg() {
+					m.CountryBlock.BlockList = append(m.CountryBlock.BlockList, strings.ToUpper(d.Val()))
+				}
 			case "log_all":
 				fmt.Println("WAF Log All Enabled")
 				m.LogAll = true
 			case "rule_file":
+				fmt.Println("WAF Loading Rule File")
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
 				m.RuleFiles = append(m.RuleFiles, d.Val())
 			case "ip_blacklist_file":
+				fmt.Println("WAF Loading IP Blacklist File")
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
 				m.IPBlacklistFile = d.Val()
 			case "dns_blacklist_file":
+				fmt.Println("WAF Loading DNS Blacklist File")
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
 				m.DNSBlacklistFile = d.Val()
 			default:
+				fmt.Println("WAF Unrecognized SubDirective: ", d.Val())
 				return d.Errf("unrecognized subdirective: %s", d.Val())
 			}
 		}
@@ -164,8 +192,48 @@ func (rl *RateLimiter) isRateLimited(ip string) bool {
 	return false
 }
 
+func (m *Middleware) isCountryBlocked(remoteAddr string) bool {
+	if !m.CountryBlock.Enabled || m.CountryBlock.geoIP == nil {
+		return false
+	}
+
+	ip, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		ip = remoteAddr
+	}
+
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return false
+	}
+
+	var record GeoIPRecord
+	err = m.CountryBlock.geoIP.Lookup(parsedIP, &record)
+	if err != nil {
+		return false
+	}
+
+	for _, blockedCountry := range m.CountryBlock.BlockList {
+		if strings.EqualFold(record.Country.ISOCode, blockedCountry) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	statusCode := http.StatusOK
+
+	// Check country blocking first
+	if m.isCountryBlocked(r.RemoteAddr) {
+		m.logger.Info("Request blocked by country",
+			zap.String("ip", r.RemoteAddr),
+			zap.Int("status_code", http.StatusForbidden),
+		)
+		w.WriteHeader(http.StatusForbidden)
+		return nil
+	}
 
 	if m.rateLimiter != nil {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -254,6 +322,15 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		}
 	}
 
+	// Initialize GeoIP if enabled
+	if m.CountryBlock.Enabled {
+		reader, err := maxminddb.Open(m.CountryBlock.GeoIPDBPath)
+		if err != nil {
+			return fmt.Errorf("failed to load GeoIP database: %v", err)
+		}
+		m.CountryBlock.geoIP = reader
+	}
+
 	for _, file := range m.RuleFiles {
 		if err := m.loadRulesFromFile(file); err != nil {
 			return fmt.Errorf("failed to load rules from %s: %v", file, err)
@@ -340,6 +417,14 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 		return fmt.Sprintf("%v", r.Header), nil
 	case "URL":
 		return r.URL.Path, nil
+	case "USER_AGENT":
+		return r.UserAgent(), nil
+	case "COOKIES":
+		return fmt.Sprintf("%v", r.Cookies()), nil
+	case "PATH":
+		return r.URL.Path, nil
+	case "URI":
+		return r.RequestURI, nil
 	default:
 		return "", fmt.Errorf("unknown target: %s", target)
 	}
