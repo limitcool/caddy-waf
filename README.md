@@ -1,47 +1,44 @@
 # Caddy WAF Middleware
 
-This repository contains a custom Web Application Firewall (WAF) middleware for the Caddy web server. It allows you to define rules to inspect incoming HTTP requests and block or log potentially malicious activity.
+This repository contains a custom Web Application Firewall (WAF) middleware for the Caddy web server. It allows you to define rules to inspect incoming HTTP requests, block or log potentially malicious activity, and enhance your application's security.
 
 ## Features
 
-*   **Rule-Based Filtering:** Define rules using regular expressions to detect various attack patterns (SQL injection, XSS, path traversal, etc.).
-*   **Targeted Inspection:** Rules can target specific parts of the request (URL, query parameters, body, headers).
-*   **IP & DNS Blacklisting:** Block requests from specific IPs or domains.
-*   **Anomaly Scoring:** Implement a simple anomaly scoring system to block requests based on cumulative rule matches.
-*   **Customizable Actions:** Rules can `block` requests or `log` the event.
-*   **Flexible Configuration:** Configure via Caddyfile.
-*   **Logging:** Detailed logging for matched rules and blocked requests.
+- **Rule-Based Filtering:** Use regular expressions to identify and mitigate common threats like SQL injection, XSS, and path traversal.
+- **Targeted Inspection:** Inspect specific parts of requests (URL, query parameters, body, headers).
+- **IP & DNS Blacklisting:** Block requests from specific IPs or domains with ease.
+- **Anomaly Scoring:** Apply a scoring system to block requests based on cumulative rule matches.
+- **Customizable Actions:** Choose to block or log suspicious requests based on matched rules.
+- **Flexible Configuration:** Configure the middleware directly via the Caddyfile.
+- **Comprehensive Logging:** Track matched rules and blocked requests with detailed logs.
 
 ## Getting Started
 
 ### Prerequisites
 
-*   Go (1.20 or higher)
-*   Caddy (v2)
+- Go 1.20 or higher
+- Caddy v2
 
 ### Installation
 
-1.  **Clone the repository:**
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/fabriziosalmi/caddy-waf.git
+   cd caddy-waf
+   ```
 
-    ```bash
-    git clone https://github.com/your-username/caddy-waf.git
-    cd caddy-waf
-    ```
+2. Build the Caddy plugin:
+   ```bash
+   xcaddy build --with github.com/fabriziosalmi/caddy-waf
+   ```
+   This command creates a custom Caddy binary with the WAF middleware integrated.
 
-2.  **Build the Caddy plugin:**
-
-    ```bash
-    xcaddy build --with github.com/your-username/caddy-waf
-    ```
-    *Replace `your-username` with your actual GitHub username.*
-    This will generate a custom caddy binary with your middleware embedded.
-
-3. **Replace the Caddy executable:**
-    Replace the current caddy binary with the new one created by `xcaddy`.
+3. Replace the existing Caddy binary:
+   Replace your current `caddy` executable with the newly created binary.
 
 ### Configuration
 
-Configure the middleware by adding the `waf` directive inside your `route` blocks in your Caddyfile:
+Add the `waf` directive to your `Caddyfile` inside `route` blocks:
 
 ```caddyfile
 {
@@ -52,96 +49,84 @@ localhost {
     route {
         waf {
             rule_file rules.json
-            rule_file custom_rules.json # You can specify multiple rule files
-            log_all  # Enable logging of all matched rules
-            log_file "waf.log"  # Optional custom log file for triggered log rules.
+            rule_file custom_rules.json
+            log_all
+            log_file "waf.log"
             ip_blacklist_file ip_blacklist.txt
             dns_blacklist_file dns_blacklist.txt
-            anomaly_threshold 7 # Optionally change the anomaly threshold, the default is 5
+            anomaly_threshold 7
         }
         respond "Hello, world!"
     }
 }
 ```
 
-*   **`rule_file <path>`**: Specifies the path to a JSON file containing WAF rules. Multiple `rule_file` directives can be used.
-*   **`log_all`**: Enables logging of all matched rules to the standard output.
-*   **`log_file <path>`**: Specifies an optional file path to write the log events triggered by rules with action `log`.
-*   **`ip_blacklist_file <path>`**: Path to a text file containing IP addresses or CIDR subnets to block (one per line).
-*   **`dns_blacklist_file <path>`**: Path to a text file containing domains to block (one per line).
-*   **`anomaly_threshold <number>`**: Sets the anomaly score threshold. If the total score of matched rules is equal or greater than the threshold, the request will be blocked. Default is 5.
+#### Configuration Options
+
+- **`rule_file <path>`:** Path to a JSON file with WAF rules. Supports multiple files.
+- **`log_all`**: Logs all matched rules to the console.
+- **`log_file <path>`:** Specifies a custom log file for rule-triggered events.
+- **`ip_blacklist_file <path>`:** File with blocked IPs or CIDR subnets.
+- **`dns_blacklist_file <path>`:** File with blocked domains.
+- **`anomaly_threshold <number>`:** Total score threshold to block requests. Default: 5.
 
 ### Rule File Format (`rules.json`)
 
-The rule file uses the following JSON format:
-
+Define rules in JSON format:
 ```json
 [
     {
-        "id": "rule_id",
+        "id": "rule_1",
         "phase": 2,
-        "pattern": "(?i)regex_pattern",
-        "targets": ["ARGS", "BODY", "URL", "HEADERS", "USER_AGENT", "CONTENT_TYPE", "X-FORWARDED-FOR", "X-REAL-IP"],
-        "severity": "LOW/MEDIUM/HIGH/CRITICAL",
-        "action": "block/log/alert",
-        "score": 1
+        "pattern": "(?i)select.*from",
+        "targets": ["ARGS", "BODY", "URL"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 3
     },
-   {
-    "id": "rule_id_2",
+    {
+        "id": "rule_2",
         "phase": 2,
-        "pattern": "(?i)regex_pattern_2",
-        "targets": ["ARGS", "BODY"],
-        "severity": "LOW",
+        "pattern": "(?i)<script>",
+        "targets": ["BODY", "HEADERS"],
+        "severity": "CRITICAL",
         "action": "log",
-        "score": 1
+        "score": 5
     }
-    // ... more rules
 ]
 ```
 
-*   **`id`**: A unique identifier for the rule.
-*   **`phase`**:  (Not currently used) Intended for future phases like request/response. Always use `2` for now.
-*   **`pattern`**: The regular expression pattern to match. Use `(?i)` for case-insensitive matching.
-*   **`targets`**: An array of where to look in the request. Possible values are: `ARGS`, `BODY`, `URL`, `HEADERS`, `USER_AGENT`, `CONTENT_TYPE`, `X-FORWARDED-FOR`, `X-REAL-IP`
-*   **`severity`**: The severity of the rule (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
-*   **`action`**: The action to take when the rule matches:
-    *   `block`: Block the request.
-    *   `log`: Log the event to `stdout` and optionally to the `log_file` if configured.
-    *   `alert`: (Not implemented) intended to be used with an external alerting system.
-*   **`score`**: The score added to the anomaly score when the rule matches.
+### Blacklist File Formats
 
-### Blacklist File Format (`ip_blacklist.txt` & `dns_blacklist.txt`)
-
-*   Each line in the `ip_blacklist.txt` file represents an IP address or a CIDR subnet to block.
-*   Each line in the `dns_blacklist.txt` file represents a domain to block.
-* Empty lines are skipped.
+- **`ip_blacklist.txt`:** Contains one IP or CIDR block per line.
+- **`dns_blacklist.txt`:** Contains one domain per line.
 
 ### Example Files
 
-Sample files can be found in the repository. Feel free to add or edit them as needed.
+Sample rule and blacklist files are included in the repository for reference.
 
 ## Testing
 
-To run the tests, use the provided test script:
-
+Run the test suite:
 ```bash
 ./test.sh
 ```
+Test results are saved in `waf_test_results.log`.
 
-This script will send a series of requests to the local Caddy server and check the responses against expected results. Detailed results are stored in the `waf_test_results.log` file.
+## Future Enhancements
 
-## Potential Improvements (TODO)
-
-*   **More Sophisticated Scoring:** Implement more advanced anomaly scoring mechanism based on rule severities and other parameters.
-*   **External Alerting:** Support integration with external alerting systems.
-*   **Request Body Streaming:** Process large request bodies without reading into memory all at once.
-*   **Performance:** Optimize regex matching.
-*   **Target Specificity:** Refactor `HEADERS` target to target specific headers instead.
+- Advanced anomaly scoring based on severity levels.
+- Integration with external alerting systems.
+- Streaming support for large request bodies.
+- Optimized regex matching for performance.
+- Granular targeting for specific request headers.
 
 ## Contributing
 
-Pull requests are welcome. Feel free to contribute by adding new features, fixing bugs, or improving documentation.
+Contributions are welcome! Submit pull requests to add features, fix bugs, or enhance documentation.
 
 ## License
 
-This project is licensed under the [AGPL3 License](LICENSE).
+This project is licensed under the [AGPLv3 License](LICENSE).
+
+Repository: [Caddy WAF](https://github.com/fabriziosalmi/caddy-waf/tree/main)
