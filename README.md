@@ -77,7 +77,99 @@ An advanced **Web Application Firewall (WAF)** middleware for the Caddy server, 
     }
 }
 ```
+### Caddyfile as reverse proxy with WAF setup
 
+```caddyfile
+# Global options
+{
+    # Enable the global error log
+    log {
+        output file /var/log/caddy/errors.log
+        level ERROR
+    }
+    # Automatic HTTPS settings
+    email admin@example.com
+}
+
+# Reverse proxy for example.com
+example.com {
+    # Enable WAF
+    waf {
+        # Rate limiting: 100 requests per 5 seconds
+        rate_limit 100 5s
+
+        # Rules and blacklists
+        rule_file /path/to/rules.json
+        ip_blacklist_file /path/to/ip_blacklist.txt
+        dns_blacklist_file /path/to/dns_blacklist.txt
+
+        # Country blocking (requires MaxMind GeoIP2 database)
+        block_countries /path/to/GeoLite2-Country.mmdb RU CN NK
+
+        # Enable detailed logging
+        log_all
+
+        # Define actions based on severity
+        severity critical block
+        severity high block
+        severity medium log
+        severity low log
+    }
+
+    # Log access to a file
+    log {
+        output file /var/log/caddy/access.log
+        format single_field common_log
+    }
+
+    # Reverse proxy to the origin server
+    reverse_proxy http://origin-server:8080 {
+        # Optional: Add headers to forward to the backend
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+
+# Reverse proxy for sub.example.com
+sub.example.com {
+    # Enable WAF
+    waf {
+        # Rate limiting: 100 requests per 5 seconds
+        rate_limit 100 5s
+
+        # Rules and blacklists
+        rule_file /path/to/rules.json
+        ip_blacklist_file /path/to/ip_blacklist.txt
+        dns_blacklist_file /path/to/dns_blacklist.txt
+
+        # Country blocking (requires MaxMind GeoIP2 database)
+        block_countries /path/to/GeoLite2-Country.mmdb RU CN NK
+
+        # Enable detailed logging
+        log_all
+
+        # Define actions based on severity
+        severity critical block
+        severity high block
+        severity medium log
+        severity low log
+    }
+
+    # Log access to a file
+    log {
+        output file /var/log/caddy/sub_access.log
+    }
+
+    # Reverse proxy to backend server
+    reverse_proxy http://backend-server:8081 {
+        # Optional: Add headers to forward to the backend
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+```
 ---
 
 ### Configuration Options
