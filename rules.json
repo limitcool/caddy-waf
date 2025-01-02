@@ -7,7 +7,6 @@
         "severity": "LOW",
         "action": "pass",
         "score": 0,
-        "mode": "pass",
         "description": "Allow requests to the root path."
     },
     {
@@ -18,74 +17,77 @@
         "severity": "LOW",
         "action": "pass",
         "score": 0,
-        "mode": "pass",
         "description": "Allow requests to common health and status endpoints."
     },
     {
         "id": "scanner-detection",
         "phase": 1,
-        "pattern": "(?i)(?:^(?:sqlmap|acunetix|nikto|nessus|netsparker|nmap|dirbuster|w3af|openvas|burpsuite|webinspect|qualys|commix|zap|arachni|gobuster|hydra|metasploit)(?:/|$))",
+        "pattern": "(?i)(?:sqlmap|acunetix|nikto|nessus|netsparker|nmap|dirbuster|w3af|openvas|burpsuite|webinspect|qualys|commix|zap|arachni|gobuster|hydra|metasploit|zgrab|masscan|wfuzz|crackmapexec)",
         "targets": ["USER_AGENT"],
         "severity": "CRITICAL",
         "action": "block",
         "score": 10,
-        "mode": "block",
         "description": "Block requests from known security scanners based on User-Agent."
     },
     {
         "id": "sql-injection",
         "phase": 2,
-        "pattern": "(?i)(?:select|insert|update|delete|drop|alter)(?:[\\s\\v\\/\\*]+)(?:from|into|where|table)\\b|(?:union(?:[\\s\\v\\/\\*]+)(?:all|distinct|select|null))|(?:[\"'])[\\s\\v]*(?:and|or|not|xor|div|like|between|[><]|>=|<=|!=|<>)[\\s\\v]*(?:\\d+|[\"']\\d+[\"']|(?:(?:select|union).+))",
-        "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
+        "pattern": "(?i)(?:\\b(?:select|insert|update|delete|drop|alter)\\b[\\s\\S]*?\\b(?:from|into|where|table)\\b|\\bunion\\b[\\s\\S]*?\\bselect\\b|'\\s*(?:and|or)\\s*['\\d]+\\s*(?:=|[<>]=?|!=)\\s*['\\d]+|\\)\\s*(?:and|or)\\s*\\([\\d]+\\s*(?:=|[<>]=?|!=)\\s*[\\d]+\\)|\\b(?:sleep|benchmark|waitfor\\s+delay)\\s*\\()",
+        "targets": ["ARGS", "BODY", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
         "score": 5,
-        "mode": "block",
-        "description": "Block SQL injection attempts in request arguments, body, headers, and cookies."
+        "description": "Block SQL injection attempts in request arguments, body, and headers."
     },
     {
         "id": "xss",
         "phase": 2,
-        "pattern": "(?i)(?:<[^>]*(?:script|img|svg|iframe|frame|embed|object|applet)[^>]*>)|(?:on(?:abort|blur|change|click|dblclick|error|focus|keydown|keypress|keyup|load|mouse|move|reset|resize|select|submit|unload)\\s*=)|(?:javascript:)",
-        "targets": ["ARGS", "BODY", "HEADERS", "COOKIES", "URL"],
+        "pattern": "(?i)(?:<script[^>]*>|<img[^>]*\\s+onerror=|javascript:|<svg[^>]*\\s+onload=|alert\\(|document\\.cookie|eval\\(|base64_decode)",
+        "targets": ["ARGS", "BODY", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
         "score": 5,
-        "mode": "block",
         "description": "Block XSS attempts using HTML tags, event handlers, and javascript: protocol."
     },
     {
         "id": "path-traversal",
         "phase": 2,
-        "pattern": "(?:\\.\\.[/\\\\]|\\.\\./|\\.\\.\\\\/|%2e%2e[/\\\\]|%2e%2e/|%2e%2e%5c|%252e%252e)|(?i)(?:/etc/passwd|/etc/shadow|/etc/hosts)",
-        "targets": ["ARGS", "PATH", "URI", "HEADERS"],
+        "pattern": "(?:\\.\\.[/\\\\]|\\.\\./|\\.\\.\\\\/|%2e%2e[/\\\\]|%2e%2e/|%2e%2e%5c|%252e%252e|\\b(?:etc/passwd|etc/shadow|proc/self/environ)\\b)",
+        "targets": ["PATH", "ARGS", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
         "score": 5,
-        "mode": "block",
         "description": "Block path traversal attempts and direct access to sensitive files."
     },
     {
         "id": "rce",
         "phase": 2,
-        "pattern": "(?i)(?:[;|`]\\s*[\\w\\-]+\\s*[=\\s]|[;|`]\\s*[\\w\\-]+=.*?\\$\\(|[;|`]\\s*[\\w\\-]+\\s*\\$\\()|(?:;|\\|\\||&&|`|\\$\\()|(?:base64\\s*-d)",
+        "pattern": "(?i)(?:\\b(?:cat|base64|whoami)\\b[\\s\\S]*?\\b(?:/etc/passwd|/etc/shadow)\\b|`[^`]+`|;\\s*[\\w\\-]+\\s*[=\\s]|;\\s*[\\w\\-]+=.*?\\$\\(|;\\s*[\\w\\-]+\\s*\\$\\()",
         "targets": ["ARGS", "BODY", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
         "score": 5,
-        "mode": "block",
         "description": "Block remote code execution attempts using command separators, backticks, and base64-encoded commands."
     },
     {
         "id": "log4j-exploit",
         "phase": 2,
-        "pattern": "(?i)(?:\\$\\{(?:jndi|java|sys|env|::|lower|upper|logger|ctx|date|threadcontext|marker):.*?\\}|\\$\\{\\$\\{.*?\\}\\})",
-        "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
+        "pattern": "(?i)(?:\\$\\{jndi:(?:ldap|rmi|dns|iiop|corba|nds|nis|http)://[^}]+\\}|\\$\\{(?:env|sys|java|lower|upper|logger|ctx|date|threadcontext|marker):[^}]+\\})",
+        "targets": ["ARGS", "BODY", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
         "score": 5,
-        "mode": "block",
-        "description": "Block Log4j exploit attempts using JNDI, environment variables, and other payloads."
+        "description": "Block Log4j exploit attempts using JNDI and environment variables."
+    },
+    {
+        "id": "header-attacks",
+        "phase": 2,
+        "pattern": "(?i)(?:1'\\s+OR\\s+'1'='1|<script[^>]*>|../../etc/passwd|1'\\s+UNION\\s+SELECT\\s+NULL--)",
+        "targets": ["HEADERS"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 5,
+        "description": "Block SQL injection, XSS, and path traversal attempts in headers."
     },
     {
         "id": "sensitive-files",
@@ -95,84 +97,16 @@
         "severity": "HIGH",
         "action": "block",
         "score": 5,
-        "mode": "block",
         "description": "Block access to sensitive files and directories."
     },
     {
-        "id": "csrf-detection",
-        "phase": 2,
-        "pattern": "(?i)(?:<input[^>]*name=[\"']csrf_token[\"'][^>]*>)",
-        "targets": ["BODY"],
+        "id": "unusual-paths",
+        "phase": 1,
+        "pattern": "(?i)(?:/wp-admin|/phpmyadmin|/admin|/login|/cgi-bin|/shell|/backdoor|/cmd|/exec|/bin/sh|/bin/bash)",
+        "targets": ["PATH"],
         "severity": "MEDIUM",
         "action": "block",
         "score": 3,
-        "mode": "block",
-        "description": "Block requests with missing or invalid CSRF tokens."
-    },
-    {
-        "id": "file-upload-abuse",
-        "phase": 2,
-        "pattern": "(?i)(?:\\.(?:php|exe|sh|bat|jar|war|jsp|asp|aspx|pl|py|rb|cmd|bin))$",
-        "targets": ["ARGS", "BODY"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block",
-        "description": "Block malicious file uploads."
-    },
-    {
-        "id": "open-redirect",
-        "phase": 2,
-        "pattern": "(?i)(?:https?://(?:[^/]+\\.)?(?:example\\.com|evil\\.com|phishing\\.com))",
-        "targets": ["ARGS", "BODY"],
-        "severity": "MEDIUM",
-        "action": "block",
-        "score": 3,
-        "mode": "block",
-        "description": "Block open redirect attempts."
-    },
-    {
-        "id": "xml-external-entity",
-        "phase": 2,
-        "pattern": "(?i)(?:<!ENTITY\\s+[^>]*(?:SYSTEM|PUBLIC)\\s+[^>]*>)",
-        "targets": ["ARGS", "BODY"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block",
-        "description": "Block XML External Entity (XXE) injection attempts."
-    },
-    {
-        "id": "httpoxy",
-        "phase": 1,
-        "pattern": "(?i)(?:Proxy:.*)",
-        "targets": ["HEADERS"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block",
-        "description": "Block HTTPoxy vulnerability exploitation."
-    },
-    {
-        "id": "session-fixation",
-        "phase": 1,
-        "pattern": "(?i)(?:Set-Cookie:.*(?:JSESSIONID|PHPSESSID|sessionid).*)",
-        "targets": ["HEADERS"],
-        "severity": "MEDIUM",
-        "action": "block",
-        "score": 3,
-        "mode": "block",
-        "description": "Block session fixation attempts."
-    },
-    {
-        "id": "insecure-headers",
-        "phase": 1,
-        "pattern": "(?i)(?:Server:.*|X-Powered-By:.*)",
-        "targets": ["HEADERS"],
-        "severity": "LOW",
-        "action": "block",
-        "score": 1,
-        "mode": "block",
-        "description": "Block insecure server headers."
+        "description": "Block requests to unusual or suspicious paths."
     }
 ]
