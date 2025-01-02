@@ -6,7 +6,6 @@ A Web Application Firewall (WAF) middleware for Caddy server with rule-based fil
 - Rule-based request filtering with regex patterns
 - IP and DNS blacklisting
 - Rate limiting per IP address
-- Anomaly scoring system
 - Request inspection (URL, args, body, headers)
 - Protection against common attacks (SQL injection, XSS, RCE, etc.)
 - Detailed logging support
@@ -22,17 +21,29 @@ xcaddy build --with github.com/fabriziosalmi/caddy-waf
 Basic Caddyfile setup:
 
 ```caddyfile
-localhost {
+{
+    auto_https off
+    admin off
+    debug   # Enable debug mode for better logging
+}
+
+:8080 {
+    log {
+        output stdout
+        format console
+        level DEBUG
+    }
+
     route {
         waf {
+            rate_limit 100 5s  
             rule_file rules.json
-            ip_blacklist_file blacklist.txt
-            dns_blacklist_file domains.txt
-            rate_limit 100 1m  # 100 requests per minute
             log_all
-            anomaly_threshold 5
+            ip_blacklist_file ip_blacklist.txt
+            dns_blacklist_file dns_blacklist.txt
         }
-        respond "Hello, world!"
+
+        respond "Hello, world!" 200
     }
 }
 ```
