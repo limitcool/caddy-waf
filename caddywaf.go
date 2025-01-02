@@ -65,15 +65,23 @@ type GeoIPRecord struct {
 }
 
 type Rule struct {
-	ID       string   `json:"id"`
-	Phase    int      `json:"phase"`
-	Pattern  string   `json:"pattern"`
-	Targets  []string `json:"targets"`
-	Severity string   `json:"severity"`
-	Action   string   `json:"action"`
-	Score    int      `json:"score"`
-	Mode     string   `json:"mode"`
-	regex    *regexp.Regexp
+	ID          string   `json:"id"`
+	Phase       int      `json:"phase"`
+	Pattern     string   `json:"pattern"`
+	Targets     []string `json:"targets"`
+	Severity    string   `json:"severity"`
+	Action      string   `json:"action"`
+	Score       int      `json:"score"`
+	Mode        string   `json:"mode"`
+	Description string   `json:"description"`
+	regex       *regexp.Regexp
+}
+
+type SeverityConfig struct {
+	Critical string `json:"critical,omitempty"`
+	High     string `json:"high,omitempty"`
+	Medium   string `json:"medium,omitempty"`
+	Low      string `json:"low,omitempty"`
 }
 
 type Middleware struct {
@@ -84,6 +92,7 @@ type Middleware struct {
 	AnomalyThreshold int             `json:"anomaly_threshold"`
 	RateLimit        RateLimit       `json:"rate_limit"`
 	CountryBlock     CountryBlocking `json:"country_block"`
+	Severity         SeverityConfig  `json:"severity,omitempty"`
 	Rules            []Rule          `json:"-"`
 	logger           *zap.Logger
 	ipBlacklist      map[string]bool `json:"-"`
@@ -161,6 +170,27 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return d.ArgErr()
 				}
 				m.DNSBlacklistFile = d.Val()
+			case "severity":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				severityLevel := strings.ToLower(d.Val())
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				action := strings.ToLower(d.Val())
+				switch severityLevel {
+				case "critical":
+					m.Severity.Critical = action
+				case "high":
+					m.Severity.High = action
+				case "medium":
+					m.Severity.Medium = action
+				case "low":
+					m.Severity.Low = action
+				default:
+					return d.Errf("invalid severity level: %s", severityLevel)
+				}
 			default:
 				fmt.Println("WAF Unrecognized SubDirective: ", d.Val())
 				return d.Errf("unrecognized subdirective: %s", d.Val())
@@ -225,7 +255,7 @@ func (m *Middleware) isCountryBlocked(remoteAddr string) bool {
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	statusCode := http.StatusOK
 
-	// Check country blocking first
+	// Phase 1: Early blocking (e.g., country blocking, rate limiting, IP/DNS blacklisting)
 	if m.isCountryBlocked(r.RemoteAddr) {
 		m.logger.Info("Request blocked by country",
 			zap.String("ip", r.RemoteAddr),
@@ -267,23 +297,28 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		return nil
 	}
 
+	// Phase 2: Rule-based processing
 	totalScore := 0
 	for _, rule := range m.Rules {
+		if rule.Phase != 2 {
+			continue // Skip rules not in phase 2
+		}
 		for _, target := range rule.Targets {
 			value, _ := m.extractValue(target, r)
 			if rule.regex.MatchString(value) {
 				totalScore += rule.Score
-				mode := rule.Mode
-				if mode == "" {
-					mode = rule.Action
+				action := rule.Action
+				if action == "" {
+					action = m.getSeverityAction(rule.Severity)
 				}
-				switch mode {
+				switch action {
 				case "block":
 					statusCode = http.StatusForbidden
 					m.logger.Info("Rule Matched",
 						zap.String("rule_id", rule.ID),
 						zap.String("target", target),
 						zap.String("value", value),
+						zap.String("description", rule.Description),
 						zap.Int("status_code", statusCode),
 					)
 					w.WriteHeader(statusCode)
@@ -293,6 +328,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 						zap.String("rule_id", rule.ID),
 						zap.String("target", target),
 						zap.String("value", value),
+						zap.String("description", rule.Description),
 						zap.Int("status_code", statusCode),
 					)
 				}
@@ -300,6 +336,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		}
 	}
 
+	// Phase 3: Anomaly detection
 	if totalScore >= m.AnomalyThreshold {
 		statusCode = http.StatusForbidden
 		m.logger.Info("Request blocked by Anomaly Threshold",
@@ -310,6 +347,21 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	}
 
 	return next.ServeHTTP(w, r)
+}
+
+func (m *Middleware) getSeverityAction(severity string) string {
+	switch strings.ToLower(severity) {
+	case "critical":
+		return m.Severity.Critical
+	case "high":
+		return m.Severity.High
+	case "medium":
+		return m.Severity.Medium
+	case "low":
+		return m.Severity.Low
+	default:
+		return "log" // Default action if severity is not defined
+	}
 }
 
 func (m *Middleware) Provision(ctx caddy.Context) error {
