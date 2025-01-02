@@ -49,7 +49,6 @@ localhost {
     route {
         waf {
             rule_file rules.json
-            rule_file custom_rules.json
             log_all
             log_file "waf.log"
             ip_blacklist_file ip_blacklist.txt
