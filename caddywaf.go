@@ -20,6 +20,7 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/oschwald/maxminddb-golang"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func init() {
@@ -253,55 +254,67 @@ func (m *Middleware) isCountryBlocked(remoteAddr string) bool {
 }
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	statusCode := http.StatusOK
+	if m.handlePhase1(w, r) {
+		return nil
+	}
 
-	// Phase 1: Early blocking (e.g., country blocking, rate limiting, IP/DNS blacklisting)
+	totalScore := m.handlePhase2(w, r)
+	if totalScore >= m.AnomalyThreshold {
+		m.handlePhase3(w, r)
+		return nil
+	}
+
+	return next.ServeHTTP(w, r)
+}
+
+func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 	if m.isCountryBlocked(r.RemoteAddr) {
-		m.logger.Info("Request blocked by country",
+		m.logRequest(zapcore.InfoLevel, "Request blocked by country",
 			zap.String("ip", r.RemoteAddr),
 			zap.Int("status_code", http.StatusForbidden),
 		)
 		w.WriteHeader(http.StatusForbidden)
-		return nil
+		return true
 	}
 
 	if m.rateLimiter != nil {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err == nil && m.rateLimiter.isRateLimited(ip) {
-			m.logger.Info("Request blocked by rate limit",
+			m.logRequest(zapcore.InfoLevel, "Request blocked by rate limit",
 				zap.String("ip", ip),
 				zap.Int("status_code", http.StatusTooManyRequests),
 			)
 			w.WriteHeader(http.StatusTooManyRequests)
-			return nil
+			return true
 		}
 	}
 
 	if m.isIPBlacklisted(r.RemoteAddr) {
-		statusCode = http.StatusForbidden
-		m.logger.Info("Request blocked by IP blacklist",
+		m.logRequest(zapcore.InfoLevel, "Request blocked by IP blacklist",
 			zap.String("ip", r.RemoteAddr),
-			zap.Int("status_code", statusCode),
+			zap.Int("status_code", http.StatusForbidden),
 		)
-		w.WriteHeader(statusCode)
-		return nil
+		w.WriteHeader(http.StatusForbidden)
+		return true
 	}
 
 	if m.isDNSBlacklisted(r.Host) {
-		statusCode = http.StatusForbidden
-		m.logger.Info("Request blocked by DNS blacklist",
+		m.logRequest(zapcore.InfoLevel, "Request blocked by DNS blacklist",
 			zap.String("domain", r.Host),
-			zap.Int("status_code", statusCode),
+			zap.Int("status_code", http.StatusForbidden),
 		)
-		w.WriteHeader(statusCode)
-		return nil
+		w.WriteHeader(http.StatusForbidden)
+		return true
 	}
 
-	// Phase 2: Rule-based processing
+	return false
+}
+
+func (m *Middleware) handlePhase2(w http.ResponseWriter, r *http.Request) int {
 	totalScore := 0
 	for _, rule := range m.Rules {
 		if rule.Phase != 2 {
-			continue // Skip rules not in phase 2
+			continue
 		}
 		for _, target := range rule.Targets {
 			value, _ := m.extractValue(target, r)
@@ -313,40 +326,50 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 				}
 				switch action {
 				case "block":
-					statusCode = http.StatusForbidden
-					m.logger.Info("Rule Matched",
+					m.logRequest(zapcore.InfoLevel, "Rule Matched",
 						zap.String("rule_id", rule.ID),
 						zap.String("target", target),
 						zap.String("value", value),
 						zap.String("description", rule.Description),
-						zap.Int("status_code", statusCode),
+						zap.Int("status_code", http.StatusForbidden),
 					)
-					w.WriteHeader(statusCode)
-					return nil
+					w.WriteHeader(http.StatusForbidden)
+					return totalScore
 				case "log":
-					m.logger.Info("Rule Matched",
+					m.logRequest(zapcore.InfoLevel, "Rule Matched",
 						zap.String("rule_id", rule.ID),
 						zap.String("target", target),
 						zap.String("value", value),
 						zap.String("description", rule.Description),
-						zap.Int("status_code", statusCode),
+						zap.Int("status_code", http.StatusOK),
 					)
 				}
 			}
 		}
 	}
+	return totalScore
+}
 
-	// Phase 3: Anomaly detection
-	if totalScore >= m.AnomalyThreshold {
-		statusCode = http.StatusForbidden
-		m.logger.Info("Request blocked by Anomaly Threshold",
-			zap.Int("status_code", statusCode),
-		)
-		w.WriteHeader(statusCode)
-		return nil
+func (m *Middleware) handlePhase3(w http.ResponseWriter, r *http.Request) {
+	m.logRequest(zapcore.InfoLevel, "Request blocked by Anomaly Threshold",
+		zap.Int("status_code", http.StatusForbidden),
+	)
+	w.WriteHeader(http.StatusForbidden)
+}
+
+func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.Field) {
+	switch level {
+	case zapcore.DebugLevel:
+		m.logger.Debug(msg, fields...)
+	case zapcore.InfoLevel:
+		m.logger.Info(msg, fields...)
+	case zapcore.WarnLevel:
+		m.logger.Warn(msg, fields...)
+	case zapcore.ErrorLevel:
+		m.logger.Error(msg, fields...)
+	default:
+		m.logger.Info(msg, fields...)
 	}
-
-	return next.ServeHTTP(w, r)
 }
 
 func (m *Middleware) getSeverityAction(severity string) string {
@@ -360,7 +383,7 @@ func (m *Middleware) getSeverityAction(severity string) string {
 	case "low":
 		return m.Severity.Low
 	default:
-		return "log" // Default action if severity is not defined
+		return "log"
 	}
 }
 
@@ -374,7 +397,6 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		}
 	}
 
-	// Initialize GeoIP if enabled
 	if m.CountryBlock.Enabled {
 		reader, err := maxminddb.Open(m.CountryBlock.GeoIPDBPath)
 		if err != nil {
@@ -388,9 +410,11 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			return fmt.Errorf("failed to load rules from %s: %v", file, err)
 		}
 	}
+
 	if m.AnomalyThreshold == 0 {
 		m.AnomalyThreshold = 5
 	}
+
 	if m.IPBlacklistFile != "" {
 		if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
 			return fmt.Errorf("failed to load IP blacklist from %s: %v", m.IPBlacklistFile, err)
@@ -398,6 +422,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	} else {
 		m.ipBlacklist = make(map[string]bool)
 	}
+
 	if m.DNSBlacklistFile != "" {
 		if err := m.loadDNSBlacklistFromFile(m.DNSBlacklistFile); err != nil {
 			return fmt.Errorf("failed to load DNS blacklist from %s: %v", m.DNSBlacklistFile, err)
@@ -405,6 +430,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	} else {
 		m.dnsBlacklist = []string{}
 	}
+
 	return nil
 }
 
@@ -526,5 +552,28 @@ func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
 		return err
 	}
 	m.dnsBlacklist = strings.Split(string(content), "\n")
+	return nil
+}
+
+func (m *Middleware) ReloadConfig() error {
+	if err := m.loadRulesFromFiles(); err != nil {
+		return err
+	}
+	if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
+		return err
+	}
+	if err := m.loadDNSBlacklistFromFile(m.DNSBlacklistFile); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Middleware) loadRulesFromFiles() error {
+	m.Rules = []Rule{}
+	for _, file := range m.RuleFiles {
+		if err := m.loadRulesFromFile(file); err != nil {
+			return err
+		}
+	}
 	return nil
 }
