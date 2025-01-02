@@ -1,0 +1,17 @@
+{
+	admin off
+}
+
+:80 {
+    log {
+        output stdout
+        level DEBUG
+    }
+    route {
+        waf {
+            rule_file rules.json
+            log_all
+        }
+        respond "Hello, World!"
+    }
+}
