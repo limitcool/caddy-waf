@@ -1,8 +1,68 @@
 [
     {
+        "id": "whitelist-001",
+        "phase": 1,
+        "pattern": "^/$",
+        "targets": ["PATH"],
+        "severity": "LOW",
+        "action": "pass",
+        "score": 0,
+        "mode": "pass"
+    },
+    {
+        "id": "whitelist-002",
+        "phase": 1,
+        "pattern": "^/(?:about|health|status|ping)$",
+        "targets": ["PATH"],
+        "severity": "LOW",
+        "action": "pass",
+        "score": 0,
+        "mode": "pass"
+    },
+    {
+        "id": "scanner-001",
+        "phase": 1,
+        "pattern": "(?i)(?:^(?:sqlmap|acunetix|nikto|nessus|netsparker|nmap|dirbuster|w3af|openvas|burpsuite|webinspect|qualys|commix)(?:/|$))",
+        "targets": ["USER_AGENT"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 5,
+        "mode": "block"
+    },
+    {
+        "id": "scanner-002",
+        "phase": 1,
+        "pattern": "(?i)(?:^(?:zgrab|masscan|gobuster|wfuzz|hydra|metasploit|crackmapexec|zap|arachni)(?:/|$))",
+        "targets": ["USER_AGENT"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 5,
+        "mode": "block"
+    },
+    {
+        "id": "header-sql-001",
+        "phase": 1,
+        "pattern": "(?i)(?:[\"']\\s*(?:and|or|union|select|delete|update|insert|drop|alter)\\s+)",
+        "targets": ["HEADERS"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 5,
+        "mode": "block"
+    },
+    {
+        "id": "header-sql-002",
+        "phase": 1,
+        "pattern": "(?i)(?:(?:=|<|>|<=|>=|<>|!=)\\s*[\\d\"']|\\b(?:and|or)\\b\\s*[\\w-]+\\s*(?:=|<|>|<=|>=|<>|!=))",
+        "targets": ["HEADERS"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 5,
+        "mode": "block"
+    },
+    {
         "id": "sql-001",
         "phase": 1,
-        "pattern": "(?i)\\b(select|insert|update|delete|drop|alter)\\b.*?\\b(from|into|where|table)\\b",
+        "pattern": "(?i)(?:select|insert|update|delete|drop|alter)(?:[\\s\\v\\/\\*]+)(?:from|into|where|table)\\b",
         "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
         "severity": "HIGH",
         "action": "block",
@@ -12,7 +72,7 @@
     {
         "id": "sql-002",
         "phase": 1,
-        "pattern": "(?i)\\b(union)\\b.*?\\b(select|all|distinct)\\b",
+        "pattern": "(?i)(?:union(?:[\\s\\v\\/\\*]+)(?:all|distinct|select|null))",
         "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
         "severity": "HIGH",
         "action": "block",
@@ -22,28 +82,8 @@
     {
         "id": "sql-003",
         "phase": 1,
-        "pattern": "['\\\"][\\s\\v]*?(?:or|and|like|between|\\&\\&|\\|\\|)[\\s\\v]*?[\\w'\\\"]+=*?[\\w'\\\"]",
+        "pattern": "(?:[\"'])[\\s\\v]*(?:and|or|not|xor|div|like|between|[><]|>=|<=|!=|<>)[\\s\\v]*(?:\\d+|[\"']\\d+[\"']|(?:(?:select|union).+))",
         "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block"
-    },
-    {
-        "id": "sql-004",
-        "phase": 1,
-        "pattern": "(?i)\\((select|delete|update|insert|drop|union)\\b",
-        "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block"
-    },
-    {
-        "id": "sql-005",
-        "phase": 1,
-        "pattern": "(?i)(sleep|benchmark|pg_sleep|wait\\s+for\\s+delay)\\s*\\([^)]*\\)",
-        "targets": ["ARGS", "BODY", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
         "score": 5,
@@ -52,7 +92,7 @@
     {
         "id": "xss-001",
         "phase": 1,
-        "pattern": "(?i)<[^>]*script[^>]*>.*?</[^>]*script[^>]*>",
+        "pattern": "(?i)(?:<[^>]*(?:script|img|svg|iframe|frame|embed|object|applet)[^>]*>)",
         "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
         "severity": "HIGH",
         "action": "block",
@@ -62,27 +102,7 @@
     {
         "id": "xss-002",
         "phase": 1,
-        "pattern": "(?i)\\b(on\\w+)\\s*=",
-        "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block"
-    },
-    {
-        "id": "xss-003",
-        "phase": 1,
-        "pattern": "(?i)(javascript|vbscript|expression|data)\\s*:",
-        "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block"
-    },
-    {
-        "id": "xss-004",
-        "phase": 1,
-        "pattern": "(?i)<[^>]*\\b(onload|onerror|onmouseover|onmouseout|onmousemove|onclick|ondblclick|onkeydown|onkeypress|onkeyup|onblur|onfocus|onsubmit|onreset|onselect|onchange|ondrag|ondrop)\\b",
+        "pattern": "(?i)(?:on(?:abort|blur|change|click|dblclick|error|focus|keydown|keypress|keyup|load|mouse|move|reset|resize|select|submit|unload)\\s*=)",
         "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
         "severity": "HIGH",
         "action": "block",
@@ -92,17 +112,7 @@
     {
         "id": "path-001",
         "phase": 1,
-        "pattern": "\\.\\.(\\\\|\\/|\\.|\\.\\\\|\\.\\/)([\\.\\/\\\\])*",
-        "targets": ["ARGS", "PATH", "URI", "HEADERS"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block"
-    },
-    {
-        "id": "path-002",
-        "phase": 1,
-        "pattern": "(?:%2e|%2E){2,}(?:%2f|%2F|%5c|%5C)",
+        "pattern": "(?:\\.\\.[/\\\\]|\\.\\./|\\.\\.\\\\/|%2e%2e[/\\\\]|%2e%2e/|%2e%2e%5c|%252e%252e)",
         "targets": ["ARGS", "PATH", "URI", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
@@ -112,17 +122,7 @@
     {
         "id": "rce-001",
         "phase": 1,
-        "pattern": "(?i)\\b(?:system|exec|shell_exec|passthru|eval|assert|popen|proc_open|pcntl_exec|expect_popen)\\s*\\(",
-        "targets": ["ARGS", "BODY", "HEADERS"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block"
-    },
-    {
-        "id": "rce-002",
-        "phase": 1,
-        "pattern": "`[^`]*`|\\$\\([^)]*\\)|\\$\\{[^}]*\\}",
+        "pattern": "(?i)(?:[;|`]\\s*[\\w\\-]+\\s*[=\\s]|[;|`]\\s*[\\w\\-]+=.*?\\$\\(|[;|`]\\s*[\\w\\-]+\\s*\\$\\()",
         "targets": ["ARGS", "BODY", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
@@ -132,7 +132,7 @@
     {
         "id": "log4j-001",
         "phase": 1,
-        "pattern": "\\$\\{(?:jndi|java|sys|env|::|lower|upper):.*?\\}",
+        "pattern": "(?i)(?:\\$\\{(?:jndi|java|sys|env|::|lower|upper|logger|ctx|date|threadcontext|marker):.*?\\}|\\$\\{\\$\\{.*?\\}\\})",
         "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
         "severity": "HIGH",
         "action": "block",
@@ -142,28 +142,8 @@
     {
         "id": "protocol-001",
         "phase": 1,
-        "pattern": "(?:/|\\\\)?\\.(?:git|env|htaccess|htpasswd|config|cfg|ini|bak)\\b",
+        "pattern": "(?i)(?:/\\.git/(?:HEAD|index|config|refs)|/\\.env(?:\\.local|\\.dev|\\.prod)?$|/\\.htaccess$|/\\.htpasswd$|/\\.svn/|/\\.DS_Store$)",
         "targets": ["PATH", "URI"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block"
-    },
-    {
-        "id": "scanner-001",
-        "phase": 1,
-        "pattern": "(?i)(sqlmap|nikto|nessus|netsparker|nmap|dirbuster|w3af|acunetix|appscan|webinspect|burp|qualys)",
-        "targets": ["USER_AGENT", "HEADERS"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "mode": "block"
-    },
-    {
-        "id": "header-001",
-        "phase": 1,
-        "pattern": "(?i)x-(?:attack|scan|debug|forward|original|rewrite)-",
-        "targets": ["HEADERS"],
         "severity": "HIGH",
         "action": "block",
         "score": 5,
