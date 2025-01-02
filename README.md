@@ -74,8 +74,12 @@ Basic Caddyfile setup with all features:
 | `rate_limit` | Rate limiting config | `rate_limit 100 1m` |
 | `block_countries` | Country blocking config | `block_countries GeoLite2-Country.mmdb RU CN NK` |
 | `log_all` | Enable detailed logging | `log_all` |
-| `anomaly_threshold` | Score threshold for blocking | `anomaly_threshold 5` |
 
+
+> [!WARNING]
+> This is **NOT** curently supported (working on that).
+> - `anomaly_threshold` (Score threshold for blocking)
+  
 ### Rules Format (rules.json)
 
 ```json
