@@ -13,6 +13,7 @@
 
     route {
         waf {
+            block_countries GeoLite2-Country.mmdb RU CN NK
             rate_limit 1000 1m  
             rule_file rules.json
             log_all
