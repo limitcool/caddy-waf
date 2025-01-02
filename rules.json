@@ -1,0 +1,4666 @@
+[
+  {
+    "id": "901001",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901100",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901110",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901111",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901115",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901120",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901125",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901130",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901140",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901141",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901142",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901143",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901160",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901162",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "CONTENT_TYPE"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901168",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "CONTENT_TYPE"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901163",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901164",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901165",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901171",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901167",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "BODY",
+      "URL"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901169",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901170",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901320",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901340",
+    "phase": 2,
+    "pattern": "!@rx (?:URLENCODED|MULTIPART|XML|JSON)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901350",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [
+      "BODY",
+      "URL"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901400",
+    "phase": 2,
+    "pattern": "@eq 100",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901410",
+    "phase": 2,
+    "pattern": "@rx ^[a-f]*([0-9])[a-f]*([0-9])",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901450",
+    "phase": 2,
+    "pattern": "!@lt %{tx.sampling_percentage}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "901500",
+    "phase": 2,
+    "pattern": "@lt %{tx.blocking_paranoia_level}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "905100",
+    "phase": 2,
+    "pattern": "@streq GET /",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "905110",
+    "phase": 2,
+    "pattern": "@ipMatch 127.0.0.1,::1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "911011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "911012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "911100",
+    "phase": 2,
+    "pattern": "!@within %{tx.allowed_methods}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "911013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "911014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "911015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "911016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "911017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "911018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "913011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "913012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "913100",
+    "phase": 2,
+    "pattern": "@pmFromFile scanners-user-agents.data",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "913013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "913014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "913015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "913016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "913017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "913018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920160",
+    "phase": 2,
+    "pattern": "!@rx ^\\d+$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920170",
+    "phase": 2,
+    "pattern": "@rx ^(?:GET|HEAD)$",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920171",
+    "phase": 2,
+    "pattern": "@rx ^(?:GET|HEAD)$",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920180",
+    "phase": 2,
+    "pattern": "!@within HTTP/2 HTTP/2.0 HTTP/3 HTTP/3.0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920181",
+    "phase": 2,
+    "pattern": "!@eq 0",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920190",
+    "phase": 2,
+    "pattern": "@rx (\\d+)-(\\d+)",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920210",
+    "phase": 2,
+    "pattern": "@rx \\b(?:keep-alive|close),\\s?(?:keep-alive|close)\\b",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920250",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920270",
+    "phase": 2,
+    "pattern": "@validateByteRange 1-255",
+    "targets": [
+      "ARGS",
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920280",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920290",
+    "phase": 2,
+    "pattern": "@rx ^$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920310",
+    "phase": 2,
+    "pattern": "@rx ^$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920311",
+    "phase": 2,
+    "pattern": "@rx ^$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920330",
+    "phase": 2,
+    "pattern": "@rx ^$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920340",
+    "phase": 2,
+    "pattern": "!@rx ^0$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920350",
+    "phase": 2,
+    "pattern": "@rx (?:^([\\d.]+|\\[[\\da-f:]+\\]|[\\da-f:]+)(:[\\d]+)?$)",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920380",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920360",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920370",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920390",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920400",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920410",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920420",
+    "phase": 2,
+    "pattern": "@rx ^[^;\\s]+",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920530",
+    "phase": 2,
+    "pattern": "@rx charset.*?charset",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920430",
+    "phase": 2,
+    "pattern": "!@within %{tx.allowed_http_versions}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920440",
+    "phase": 2,
+    "pattern": "@rx \\.([^.]+)$",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920500",
+    "phase": 2,
+    "pattern": "@rx \\.[^.~]+~(?:/.*|)$",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920450",
+    "phase": 2,
+    "pattern": "@rx ^.*$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920520",
+    "phase": 2,
+    "pattern": "@gt 100",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920540",
+    "phase": 2,
+    "pattern": "!@streq JSON",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920610",
+    "phase": 2,
+    "pattern": "@contains #",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920620",
+    "phase": 2,
+    "pattern": "@gt 1",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920200",
+    "phase": 2,
+    "pattern": "@rx ^bytes=(?:(?:\\d+)?-(?:\\d+)?\\s*,?\\s*){6}",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920201",
+    "phase": 2,
+    "pattern": "@endsWith .pdf",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920230",
+    "phase": 2,
+    "pattern": "@rx %[0-9a-fA-F]{2}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920271",
+    "phase": 2,
+    "pattern": "@validateByteRange 9,10,13,32-126,128-255",
+    "targets": [
+      "ARGS",
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920320",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920341",
+    "phase": 2,
+    "pattern": "!@rx ^0$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920451",
+    "phase": 2,
+    "pattern": "@rx ^.*$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920272",
+    "phase": 2,
+    "pattern": "@validateByteRange 32-36,38-126",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920300",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920490",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920510",
+    "phase": 2,
+    "pattern": "@gt 0",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920521",
+    "phase": 2,
+    "pattern": "!@rx br|compress|deflate|(?:pack200-)?gzip|identity|\\*|^$|aes128gcm|exi|zstd|x-(?:compress|gzip)",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920202",
+    "phase": 2,
+    "pattern": "@endsWith .pdf",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920273",
+    "phase": 2,
+    "pattern": "@validateByteRange 38,44-46,48-58,61,65-90,95,97-122",
+    "targets": [
+      "ARGS",
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920274",
+    "phase": 2,
+    "pattern": "@validateByteRange 32,34,38,42-59,61,65-90,95,97-122",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920275",
+    "phase": 2,
+    "pattern": "!@rx ^(?:\\?[01])?$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "920460",
+    "phase": 2,
+    "pattern": "@rx (?:^|[^\\x5c])\\x5c[cdeghijklmpqwxyz123456789]",
+    "targets": [
+      "ARGS",
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921110",
+    "phase": 2,
+    "pattern": "@rx (?:get|post|head|options|connect|put|delete|trace|track|patch|propfind|propatch|mkcol|copy|move|lock|unlock)\\s+[^\\s]+\\s+http/\\d",
+    "targets": [
+      "ARGS",
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921120",
+    "phase": 2,
+    "pattern": "@rx [\\r\\n]\\W*?(?:content-(?:type|length)|set-cookie|location):\\s*\\w",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921130",
+    "phase": 2,
+    "pattern": "@rx (?:\\bhttp/\\d|<(?:html|meta)\\b)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921140",
+    "phase": 2,
+    "pattern": "@rx [\\n\\r]",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921150",
+    "phase": 2,
+    "pattern": "@rx [\\n\\r]",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921160",
+    "phase": 2,
+    "pattern": "@rx [\\n\\r]+(?:\\s|location|refresh|(?:set-)?cookie|(?:x-)?(?:forwarded-(?:for|host|server)|host|via|remote-ip|remote-addr|originating-IP))\\s*:",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921190",
+    "phase": 2,
+    "pattern": "@rx [\\n\\r]",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921200",
+    "phase": 2,
+    "pattern": "@rx ^[^:\\(\\)\\&\\|\\!\\<\\>\\~]*\\)\\s*(?:\\((?:[^,\\(\\)\\=\\&\\|\\!\\<\\>\\~]+[><~]?=|\\s*[&!|]\\s*(?:\\)|\\()?\\s*)|\\)\\s*\\(\\s*[\\&\\|\\!]\\s*|[&!|]\\s*\\([^\\(\\)\\=\\&\\|\\!\\<\\>\\~]+[><~]?=[^:\\(\\)\\&\\|\\!\\<\\>\\~]*)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921421",
+    "phase": 2,
+    "pattern": "@rx ^[^\\s\\x0b,;]+[\\s\\x0b,;].*?(?:application/(?:.+\\+)?json|(?:application/(?:soap\\+)?|text/)xml)",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921240",
+    "phase": 2,
+    "pattern": "@rx unix:[^|]*\\|",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921151",
+    "phase": 2,
+    "pattern": "@rx [\\n\\r]",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921422",
+    "phase": 2,
+    "pattern": "@rx ^[^\\s\\x0b,;]+[\\s\\x0b,;].*?\\b(?:((?:tex|multipar)t|application)|((?:audi|vide)o|image|cs[sv]|(?:vn|relate)d|p(?:df|lain)|json|(?:soa|cs)p|x(?:ml|-www-form-urlencoded)|form-data|x-amf|(?:octe|repor)t|stream)|([\\+/]))\\b",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921230",
+    "phase": 2,
+    "pattern": "@gt 0",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921170",
+    "phase": 2,
+    "pattern": "@rx .",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921180",
+    "phase": 2,
+    "pattern": "@gt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921210",
+    "phase": 2,
+    "pattern": "@rx (][^\\]]+$|][^\\]]+\\[)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "921220",
+    "phase": 2,
+    "pattern": "@rx \\[",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "922100",
+    "phase": 2,
+    "pattern": "!@eq 0",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "922110",
+    "phase": 2,
+    "pattern": "@rx ^content-type\\s*:\\s*(.*)$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "922120",
+    "phase": 2,
+    "pattern": "@rx content-transfer-encoding:(.*)",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "922130",
+    "phase": 2,
+    "pattern": "@rx [^\\x21-\\x7E][\\x21-\\x39\\x3B-\\x7E]*:",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930110",
+    "phase": 2,
+    "pattern": "@rx (?:(?:^|[\\x5c/;])\\.{2,3}[\\x5c/;]|[\\x5c/;]\\.{2,3}(?:[\\x5c/;]|$))",
+    "targets": [
+      "ARGS",
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930120",
+    "phase": 2,
+    "pattern": "@pmFromFile lfi-os-files.data",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930130",
+    "phase": 2,
+    "pattern": "@pmFromFile restricted-files.data",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930121",
+    "phase": 2,
+    "pattern": "@pmFromFile lfi-os-files.data",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "930018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "931011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "931012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "931100",
+    "phase": 2,
+    "pattern": "@rx ^(?i:file|ftps?|https?)://(?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "931120",
+    "phase": 2,
+    "pattern": "@rx ^(?i:file|ftps?|https?).*?\\?+$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "931013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "931014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "931015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "931016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "931017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "931018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932120",
+    "phase": 2,
+    "pattern": "@pmFromFile windows-powershell-commands.data",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932130",
+    "phase": 2,
+    "pattern": "@rx \\$(?:\\((?:.*|\\(.*\\))\\)|\\{.*\\}|\\[.*\\])|[<>]\\(.*\\)|/[0-9A-Z_a-z]*\\[!?.+\\]",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932140",
+    "phase": 2,
+    "pattern": "@rx \\b(?:for(?:/[dflr].*)? %+[^ ]+ in\\(.*\\)[\\s\\x0b]?do|if(?:/i)?(?: not)?(?: (?:e(?:xist|rrorlevel)|defined|cmdextversion)\\b|[ \\(].*(?:\\b(?:g(?:eq|tr)|equ|neq|l(?:eq|ss))\\b|==)))",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932270",
+    "phase": 2,
+    "pattern": "@rx ~(?:[\\+\\-](?:$|[\\s\\x0b0-9]+)|[0-9]+)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932330",
+    "phase": 2,
+    "pattern": "@rx !-\\d",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932160",
+    "phase": 2,
+    "pattern": "@pmFromFile unix-shell.data",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932170",
+    "phase": 2,
+    "pattern": "@rx ^\\(\\s*\\)\\s+{",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932171",
+    "phase": 2,
+    "pattern": "@rx ^\\(\\s*\\)\\s+{",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932180",
+    "phase": 2,
+    "pattern": "@pmFromFile restricted-upload.data",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932131",
+    "phase": 2,
+    "pattern": "@rx \\$(?:\\((?:.*|\\(.*\\))\\)|\\{.*\\}|\\[.*\\])|[<>]\\(.*\\)|/[0-9A-Z_a-z]*\\[!?.+\\]",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932200",
+    "phase": 2,
+    "pattern": "@rx ['\\*\\?\\x5c`][^\\n/]+/|/[^/]+?['\\*\\?\\x5c`]|\\$[!#\\$\\(\\*\\-0-9\\?-\\[_a-\\{]",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932205",
+    "phase": 2,
+    "pattern": "@rx ^[^#]+",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932206",
+    "phase": 2,
+    "pattern": "@rx ^[^\\.]*?(?:['\\*\\?\\x5c`][^\\n/]+/|/[^/]+?['\\*\\?\\x5c`]|\\$[!#\\$\\(\\*\\-0-9\\?-\\[_a-\\{])",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932300",
+    "phase": 2,
+    "pattern": "@rx \\r\\n.*?\\b(?:E(?:HLO [\\-\\.A-Za-z\\x17f\\x212a]{1,255}|XPN .{1,64})|HELO [\\-\\.A-Za-z\\x17f\\x212a]{1,255}|MAIL FROM:<.{1,64}@.{1,255}>|R(?:CPT TO:(?:<.{1,64}@.{1,255}>| )?<.{1,64}>|SET\\b)|VRFY .{1,64}(?: <.{1,64}@.{1,255}>|@.{1,255})|AUTH [\\-0-9A-Z_a-z\\x17f\\x212a]{1,20} (?:(?:[\\+/-9A-Z_a-z\\x17f\\x212a]{4})*(?:[\\+/-9A-Z_a-z\\x17f\\x212a]{2}=|[\\+/-9A-Z_a-z\\x17f\\x212a]{3}))?=|STARTTLS\\b|NOOP\\b(?: .{1,255})?)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932161",
+    "phase": 2,
+    "pattern": "@pmFromFile unix-shell.data",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932190",
+    "phase": 2,
+    "pattern": "@rx /(?:[?*]+[a-z/]+|[a-z/]+[?*]+)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932301",
+    "phase": 2,
+    "pattern": "@rx \\r\\n.*?\\b(?:DATA|QUIT|HELP(?: .{1,255})?)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932321",
+    "phase": 2,
+    "pattern": "@rx \\r\\n.*?\\b(?:(?:QUI|STA|RSE)T|NOOP|CAPA)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932331",
+    "phase": 2,
+    "pattern": "@rx !(?:\\d|!)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "932018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933110",
+    "phase": 2,
+    "pattern": "@rx .*\\.ph(?:p\\d*|tml|ar|ps|t|pt)\\.*$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933120",
+    "phase": 2,
+    "pattern": "@pmFromFile php-config-directives.data",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933130",
+    "phase": 2,
+    "pattern": "@pmFromFile php-variables.data",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933135",
+    "phase": 2,
+    "pattern": "@rx \\$\\s*\\{\\s*\\S[^\\{\\}]*\\}",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933200",
+    "phase": 2,
+    "pattern": "@rx (?:bzip2|expect|glob|ogg|(?:ph|r)ar|ssh2(?:.(?:s(?:hell|(?:ft|c)p)|exec|tunnel))?|z(?:ip|lib))://",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933150",
+    "phase": 2,
+    "pattern": "@pmFromFile php-function-names-933150.data",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933180",
+    "phase": 2,
+    "pattern": "@rx \\$+(?:[a-zA-Z_\\x7f-\\xff][a-zA-Z0-9_\\x7f-\\xff]*|\\s*{.+})(?:\\s|\\[.+\\]|{.+}|/\\*.*\\*/|//.*|#.*)*\\(.*\\)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933151",
+    "phase": 2,
+    "pattern": "@pmFromFile php-function-names-933151.data",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933131",
+    "phase": 2,
+    "pattern": "@rx AUTH_TYPE|HTTP_(?:ACCEPT(?:_(?:CHARSET|ENCODING|LANGUAGE))?|CONNECTION|(?:HOS|USER_AGEN)T|KEEP_ALIVE|(?:REFERE|X_FORWARDED_FO)R)|ORIG_PATH_INFO|PATH_(?:INFO|TRANSLATED)|QUERY_STRING|REQUEST_URI",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933111",
+    "phase": 2,
+    "pattern": "@rx .*\\.(?:php\\d*|phtml)\\..*$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933190",
+    "phase": 2,
+    "pattern": "@pm ?>",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "933018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934110",
+    "phase": 2,
+    "pattern": "@pmFromFile ssrf.data",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934130",
+    "phase": 2,
+    "pattern": "@rx (?:__proto__|constructor\\s*(?:\\.|\\[)\\s*prototype)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934150",
+    "phase": 2,
+    "pattern": "@rx Process[\\s\\x0b]*\\.[\\s\\x0b]*spawn[\\s\\x0b]*\\(",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934101",
+    "phase": 2,
+    "pattern": "@rx (?:close|exists|fork|(?:ope|spaw)n|re(?:ad|quire)|w(?:atch|rite))[\\s\\x0b]*\\(",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934140",
+    "phase": 2,
+    "pattern": "@rx ^(?:[^@]|@[^\\{])*@+\\{.*\\}",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "934018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941010",
+    "phase": 2,
+    "pattern": "!@validateByteRange 20, 45-47, 48-57, 65-90, 95, 97-122",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941100",
+    "phase": 2,
+    "pattern": "@detectXSS",
+    "targets": [
+      "ARGS",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941190",
+    "phase": 2,
+    "pattern": "@rx (?i:<style.*?>.*?(?:@[i\\x5c]|(?:[:=]|&#x?0*(?:58|3A|61|3D);?).*?(?:[(\\x5c]|&#x?0*(?:40|28|92|5C);?)))",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941200",
+    "phase": 2,
+    "pattern": "@rx (?i:<.*[:]?vmlframe.*?[\\s/+]*?src[\\s/+]*=)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941240",
+    "phase": 2,
+    "pattern": "@rx <[?]?import[\\s/+\\S]*?implementation[\\s/+]*?=",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941260",
+    "phase": 2,
+    "pattern": "@rx (?i:<META[\\s/+].*?charset[\\s/+]*=)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941310",
+    "phase": 2,
+    "pattern": "@rx \\xbc[^\\xbe>]*[\\xbe>]|<[^\\xbe]*\\xbe",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941350",
+    "phase": 2,
+    "pattern": "@rx \\+ADw-.*(?:\\+AD4-|>)|<.*\\+AD4-",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941360",
+    "phase": 2,
+    "pattern": "@rx ![!+ ]\\[\\]",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941370",
+    "phase": 2,
+    "pattern": "@rx (?:self|document|this|top|window)\\s*(?:/\\*|[\\[)]).+?(?:\\]|\\*/)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941400",
+    "phase": 2,
+    "pattern": "@rx ((?:\\[[^\\]]*\\][^.]*\\.)|Reflect[^.]*\\.).*(?:map|sort|apply)[^.]*\\..*call[^`]*`.*`",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941101",
+    "phase": 2,
+    "pattern": "@detectXSS",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941181",
+    "phase": 2,
+    "pattern": "@contains -->",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941320",
+    "phase": 2,
+    "pattern": "@rx <(?:a|abbr|acronym|address|applet|area|audioscope|b|base|basefront|bdo|bgsound|big|blackface|blink|blockquote|body|bq|br|button|caption|center|cite|code|col|colgroup|comment|dd|del|dfn|dir|div|dl|dt|em|embed|fieldset|fn|font|form|frame|frameset|h1|head|hr|html|i|iframe|ilayer|img|input|ins|isindex|kdb|keygen|label|layer|legend|li|limittext|link|listing|map|marquee|menu|meta|multicol|nobr|noembed|noframes|noscript|nosmartquotes|object|ol|optgroup|option|p|param|plaintext|pre|q|rt|ruby|s|samp|script|select|server|shadow|sidebar|small|spacer|span|strike|strong|style|sub|sup|table|tbody|td|textarea|tfoot|th|thead|title|tr|tt|u|ul|var|wbr|xml|xmp)\\W",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941380",
+    "phase": 2,
+    "pattern": "@rx {{.*?}}",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "941018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942100",
+    "phase": 2,
+    "pattern": "@detectSQLi",
+    "targets": [
+      "ARGS",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942160",
+    "phase": 2,
+    "pattern": "@rx (?i:sleep\\(\\s*?\\d*?\\s*?\\)|benchmark\\(.*?\\,.*?\\))",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942220",
+    "phase": 2,
+    "pattern": "@rx ^(?i:-0000023456|4294967295|4294967296|2147483648|2147483647|0000012345|-2147483648|-2147483649|0000023456|2.2250738585072007e-308|2.2250738585072011e-308|1e309)$",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942361",
+    "phase": 2,
+    "pattern": "@rx (?i:^[\\W\\d]+\\s*?(?:alter|union)\\b)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942441",
+    "phase": 2,
+    "pattern": "@rx [a-zA-Z0-9_-]{61,61}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942442",
+    "phase": 2,
+    "pattern": "@rx [a-zA-Z0-9_-]{91,91}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942440",
+    "phase": 2,
+    "pattern": "@rx /\\*!?|\\*/|[';]--|--(?:[\\s\\x0b]|[^\\-]*?-)|[^&\\-]#.*?[\\s\\x0b]|;?\\x00",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942450",
+    "phase": 2,
+    "pattern": "@rx (?i:\\b0x[a-f\\d]{3,})",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942510",
+    "phase": 2,
+    "pattern": "@rx (?:`(?:(?:[\\w\\s=_\\-+{}()<@]){2,29}|(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)`)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942101",
+    "phase": 2,
+    "pattern": "@detectSQLi",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942460",
+    "phase": 2,
+    "pattern": "@rx \\W{4}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942511",
+    "phase": 2,
+    "pattern": "@rx (?:'(?:(?:[\\w\\s=_\\-+{}()<@]){2,29}|(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)')",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942530",
+    "phase": 2,
+    "pattern": "@rx ';",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "942018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943100",
+    "phase": 2,
+    "pattern": "@rx (?i:\\.cookie\\b.*?;\\W*?(?:expires|domain)\\W*?=|\\bhttp-equiv\\W+set-cookie\\b)",
+    "targets": [
+      "ARGS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943110",
+    "phase": 2,
+    "pattern": "@rx ^(?:jsessionid|aspsessionid|asp\\.net_sessionid|phpsession|phpsessid|weblogicsession|session_id|session-id|cfid|cftoken|cfsid|jservsession|jwsession)$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943120",
+    "phase": 2,
+    "pattern": "@rx ^(?:jsessionid|aspsessionid|asp\\.net_sessionid|phpsession|phpsessid|weblogicsession|session_id|session-id|cfid|cftoken|cfsid|jservsession|jwsession)$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "943018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944100",
+    "phase": 2,
+    "pattern": "@rx java\\.lang\\.(?:runtime|processbuilder)",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944110",
+    "phase": 2,
+    "pattern": "@rx (?:runtime|processbuilder)",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944120",
+    "phase": 2,
+    "pattern": "@rx (?:clonetransformer|forclosure|instantiatefactory|instantiatetransformer|invokertransformer|prototypeclonefactory|prototypeserializationfactory|whileclosure|getproperty|filewriter|xmldecoder)",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944130",
+    "phase": 2,
+    "pattern": "@pmFromFile java-classes.data",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944140",
+    "phase": 2,
+    "pattern": "@rx .*\\.(?:jsp|jspx)\\.*$",
+    "targets": [
+      "HEADERS",
+      "REQUEST_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944200",
+    "phase": 2,
+    "pattern": "@rx \\xac\\xed\\x00\\x05",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944210",
+    "phase": 2,
+    "pattern": "@rx (?:rO0ABQ|KztAAU|Cs7QAF)",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944240",
+    "phase": 2,
+    "pattern": "@rx (?:clonetransformer|forclosure|instantiatefactory|instantiatetransformer|invokertransformer|prototypeclonefactory|prototypeserializationfactory|whileclosure|getproperty|filewriter|xmldecoder)",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944250",
+    "phase": 2,
+    "pattern": "@rx java\\b.+(?:runtime|processbuilder)",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944260",
+    "phase": 2,
+    "pattern": "@rx (?:class\\.module\\.classLoader\\.resources\\.context\\.parent\\.pipeline|springframework\\.context\\.support\\.FileSystemXmlApplicationContext)",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944300",
+    "phase": 2,
+    "pattern": "@rx (?:cnVudGltZQ|HJ1bnRpbWU|BydW50aW1l|cHJvY2Vzc2J1aWxkZXI|HByb2Nlc3NidWlsZGVy|Bwcm9jZXNzYnVpbGRlcg|Y2xvbmV0cmFuc2Zvcm1lcg|GNsb25ldHJhbnNmb3JtZXI|BjbG9uZXRyYW5zZm9ybWVy|Zm9yY2xvc3VyZQ|GZvcmNsb3N1cmU|Bmb3JjbG9zdXJl|aW5zdGFudGlhdGVmYWN0b3J5|Gluc3RhbnRpYXRlZmFjdG9yeQ|BpbnN0YW50aWF0ZWZhY3Rvcnk|aW5zdGFudGlhdGV0cmFuc2Zvcm1lcg|Gluc3RhbnRpYXRldHJhbnNmb3JtZXI|BpbnN0YW50aWF0ZXRyYW5zZm9ybWVy|aW52b2tlcnRyYW5zZm9ybWVy|Gludm9rZXJ0cmFuc2Zvcm1lcg|BpbnZva2VydHJhbnNmb3JtZXI|cHJvdG90eXBlY2xvbmVmYWN0b3J5|HByb3RvdHlwZWNsb25lZmFjdG9yeQ|Bwcm90b3R5cGVjbG9uZWZhY3Rvcnk|cHJvdG90eXBlc2VyaWFsaXphdGlvbmZhY3Rvcnk|HByb3RvdHlwZXNlcmlhbGl6YXRpb25mYWN0b3J5|Bwcm90b3R5cGVzZXJpYWxpemF0aW9uZmFjdG9yeQ|d2hpbGVjbG9zdXJl|HdoaWxlY2xvc3VyZQ|B3aGlsZWNsb3N1cmU)",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS",
+      "REQUEST_HEADERS",
+      "REQUEST_COOKIES"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "944018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949052",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949152",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949053",
+    "phase": 2,
+    "pattern": "@ge 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949153",
+    "phase": 2,
+    "pattern": "@ge 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949054",
+    "phase": 2,
+    "pattern": "@ge 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949154",
+    "phase": 2,
+    "pattern": "@ge 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949055",
+    "phase": 2,
+    "pattern": "@ge 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949155",
+    "phase": 2,
+    "pattern": "@ge 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949060",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949160",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949061",
+    "phase": 2,
+    "pattern": "@ge 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949161",
+    "phase": 2,
+    "pattern": "@ge 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949062",
+    "phase": 2,
+    "pattern": "@ge 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949162",
+    "phase": 2,
+    "pattern": "@ge 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949063",
+    "phase": 2,
+    "pattern": "@ge 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949163",
+    "phase": 2,
+    "pattern": "@ge 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949111",
+    "phase": 2,
+    "pattern": "@ge %{tx.inbound_anomaly_score_threshold}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949110",
+    "phase": 2,
+    "pattern": "@ge %{tx.inbound_anomaly_score_threshold}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "949018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950021",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950010",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS",
+      "RESPONSE_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950011",
+    "phase": 3,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950012",
+    "phase": 4,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950130",
+    "phase": 2,
+    "pattern": "@rx (?:<(?:TITLE>Index of.*?<H|title>Index of.*?<h)1>Index of|>\\[To Parent Directory\\]</[Aa]><br>)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950140",
+    "phase": 2,
+    "pattern": "@rx ^#\\!\\s?/",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950013",
+    "phase": 3,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950014",
+    "phase": 4,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950100",
+    "phase": 2,
+    "pattern": "@rx ^5\\d{2}$",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950015",
+    "phase": 3,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950016",
+    "phase": 4,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950017",
+    "phase": 3,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "950018",
+    "phase": 4,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951010",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS",
+      "RESPONSE_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951011",
+    "phase": 3,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951012",
+    "phase": 4,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951100",
+    "phase": 2,
+    "pattern": "!@pmFromFile sql-errors.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951110",
+    "phase": 2,
+    "pattern": "@rx (?i:JET Database Engine|Access Database Engine|\\[Microsoft\\]\\[ODBC Microsoft Access Driver\\])",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951130",
+    "phase": 2,
+    "pattern": "@rx (?i:DB2 SQL error:|\\[IBM\\]\\[CLI Driver\\]\\[DB2/6000\\]|CLI Driver.*DB2|DB2 SQL error|db2_\\w+\\()",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951140",
+    "phase": 2,
+    "pattern": "@rx (?i:\\[DM_QUERY_E_SYNTAX\\]|has occurred in the vicinity of:)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951180",
+    "phase": 2,
+    "pattern": "@rx (?i:An illegal character has been found in the statement|com\\.informix\\.jdbc|Exception.*Informix)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951190",
+    "phase": 2,
+    "pattern": "@rx (?i:Warning.*ingres_|Ingres SQLSTATE|Ingres\\W.*Driver)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951200",
+    "phase": 2,
+    "pattern": "@rx (?i:<b>Warning</b>: ibase_|Unexpected end of command in statement)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951210",
+    "phase": 2,
+    "pattern": "@rx (?i:SQL error.*POS[0-9]+.*|Warning.*maxdb.*)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951013",
+    "phase": 3,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951014",
+    "phase": 4,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951015",
+    "phase": 3,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951016",
+    "phase": 4,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951017",
+    "phase": 3,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "951018",
+    "phase": 4,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952010",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS",
+      "RESPONSE_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952011",
+    "phase": 3,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952012",
+    "phase": 4,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952100",
+    "phase": 2,
+    "pattern": "@pmFromFile java-code-leakages.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952110",
+    "phase": 2,
+    "pattern": "@pmFromFile java-errors.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952013",
+    "phase": 3,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952014",
+    "phase": 4,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952015",
+    "phase": 3,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952016",
+    "phase": 4,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952017",
+    "phase": 3,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "952018",
+    "phase": 4,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953010",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS",
+      "RESPONSE_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953011",
+    "phase": 3,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953012",
+    "phase": 4,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953100",
+    "phase": 2,
+    "pattern": "@pmFromFile php-errors.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953110",
+    "phase": 2,
+    "pattern": "@rx (?:\\b(?:f(?:tp_(?:nb_)?f?(?:ge|pu)t|get(?:s?s|c)|scanf|write|open|read)|gz(?:(?:encod|writ)e|compress|open|read)|s(?:ession_start|candir)|read(?:(?:gz)?file|dir)|move_uploaded_file|(?:proc_|bz)open|call_user_func)|\\$_(?:(?:pos|ge)t|session))\\b",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953013",
+    "phase": 3,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953014",
+    "phase": 4,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953101",
+    "phase": 2,
+    "pattern": "@pmFromFile php-errors-pl2.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953015",
+    "phase": 3,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953016",
+    "phase": 4,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953017",
+    "phase": 3,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "953018",
+    "phase": 4,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954010",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS",
+      "RESPONSE_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954011",
+    "phase": 3,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954012",
+    "phase": 4,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954100",
+    "phase": 2,
+    "pattern": "@rx [a-z]:\\x5cinetpub\\b",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954110",
+    "phase": 2,
+    "pattern": "@rx (?:Microsoft OLE DB Provider for SQL Server(?:</font>.{1,20}?error '800(?:04005|40e31)'.{1,40}?Timeout expired| \\(0x80040e31\\)<br>Timeout expired<br>)|<h1>internal server error</h1>.*?<h2>part of the server has crashed or it has a configuration error\\.</h2>|cannot connect to the server: timed out)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954120",
+    "phase": 2,
+    "pattern": "@pmFromFile iis-errors.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954130",
+    "phase": 2,
+    "pattern": "!@rx ^404$",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954013",
+    "phase": 3,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954014",
+    "phase": 4,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954015",
+    "phase": 3,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954016",
+    "phase": 4,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954017",
+    "phase": 3,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "954018",
+    "phase": 4,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955010",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS",
+      "RESPONSE_HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955011",
+    "phase": 3,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955012",
+    "phase": 4,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955100",
+    "phase": 2,
+    "pattern": "@pmFromFile web-shells-php.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955110",
+    "phase": 2,
+    "pattern": "@rx <title>r57 Shell Version [0-9.]+</title>|<title>r57 shell</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955120",
+    "phase": 2,
+    "pattern": "@rx ^<html><head><meta http-equiv='Content-Type' content='text/html; charset=(?:Windows-1251|UTF-8)?'><title>.*?(?: -)? W[Ss][Oo] [0-9.]+</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955130",
+    "phase": 2,
+    "pattern": "@rx B4TM4N SH3LL</title>.*<meta name='author' content='k4mpr3t'/>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955140",
+    "phase": 2,
+    "pattern": "@rx <title>Mini Shell</title>.*Developed By LameHacker",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955150",
+    "phase": 2,
+    "pattern": "@rx <title>\\.:: .* ~ Ashiyane V [0-9.]+ ::\\.</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955160",
+    "phase": 2,
+    "pattern": "@rx <title>Symlink_Sa [0-9.]+</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955170",
+    "phase": 2,
+    "pattern": "@rx <title>CasuS [0-9.]+ by MafiABoY</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955180",
+    "phase": 2,
+    "pattern": "@rx ^<html>\\r\\n<head>\\r\\n<title>GRP WebShell [0-9.]+ ",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955190",
+    "phase": 2,
+    "pattern": "@rx <small>NGHshell [0-9.]+ by Cr4sh</body></html>\\n$",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955200",
+    "phase": 2,
+    "pattern": "@rx <title>SimAttacker - (?:Version|Vrsion) : [0-9.]+ - ",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955210",
+    "phase": 2,
+    "pattern": "@rx ^<!DOCTYPE html>\\n<html>\\n<!-- By Artyum .*<title>Web Shell</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955220",
+    "phase": 2,
+    "pattern": "@rx <title>lama's'hell v. [0-9.]+</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955230",
+    "phase": 2,
+    "pattern": "@rx ^ *<html>\\n[ ]+<head>\\n[ ]+<title>lostDC - ",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955240",
+    "phase": 2,
+    "pattern": "@rx ^<title>PHP Web Shell</title>\\r\\n<html>\\r\\n<body>\\r\\n    <!-- Replaces command with Base64-encoded Data -->",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955260",
+    "phase": 2,
+    "pattern": "@rx ^<html>\\n<head>\\n<title>Ru24PostWebShell ",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955270",
+    "phase": 2,
+    "pattern": "@rx <title>s72 Shell v[0-9.]+ Codinf by Cr@zy_King</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955290",
+    "phase": 2,
+    "pattern": "@rx ^ <html>\\n\\n<head>\\n\\n<title>g00nshell v[0-9.]+ ",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955300",
+    "phase": 2,
+    "pattern": "@contains <title>punkholicshell</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955310",
+    "phase": 2,
+    "pattern": "@rx ^<html>\\n      <head>\\n             <title>azrail [0-9.]+ by C-W-M</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955320",
+    "phase": 2,
+    "pattern": "@rx >SmEvK_PaThAn Shell v[0-9]+ coded by <a href=",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955330",
+    "phase": 2,
+    "pattern": "@rx ^<html>\\n<title>.*? ~ Shell I</title>\\n<head>\\n<style>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955340",
+    "phase": 2,
+    "pattern": "@rx ^ <html><head><title>:: b374k m1n1 [0-9.]+ ::</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955013",
+    "phase": 3,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955014",
+    "phase": 4,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955015",
+    "phase": 3,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955016",
+    "phase": 4,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955017",
+    "phase": 3,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "955018",
+    "phase": 4,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959052",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959152",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959053",
+    "phase": 2,
+    "pattern": "@ge 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959153",
+    "phase": 2,
+    "pattern": "@ge 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959054",
+    "phase": 2,
+    "pattern": "@ge 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959154",
+    "phase": 2,
+    "pattern": "@ge 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959055",
+    "phase": 2,
+    "pattern": "@ge 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959155",
+    "phase": 2,
+    "pattern": "@ge 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959060",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959160",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959061",
+    "phase": 2,
+    "pattern": "@ge 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959161",
+    "phase": 2,
+    "pattern": "@ge 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959062",
+    "phase": 2,
+    "pattern": "@ge 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959162",
+    "phase": 2,
+    "pattern": "@ge 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959063",
+    "phase": 2,
+    "pattern": "@ge 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959163",
+    "phase": 2,
+    "pattern": "@ge 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959101",
+    "phase": 2,
+    "pattern": "@ge %{tx.outbound_anomaly_score_threshold}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959100",
+    "phase": 2,
+    "pattern": "@ge %{tx.outbound_anomaly_score_threshold}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959011",
+    "phase": 3,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959012",
+    "phase": 4,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959013",
+    "phase": 3,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959014",
+    "phase": 4,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959015",
+    "phase": 3,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959016",
+    "phase": 4,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959017",
+    "phase": 3,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "959018",
+    "phase": 4,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980041",
+    "phase": 5,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980042",
+    "phase": 5,
+    "pattern": "@ge 5",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980043",
+    "phase": 5,
+    "pattern": "@eq 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980044",
+    "phase": 5,
+    "pattern": "@ge %{tx.inbound_anomaly_score_threshold}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980045",
+    "phase": 5,
+    "pattern": "@ge %{tx.outbound_anomaly_score_threshold}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980046",
+    "phase": 5,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980047",
+    "phase": 5,
+    "pattern": "@ge %{tx.inbound_anomaly_score_threshold}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980048",
+    "phase": 5,
+    "pattern": "@ge %{tx.outbound_anomaly_score_threshold}",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980049",
+    "phase": 5,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980050",
+    "phase": 5,
+    "pattern": "@gt 0",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980051",
+    "phase": 5,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  },
+  {
+    "id": "980018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1
+  }
+]
