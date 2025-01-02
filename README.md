@@ -1,33 +1,41 @@
 # Caddy WAF Middleware
 
-An advanced Web Application Firewall (WAF) middleware for Caddy server providing comprehensive protection against web attacks.
+An advanced **Web Application Firewall (WAF)** middleware for the Caddy server, designed to provide comprehensive protection against web attacks. This middleware integrates seamlessly with Caddy and offers a wide range of security features to safeguard your applications.
+
+---
 
 ## Features
-- Rule-based request filtering with regex patterns
-- IP and DNS blacklisting
-- Country-based blocking using MaxMind GeoIP2
-- Rate limiting per IP address
-- Anomaly scoring system
-- Request inspection (URL, args, body, headers, cookies, user-agent)
-- Protection against common attacks
-- Detailed logging and monitoring
-- Dynamic rule reloading
+
+- **Rule-based request filtering** with regex patterns.
+- **IP and DNS blacklisting** to block malicious traffic.
+- **Country-based blocking** using MaxMind GeoIP2.
+- **Rate limiting** per IP address to prevent abuse.
+- **Anomaly scoring system** for detecting suspicious behavior.
+- **Request inspection** (URL, args, body, headers, cookies, user-agent).
+- **Protection against common attacks** (SQL injection, XSS, RCE, Log4j, etc.).
+- **Detailed logging and monitoring** for security analysis.
+- **Dynamic rule reloading** without server restart.
+- **Severity-based actions** (block, log) for fine-grained control.
+
+---
 
 ## Installation
 
-1. Install MaxMind GeoIP library:
-```bash
-go get github.com/oschwald/maxminddb-golang
-```
+1. Install the MaxMind GeoIP library:
+   ```bash
+   go get github.com/oschwald/maxminddb-golang
+   ```
 
-2. Build Caddy with WAF:
-```bash
-xcaddy build --with github.com/fabriziosalmi/caddy-waf
-```
+2. Build Caddy with the WAF middleware:
+   ```bash
+   xcaddy build --with github.com/fabriziosalmi/caddy-waf
+   ```
+
+---
 
 ## Configuration
 
-Basic Caddyfile setup with all features:
+### Basic Caddyfile Setup
 
 ```caddyfile
 {
@@ -58,11 +66,19 @@ Basic Caddyfile setup with all features:
             
             # Enable detailed logging
             log_all
+
+            # Define actions based on severity
+            severity critical block
+            severity high block
+            severity medium log
+            severity low log
         }
         respond "Hello, world!" 200
     }
 }
 ```
+
+---
 
 ### Configuration Options
 
@@ -74,13 +90,13 @@ Basic Caddyfile setup with all features:
 | `rate_limit` | Rate limiting config | `rate_limit 100 1m` |
 | `block_countries` | Country blocking config | `block_countries GeoLite2-Country.mmdb RU CN NK` |
 | `log_all` | Enable detailed logging | `log_all` |
+| `severity` | Define actions based on severity levels | `severity critical block` |
 
+---
 
-> [!WARNING]
-> This is **NOT** curently supported (working on that).
-> - `anomaly_threshold` (Score threshold for blocking)
-  
-### Rules Format (rules.json)
+## Rules Format (`rules.json`)
+
+Rules are defined in a JSON file. Each rule specifies a pattern to match, targets to inspect, and actions to take.
 
 ```json
 [
@@ -89,25 +105,30 @@ Basic Caddyfile setup with all features:
         "phase": 1,
         "pattern": "(?i)(?:select|insert|update|delete|drop|alter)(?:[\\s\\v\\/\\*]+)(?:from|into|where|table)\\b",
         "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
-        "severity": "HIGH",
+        "severity": "CRITICAL",
         "action": "block",
-        "score": 5,
-        "mode": "block"
+        "score": 10,
+        "description": "Block SQL injection attempts."
     }
 ]
 ```
 
-Rule fields:
-- `id`: Unique rule identifier
-- `phase`: Processing phase (1-5)
-- `pattern`: Regular expression pattern
-- `targets`: Areas to inspect ["ARGS", "BODY", "HEADERS", "COOKIES", "URL", "PATH", "USER_AGENT"]
-- `severity`: Rule severity (LOW, MEDIUM, HIGH)
-- `action`: Action to take (block, log)
-- `score`: Score for anomaly detection
-- `mode`: Processing mode (block, log, pass)
+### Rule Fields
 
-### Protected Attack Types
+| Field | Description | Example |
+|-------|-------------|---------|
+| `id` | Unique rule identifier | `sql_injection` |
+| `phase` | Processing phase (1-5) | `1` |
+| `pattern` | Regular expression pattern | `(?i)(?:select|insert)` |
+| `targets` | Areas to inspect | `["ARGS", "BODY"]` |
+| `severity` | Rule severity (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`) | `CRITICAL` |
+| `action` | Action to take (`block`, `log`) | `block` |
+| `score` | Score for anomaly detection | `10` |
+| `description` | Rule description | `Block SQL injection attempts.` |
+
+---
+
+## Protected Attack Types
 
 1. **SQL Injection**
    - Basic SELECT/UNION injections
@@ -124,12 +145,12 @@ Rule fields:
    - Encoded path traversal
    - Double-encoded traversal
 
-4. **Remote Code Execution**
+4. **Remote Code Execution (RCE)**
    - Command injection
    - Shell command execution
    - System command execution
 
-5. **Log4j Attacks**
+5. **Log4j Exploits**
    - JNDI lookup attempts
    - Nested expressions
 
@@ -143,20 +164,24 @@ Rule fields:
    - Web application scanners
    - Network scanning tools
 
-### Blacklist Formats
+---
 
-IP Blacklist (ip_blacklist.txt):
+## Blacklist Formats
+
+### IP Blacklist (`ip_blacklist.txt`)
 ```text
 192.168.1.1
 10.0.0.0/8
 2001:db8::/32
 ```
 
-DNS Blacklist (dns_blacklist.txt):
+### DNS Blacklist (`dns_blacklist.txt`)
 ```text
 malicious.com
 evil.example.org
 ```
+
+---
 
 ## Rate Limiting
 
@@ -173,6 +198,8 @@ rate_limit 10 1s
 rate_limit 1000 1h
 ```
 
+---
+
 ## Country Blocking
 
 Block traffic from specific countries using ISO country codes:
@@ -182,15 +209,19 @@ Block traffic from specific countries using ISO country codes:
 block_countries /path/to/GeoLite2-Country.mmdb RU CN KP
 ```
 
+---
+
 ## Dynamic Updates
 
 Rules and blacklists can be updated without server restart:
-1. Modify rules.json or blacklist files
-2. Reload Caddy: `caddy reload`
+1. Modify `rules.json` or blacklist files.
+2. Reload Caddy: `caddy reload`.
+
+---
 
 ## Testing
 
-Basic testing:
+### Basic Testing
 ```bash
 # Test rate limiting
 for i in {1..10}; do curl -i http://localhost:8080/; done
@@ -205,11 +236,13 @@ curl "http://localhost:8080/?id=1+UNION+SELECT+*+FROM+users"
 curl "http://localhost:8080/?input=<script>alert(1)</script>"
 ```
 
-Load testing:
+### Load Testing
 ```bash
 ab -n 1000 -c 100 http://localhost:8080/
 ```
 
+---
+
 ## License
 
-This project is licensed under the AGPLv3 License.
+This project is licensed under the **AGPLv3 License**.
