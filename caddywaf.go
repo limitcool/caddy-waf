@@ -9,7 +9,10 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -25,43 +28,58 @@ func init() {
 	fmt.Println("WAF Middleware Registered Successfully")
 }
 
-// Interface guards
 var (
 	_ caddy.Provisioner           = (*Middleware)(nil)
 	_ caddyhttp.MiddlewareHandler = (*Middleware)(nil)
 	_ caddyfile.Unmarshaler       = (*Middleware)(nil)
 )
 
-// Rule represents a WAF rule
+type RateLimit struct {
+	Requests int           `json:"requests"`
+	Window   time.Duration `json:"window"`
+}
+
+type requestCounter struct {
+	count  int
+	window time.Time
+}
+
+type RateLimiter struct {
+	sync.RWMutex
+	requests map[string]*requestCounter
+	config   RateLimit
+}
+
 type Rule struct {
 	ID       string   `json:"id"`
 	Phase    int      `json:"phase"`
 	Pattern  string   `json:"pattern"`
 	Targets  []string `json:"targets"`
 	Severity string   `json:"severity"`
-	Action   string   `json:"action"` // keep action for backward compatibility
+	Action   string   `json:"action"`
 	Score    int      `json:"score"`
-	Mode     string   `json:"mode"` // "block", "log", or "" for default value that is inherited from `action`
+	Mode     string   `json:"mode"`
 	regex    *regexp.Regexp
 }
 
-// Middleware handles WAF rules and blocklists
 type Middleware struct {
-	RuleFiles        []string `json:"rule_files"`
-	IPBlacklistFile  string   `json:"ip_blacklist_file"`
-	DNSBlacklistFile string   `json:"dns_blacklist_file"`
-	LogAll           bool     `json:"log_all"`
-	AnomalyThreshold int      `json:"anomaly_threshold"`
-	Rules            []Rule   `json:"-"`
+	RuleFiles        []string  `json:"rule_files"`
+	IPBlacklistFile  string    `json:"ip_blacklist_file"`
+	DNSBlacklistFile string    `json:"dns_blacklist_file"`
+	LogAll           bool      `json:"log_all"`
+	AnomalyThreshold int       `json:"anomaly_threshold"`
+	RateLimit        RateLimit `json:"rate_limit"`
+	Rules            []Rule    `json:"-"`
 	logger           *zap.Logger
 	ipBlacklist      map[string]bool `json:"-"`
 	dnsBlacklist     []string        `json:"-"`
+	rateLimiter      *RateLimiter    `json:"-"`
 }
 
 func (Middleware) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.waf",
-		New: func() caddy.Module { return &Middleware{} }, // Return pointer here
+		New: func() caddy.Module { return &Middleware{} },
 	}
 }
 
@@ -71,15 +89,96 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 	if err != nil {
 		return nil, err
 	}
-	return &m, nil // Return &m, a pointer to m
-
+	return &m, nil
 }
 
-func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	totalScore := 0
-	statusCode := http.StatusOK // Default to 200 OK
+func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+	fmt.Println("WAF UnmarshalCaddyfile Called")
+	for d.Next() {
+		for d.NextBlock(0) {
+			switch d.Val() {
+			case "rate_limit":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				requests, err := strconv.Atoi(d.Val())
+				if err != nil {
+					return d.Errf("invalid rate limit request count: %v", err)
+				}
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				window, err := time.ParseDuration(d.Val())
+				if err != nil {
+					return d.Errf("invalid rate limit window: %v", err)
+				}
+				m.RateLimit = RateLimit{
+					Requests: requests,
+					Window:   window,
+				}
+			case "log_all":
+				fmt.Println("WAF Log All Enabled")
+				m.LogAll = true
+			case "rule_file":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				m.RuleFiles = append(m.RuleFiles, d.Val())
+			case "ip_blacklist_file":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				m.IPBlacklistFile = d.Val()
+			case "dns_blacklist_file":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				m.DNSBlacklistFile = d.Val()
+			default:
+				return d.Errf("unrecognized subdirective: %s", d.Val())
+			}
+		}
+	}
+	return nil
+}
 
-	// Check IP Blacklist
+func (rl *RateLimiter) isRateLimited(ip string) bool {
+	rl.Lock()
+	defer rl.Unlock()
+
+	now := time.Now()
+	if counter, exists := rl.requests[ip]; exists {
+		if now.Sub(counter.window) > rl.config.Window {
+			counter.count = 1
+			counter.window = now
+			return false
+		}
+		counter.count++
+		return counter.count > rl.config.Requests
+	}
+
+	rl.requests[ip] = &requestCounter{
+		count:  1,
+		window: now,
+	}
+	return false
+}
+
+func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	statusCode := http.StatusOK
+
+	if m.rateLimiter != nil {
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err == nil && m.rateLimiter.isRateLimited(ip) {
+			m.logger.Info("Request blocked by rate limit",
+				zap.String("ip", ip),
+				zap.Int("status_code", http.StatusTooManyRequests),
+			)
+			w.WriteHeader(http.StatusTooManyRequests)
+			return nil
+		}
+	}
+
 	if m.isIPBlacklisted(r.RemoteAddr) {
 		statusCode = http.StatusForbidden
 		m.logger.Info("Request blocked by IP blacklist",
@@ -90,7 +189,6 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 		return nil
 	}
 
-	// Check DNS Blacklist
 	if m.isDNSBlacklisted(r.Host) {
 		statusCode = http.StatusForbidden
 		m.logger.Info("Request blocked by DNS blacklist",
@@ -101,13 +199,12 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 		return nil
 	}
 
+	totalScore := 0
 	for _, rule := range m.Rules {
 		for _, target := range rule.Targets {
 			value, _ := m.extractValue(target, r)
-
 			if rule.regex.MatchString(value) {
 				totalScore += rule.Score
-				// use the rule mode or the action if not set
 				mode := rule.Mode
 				if mode == "" {
 					mode = rule.Action
@@ -130,8 +227,6 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 						zap.String("value", value),
 						zap.Int("status_code", statusCode),
 					)
-				default:
-					//do nothing, keep processing
 				}
 			}
 		}
@@ -145,7 +240,43 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddy
 		w.WriteHeader(statusCode)
 		return nil
 	}
+
 	return next.ServeHTTP(w, r)
+}
+
+func (m *Middleware) Provision(ctx caddy.Context) error {
+	m.logger = ctx.Logger()
+
+	if m.RateLimit.Requests > 0 {
+		m.rateLimiter = &RateLimiter{
+			requests: make(map[string]*requestCounter),
+			config:   m.RateLimit,
+		}
+	}
+
+	for _, file := range m.RuleFiles {
+		if err := m.loadRulesFromFile(file); err != nil {
+			return fmt.Errorf("failed to load rules from %s: %v", file, err)
+		}
+	}
+	if m.AnomalyThreshold == 0 {
+		m.AnomalyThreshold = 5
+	}
+	if m.IPBlacklistFile != "" {
+		if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
+			return fmt.Errorf("failed to load IP blacklist from %s: %v", m.IPBlacklistFile, err)
+		}
+	} else {
+		m.ipBlacklist = make(map[string]bool)
+	}
+	if m.DNSBlacklistFile != "" {
+		if err := m.loadDNSBlacklistFromFile(m.DNSBlacklistFile); err != nil {
+			return fmt.Errorf("failed to load DNS blacklist from %s: %v", m.DNSBlacklistFile, err)
+		}
+	} else {
+		m.dnsBlacklist = []string{}
+	}
+	return nil
 }
 
 func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
@@ -161,14 +292,12 @@ func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 	}
 	parsedIP := net.ParseIP(ip)
 	if parsedIP == nil {
-		return false // if it is an invalid IP address we skip the check
+		return false
 	}
 
 	for blacklistIP := range m.ipBlacklist {
 		_, ipNet, err := net.ParseCIDR(blacklistIP)
-
 		if err != nil {
-			// if is not a subnet, check as a single ip
 			if blacklistIP == ip {
 				return true
 			}
@@ -216,33 +345,6 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 	}
 }
 
-func (m *Middleware) Provision(ctx caddy.Context) error {
-	m.logger = ctx.Logger()
-	for _, file := range m.RuleFiles {
-		if err := m.loadRulesFromFile(file); err != nil {
-			return fmt.Errorf("failed to load rules from %s: %v", file, err)
-		}
-	}
-	if m.AnomalyThreshold == 0 {
-		m.AnomalyThreshold = 5
-	}
-	if m.IPBlacklistFile != "" {
-		if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
-			return fmt.Errorf("failed to load IP blacklist from %s: %v", m.IPBlacklistFile, err)
-		}
-	} else {
-		m.ipBlacklist = make(map[string]bool)
-	}
-	if m.DNSBlacklistFile != "" {
-		if err := m.loadDNSBlacklistFromFile(m.DNSBlacklistFile); err != nil {
-			return fmt.Errorf("failed to load DNS blacklist from %s: %v", m.DNSBlacklistFile, err)
-		}
-	} else {
-		m.dnsBlacklist = []string{}
-	}
-	return nil
-}
-
 func (m *Middleware) loadRulesFromFile(path string) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -258,7 +360,7 @@ func (m *Middleware) loadRulesFromFile(path string) error {
 			return fmt.Errorf("invalid pattern in rule %s: %v", rule.ID, err)
 		}
 		rules[i].regex = regex
-		if rule.Mode == "" { // assign a default value
+		if rule.Mode == "" {
 			rules[i].Mode = rule.Action
 		}
 	}
@@ -274,7 +376,7 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 	ips := strings.Split(string(content), "\n")
 	m.ipBlacklist = make(map[string]bool)
 	for _, ip := range ips {
-		if ip != "" { // skip empty lines
+		if ip != "" {
 			m.ipBlacklist[ip] = true
 		}
 	}
@@ -287,48 +389,5 @@ func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
 		return err
 	}
 	m.dnsBlacklist = strings.Split(string(content), "\n")
-	return nil
-}
-
-func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
-	fmt.Println("WAF UnmarshalCaddyfile Called")
-	for d.Next() {
-		// Skip the directive name itself
-		for d.NextBlock(0) {
-			switch d.Val() {
-			case "log_all":
-				fmt.Println("WAF Log All Enabled")
-				m.LogAll = true
-			case "rule_file":
-				fmt.Println("WAF Loading Rule File")
-				if !d.NextArg() {
-					fmt.Println("WAF Missing Argument for rule file")
-					return d.ArgErr()
-				}
-				fmt.Println("WAF Loading Rule File at path: ", d.Val())
-				m.RuleFiles = append(m.RuleFiles, d.Val())
-			case "ip_blacklist_file":
-				fmt.Println("WAF Loading IP Blacklist File")
-				if !d.NextArg() {
-					fmt.Println("WAF Missing Argument for IP Blacklist file")
-					return d.ArgErr()
-				}
-				fmt.Println("WAF Loading IP Blacklist File at path: ", d.Val())
-				m.IPBlacklistFile = d.Val()
-			case "dns_blacklist_file":
-				fmt.Println("WAF Loading DNS Blacklist File")
-				if !d.NextArg() {
-					fmt.Println("WAF Missing Argument for DNS Blacklist File")
-					return d.ArgErr()
-				}
-				fmt.Println("WAF Loading DNS Blacklist File at path: ", d.Val())
-				m.DNSBlacklistFile = d.Val()
-			default:
-				fmt.Println("WAF Unrecognized SubDirective: ", d.Val())
-				return d.Errf("unrecognized subdirective: %s", d.Val())
-			}
-		}
-	}
-	fmt.Println("WAF UnmarshalCaddyfile Completed")
 	return nil
 }
