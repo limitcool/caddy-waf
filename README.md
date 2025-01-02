@@ -54,7 +54,7 @@ Basic Caddyfile setup with all features:
             dns_blacklist_file dns_blacklist.txt
             
             # Country blocking (requires MaxMind GeoIP2 database)
-            block_countries /path/to/GeoLite2-Country.mmdb RU CN NK
+            block_countries GeoLite2-Country.mmdb RU CN NK
             
             # Enable detailed logging
             log_all
@@ -72,7 +72,7 @@ Basic Caddyfile setup with all features:
 | `ip_blacklist_file` | File with blocked IPs/CIDR ranges | `ip_blacklist_file blacklist.txt` |
 | `dns_blacklist_file` | File with blocked domains | `dns_blacklist_file domains.txt` |
 | `rate_limit` | Rate limiting config | `rate_limit 100 1m` |
-| `block_countries` | Country blocking config | `block_countries /path/to/GeoIP.mmdb RU CN` |
+| `block_countries` | Country blocking config | `block_countries GeoLite2-Country.mmdb RU CN NK` |
 | `log_all` | Enable detailed logging | `log_all` |
 | `anomaly_threshold` | Score threshold for blocking | `anomaly_threshold 5` |
 
