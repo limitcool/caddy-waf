@@ -309,12 +309,3 @@ This project is licensed under the **AGPLv3 License**.
 
 Contributions are welcome! Please open an issue or submit a pull request.
 
----
-
-## 📧 Contact
-
-For questions or support, open an issue or send a PR.
-
----
-
-Enjoy secure and hassle-free web hosting with **Caddy WAF Middleware**! 🚀
