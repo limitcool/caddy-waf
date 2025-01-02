@@ -1,10 +1,10 @@
-# Caddy WAF Middleware
+# 🛡️ Caddy WAF Middleware
 
-An advanced **Web Application Firewall (WAF)** middleware for the Caddy server, designed to provide comprehensive protection against web attacks. This middleware integrates seamlessly with Caddy and offers a wide range of security features to safeguard your applications.
+A **simple Web Application Firewall (WAF)** middleware for the Caddy server, designed to provide **comprehensive protection** against web attacks. This middleware integrates seamlessly with Caddy and offers a wide range of security features to safeguard your applications.
 
 ---
 
-## Features
+## 🌟 Key Features
 
 - **Rule-based request filtering** with regex patterns.
 - **IP and DNS blacklisting** to block malicious traffic.
@@ -19,8 +19,9 @@ An advanced **Web Application Firewall (WAF)** middleware for the Caddy server, 
 
 ---
 
-## Installation
+## 🚀 Installation
 
+### Prerequisites
 1. Install the MaxMind GeoIP library:
    ```bash
    go get github.com/oschwald/maxminddb-golang
@@ -33,7 +34,7 @@ An advanced **Web Application Firewall (WAF)** middleware for the Caddy server, 
 
 ---
 
-## Configuration
+## 🛠️ Configuration
 
 ### Basic Caddyfile Setup
 
@@ -77,7 +78,8 @@ An advanced **Web Application Firewall (WAF)** middleware for the Caddy server, 
     }
 }
 ```
-### Caddyfile as reverse proxy with WAF setup
+
+### Reverse Proxy with WAF Setup
 
 ```caddyfile
 # Global options
@@ -130,11 +132,11 @@ example.com {
         header_up X-Forwarded-Proto {scheme}
     }
 }
-
 ```
+
 ---
 
-### Configuration Options
+## ⚙️ Configuration Options
 
 | Option | Description | Example |
 |--------|-------------|---------|
@@ -148,7 +150,7 @@ example.com {
 
 ---
 
-## Rules Format (`rules.json`)
+## 📜 Rules Format (`rules.json`)
 
 Rules are defined in a JSON file. Each rule specifies a pattern to match, targets to inspect, and actions to take.
 
@@ -182,7 +184,7 @@ Rules are defined in a JSON file. Each rule specifies a pattern to match, target
 
 ---
 
-## Protected Attack Types
+## 🛡️ Protected Attack Types
 
 1. **SQL Injection**
    - Basic SELECT/UNION injections
@@ -220,7 +222,7 @@ Rules are defined in a JSON file. Each rule specifies a pattern to match, target
 
 ---
 
-## Blacklist Formats
+## 🚫 Blacklist Formats
 
 ### IP Blacklist (`ip_blacklist.txt`)
 ```text
@@ -237,7 +239,7 @@ evil.example.org
 
 ---
 
-## Rate Limiting
+## ⏱️ Rate Limiting
 
 Configure rate limits using requests count and time window:
 
@@ -254,7 +256,7 @@ rate_limit 1000 1h
 
 ---
 
-## Country Blocking
+## 🌍 Country Blocking
 
 Block traffic from specific countries using ISO country codes:
 
@@ -265,7 +267,7 @@ block_countries /path/to/GeoLite2-Country.mmdb RU CN KP
 
 ---
 
-## Dynamic Updates
+## 🔄 Dynamic Updates
 
 Rules and blacklists can be updated without server restart:
 1. Modify `rules.json` or blacklist files.
@@ -273,7 +275,7 @@ Rules and blacklists can be updated without server restart:
 
 ---
 
-## Testing
+## 🧪 Testing
 
 ### Basic Testing
 ```bash
@@ -297,6 +299,22 @@ ab -n 1000 -c 100 http://localhost:8080/
 
 ---
 
-## License
+## 📜 License
 
 This project is licensed under the **AGPLv3 License**.
+
+---
+
+## 🙏 Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request.
+
+---
+
+## 📧 Contact
+
+For questions or support, open an issue or send a PR.
+
+---
+
+Enjoy secure and hassle-free web hosting with **Caddy WAF Middleware**! 🚀
