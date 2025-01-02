@@ -136,7 +136,6 @@ User-Agent: nmap/7.80
 - `dns_blacklist_file`: File with blocked domains
 - `rate_limit <requests> <window>`: Rate limiting (e.g., "100 1m" for 100 requests per minute)
 - `log_all`: Enable detailed logging
-- `anomaly_threshold`: Cumulative score threshold (default: 5)
 
 ### Rules Format (rules.json)
 
