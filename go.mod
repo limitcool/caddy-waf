@@ -1,4 +1,4 @@
-module caddy-waf
+module github.com/fabriziosalmi/caddy-waf
 
 go 1.23.4
 
