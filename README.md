@@ -19,7 +19,7 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
 
 ## 🚀 Installation
 
-```
+```bash
 # Step 1: Clone the caddy-waf repository from GitHub
 # This downloads the source code for the caddy-waf module to your local machine.
 git clone https://github.com/fabriziosalmi/caddy-waf.git
