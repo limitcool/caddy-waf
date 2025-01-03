@@ -92,6 +92,9 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
             
             # Country blocking (requires MaxMind GeoIP2 database)
             block_countries GeoLite2-Country.mmdb RU CN NK
+
+            # Whitelist countries (requires MaxMind GeoIP2 database)
+            # whitelist_countries GeoLite2-Country.mmdb US
             
             # Enable detailed logging
             log_all
