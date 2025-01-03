@@ -29,10 +29,10 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
 
 2. Build Caddy with the WAF middleware:
    ```bash
-   mkdir -p $GOPATH/src/github.com/fabriziosalmi
-   cd $GOPATH/src/github.com/fabriziosalmi
-   git clone https://github.com/fabriziosalmi/caddy-waf
    cd caddy-waf
+   go mod init caddy
+   go mod edit -replace github.com/fabriziosalmi/caddy-waf=./caddy-waf
+   go get -v github.com/fabriziosalmi/caddy-waf
    xcaddy build --with github.com/fabriziosalmi/caddy-waf
    ```
 
