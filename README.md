@@ -19,38 +19,15 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
 
 ## 🚀 Installation
 
-### Prerequisites
-
-1. **Install the MaxMind GeoIP library**:
-   ```bash
-   go get github.com/oschwald/maxminddb-golang
-   ```
-
-2. **Clone the `caddy-waf` repository**:
-   ```bash
-   git clone https://github.com/fabriziosalmi/caddy-waf
-   cd caddy-waf
-   ```
-
-3. **Initialize the Go module**:
-   ```bash
-   go mod init caddy
-   ```
-
-4. **Add a replace directive to use the local `caddy-waf` module**:
-   ```bash
-   go mod edit -replace github.com/fabriziosalmi/caddy-waf=.
-   ```
-
-5. **Fetch dependencies**:
-   ```bash
-   go get -v github.com/fabriziosalmi/caddy-waf
-   ```
-
-6. **Build Caddy with the WAF middleware**:
-   ```bash
-   xcaddy build --with github.com/fabriziosalmi/caddy-waf
-   ```
+```
+git clone https://github.com/fabriziosalmi/caddy-waf.git
+go mod tidy
+go get -v github.com/fabriziosalmi/caddy-waf github.com/caddyserver/caddy/v2 github.com/oschwald/maxminddb-golang
+wget https://git.io/GeoLite2-Country.mmdb
+rm -rf buildenv_*
+xcaddy build --with github.com/fabriziosalmi/caddy-waf
+./caddy run
+```
 
 ### Final Notes
 
