@@ -17,26 +17,52 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
 - **Dynamic rule reloading** without server restart.
 - **Severity-based actions** (block, log) for fine-grained control.
 
----
-
 ## 🚀 Installation
 
 ### Prerequisites
-1. Install the MaxMind GeoIP library:
+
+1. **Install the MaxMind GeoIP library**:
    ```bash
    go get github.com/oschwald/maxminddb-golang
    ```
 
-2. Build Caddy with the WAF middleware:
+2. **Clone the `caddy-waf` repository**:
    ```bash
+   git clone https://github.com/fabriziosalmi/caddy-waf
    cd caddy-waf
+   ```
+
+3. **Initialize the Go module**:
+   ```bash
    go mod init caddy
-   go mod edit -replace github.com/fabriziosalmi/caddy-waf=./caddy-waf
+   ```
+
+4. **Add a replace directive to use the local `caddy-waf` module**:
+   ```bash
+   go mod edit -replace github.com/fabriziosalmi/caddy-waf=.
+   ```
+
+   > **Note**: The `replace` directive should point to the current directory (`.`), not `./caddy-waf`, because you're already inside the `caddy-waf` directory.
+
+5. **Fetch dependencies**:
+   ```bash
    go get -v github.com/fabriziosalmi/caddy-waf
+   ```
+
+6. **Build Caddy with the WAF middleware**:
+   ```bash
    xcaddy build --with github.com/fabriziosalmi/caddy-waf
    ```
 
----
+### Final Notes
+
+- If you encounter any issues, ensure that your Go environment is set up correctly and that you're using a compatible version of Go (as specified in the `caddy-waf` repository's `go.mod` file).
+- After building Caddy with `xcaddy`, the resulting binary will include the WAF middleware. You can verify this by running:
+  ```bash
+  ./caddy list-modules
+  ```
+  Look for the `http.handlers.waf` module in the output.
+
 
 ## 🛠️ Configuration
 
@@ -138,8 +164,6 @@ example.com {
 }
 ```
 
----
-
 ## ⚙️ Configuration Options
 
 | Option | Description | Example |
@@ -152,7 +176,6 @@ example.com {
 | `log_all` | Enable detailed logging | `log_all` |
 | `severity` | Define actions based on severity levels | `severity critical block` |
 
----
 
 ## 📜 Rules Format (`rules.json`)
 
@@ -186,7 +209,6 @@ Rules are defined in a JSON file. Each rule specifies a pattern to match, target
 | `score` | Score for anomaly detection | `10` |
 | `description` | Rule description | `Block SQL injection attempts.` |
 
----
 
 ## 🛡️ Protected Attack Types
 
@@ -224,7 +246,6 @@ Rules are defined in a JSON file. Each rule specifies a pattern to match, target
    - Web application scanners
    - Network scanning tools
 
----
 
 ## 🚫 Blacklist Formats
 
@@ -241,8 +262,6 @@ malicious.com
 evil.example.org
 ```
 
----
-
 ## ⏱️ Rate Limiting
 
 Configure rate limits using requests count and time window:
@@ -258,8 +277,6 @@ rate_limit 10 1s
 rate_limit 1000 1h
 ```
 
----
-
 ## 🌍 Country Blocking
 
 Block traffic from specific countries using ISO country codes:
@@ -269,15 +286,11 @@ Block traffic from specific countries using ISO country codes:
 block_countries /path/to/GeoLite2-Country.mmdb RU CN KP
 ```
 
----
-
 ## 🔄 Dynamic Updates
 
 Rules and blacklists can be updated without server restart:
 1. Modify `rules.json` or blacklist files.
 2. Reload Caddy: `caddy reload`.
-
----
 
 ## 🧪 Testing
 
@@ -301,13 +314,9 @@ curl "http://localhost:8080/?input=<script>alert(1)</script>"
 ab -n 1000 -c 100 http://localhost:8080/
 ```
 
----
-
 ## 📜 License
 
 This project is licensed under the **AGPLv3 License**.
-
----
 
 ## 🙏 Contributing
 
