@@ -1,9 +1,12 @@
 module github.com/fabriziosalmi/caddy-waf
 
-go 1.23.4
+go 1.22.3
+
+toolchain go1.23.4
 
 require (
 	github.com/caddyserver/caddy/v2 v2.9.0
+	github.com/oschwald/maxminddb-golang v1.13.1
 	go.uber.org/zap v1.27.0
 )
 
