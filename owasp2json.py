@@ -67,6 +67,7 @@ def extract_rules(rule_text):
             severity = re.search(r'severity:\'?([^,\'\s]+)', actions)
             action = re.search(r'action:\'?([^,\'\s]+)', actions)
             phase = re.search(r'phase:(\d+)', actions)
+            description = re.search(r'msg:\'?([^\']+)\'', actions)
             
             if not rule_id:
                 continue
@@ -94,11 +95,13 @@ def extract_rules(rule_text):
             # Set default values if properties are missing
             severity_val = severity.group(1) if severity else "LOW"
             action_val = action.group(1) if action else "log"
+            description_val = description.group(1) if description else "No description provided."
             
             # Calculate rule score based on severity and action
-            score = 5 if action_val == "block" else \
-                   4 if severity_val.upper() == "HIGH" else \
-                   3 if severity_val.upper() == "MEDIUM" else 1
+            score = 0 if action_val == "pass" else \
+                    5 if action_val == "block" else \
+                    4 if severity_val.upper() == "HIGH" else \
+                    3 if severity_val.upper() == "MEDIUM" else 1
             
             # Create rule dictionary with extracted information
             rule = {
@@ -108,7 +111,8 @@ def extract_rules(rule_text):
                 "targets": targets,
                 "severity": severity_val,
                 "action": action_val,
-                "score": score
+                "score": score,
+                "description": description_val
             }
             rules.append(rule)
             
