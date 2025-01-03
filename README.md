@@ -42,8 +42,6 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
    go mod edit -replace github.com/fabriziosalmi/caddy-waf=.
    ```
 
-   > **Note**: The `replace` directive should point to the current directory (`.`), not `./caddy-waf`, because you're already inside the `caddy-waf` directory.
-
 5. **Fetch dependencies**:
    ```bash
    go get -v github.com/fabriziosalmi/caddy-waf
