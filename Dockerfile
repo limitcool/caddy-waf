@@ -1,5 +1,9 @@
 # Use a Go base image to build the Caddy binary
-FROM golang:1.21-alpine AS builder
+FROM golang:1.22.3-alpine AS builder
+
+# Install git and xcaddy (required for cloning the repository and building Caddy)
+RUN apk add --no-cache git wget && \
+    go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 
 # Set the working directory inside the container
 WORKDIR /app
