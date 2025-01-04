@@ -263,25 +263,57 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 	return false, nil
 }
 
+type responseWriterWrapper struct {
+	http.ResponseWriter
+	headerSent  bool
+	bodyAllowed bool
+}
+
+func (w *responseWriterWrapper) WriteHeader(statusCode int) {
+	if !w.headerSent {
+		w.ResponseWriter.WriteHeader(statusCode)
+		w.headerSent = true
+		// Disallow body writes for 403 status
+		if statusCode == http.StatusForbidden {
+			w.bodyAllowed = false
+		} else {
+			w.bodyAllowed = true
+		}
+	}
+}
+
+func (w *responseWriterWrapper) Write(b []byte) (int, error) {
+	if w.headerSent && w.bodyAllowed {
+		return w.ResponseWriter.Write(b)
+	}
+	// Discard the body if not allowed
+	return len(b), nil
+}
+
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	wrappedW := &responseWriterWrapper{ResponseWriter: w}
 
-	if m.handlePhase1(w, r) {
+	if m.handlePhase1(wrappedW, r) {
 		return nil
 	}
 
-	totalScore := m.handlePhase2(w, r)
+	totalScore := m.handlePhase2(wrappedW, r)
 	if totalScore >= m.AnomalyThreshold {
-		m.handlePhase3(w, r)
+		m.handlePhase3(wrappedW, r)
 		return nil
 	}
 
-	return next.ServeHTTP(w, r)
+	return next.ServeHTTP(wrappedW, r)
 }
 
 func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
+	wrappedW, ok := w.(*responseWriterWrapper)
+	if !ok {
+		wrappedW = &responseWriterWrapper{ResponseWriter: w}
+	}
+
 	if m.CountryBlock.Enabled {
 		blocked, err := m.isCountryInList(r.RemoteAddr, m.CountryBlock.CountryList, m.CountryBlock.geoIP)
-
 		if err != nil {
 			m.logRequest(zapcore.ErrorLevel, "Failed to check country block",
 				zap.String("ip", r.RemoteAddr),
@@ -292,14 +324,13 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 				zap.String("ip", r.RemoteAddr),
 				zap.Int("status_code", http.StatusForbidden),
 			)
-			w.WriteHeader(http.StatusForbidden)
+			wrappedW.WriteHeader(http.StatusForbidden)
 			return true
 		}
 	}
 
 	if m.CountryWhitelist.Enabled {
 		whitelisted, err := m.isCountryInList(r.RemoteAddr, m.CountryWhitelist.CountryList, m.CountryWhitelist.geoIP)
-
 		if err != nil {
 			m.logRequest(zapcore.ErrorLevel, "Failed to check country whitelist",
 				zap.String("ip", r.RemoteAddr),
@@ -310,7 +341,7 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 				zap.String("ip", r.RemoteAddr),
 				zap.Int("status_code", http.StatusForbidden),
 			)
-			w.WriteHeader(http.StatusForbidden)
+			wrappedW.WriteHeader(http.StatusForbidden)
 			return true
 		}
 	}
@@ -322,7 +353,7 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 				zap.String("ip", ip),
 				zap.Int("status_code", http.StatusTooManyRequests),
 			)
-			w.WriteHeader(http.StatusTooManyRequests)
+			wrappedW.WriteHeader(http.StatusTooManyRequests)
 			return true
 		}
 	}
@@ -332,7 +363,7 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 			zap.String("ip", r.RemoteAddr),
 			zap.Int("status_code", http.StatusForbidden),
 		)
-		w.WriteHeader(http.StatusForbidden)
+		wrappedW.WriteHeader(http.StatusForbidden)
 		return true
 	}
 
@@ -341,7 +372,7 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 			zap.String("domain", r.Host),
 			zap.Int("status_code", http.StatusForbidden),
 		)
-		w.WriteHeader(http.StatusForbidden)
+		wrappedW.WriteHeader(http.StatusForbidden)
 		return true
 	}
 
@@ -349,6 +380,11 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func (m *Middleware) handlePhase2(w http.ResponseWriter, r *http.Request) int {
+	wrappedW, ok := w.(*responseWriterWrapper)
+	if !ok {
+		wrappedW = &responseWriterWrapper{ResponseWriter: w}
+	}
+
 	totalScore := 0
 	for _, rule := range m.Rules {
 		if rule.Phase != 2 {
@@ -371,7 +407,7 @@ func (m *Middleware) handlePhase2(w http.ResponseWriter, r *http.Request) int {
 						zap.String("description", rule.Description),
 						zap.Int("status_code", http.StatusForbidden),
 					)
-					w.WriteHeader(http.StatusForbidden)
+					wrappedW.WriteHeader(http.StatusForbidden)
 					return totalScore
 				case "log":
 					m.logRequest(zapcore.InfoLevel, "Rule Matched",
@@ -389,10 +425,15 @@ func (m *Middleware) handlePhase2(w http.ResponseWriter, r *http.Request) int {
 }
 
 func (m *Middleware) handlePhase3(w http.ResponseWriter, r *http.Request) {
+	wrappedW, ok := w.(*responseWriterWrapper)
+	if !ok {
+		wrappedW = &responseWriterWrapper{ResponseWriter: w}
+	}
+
 	m.logRequest(zapcore.InfoLevel, "Request blocked by Anomaly Threshold",
 		zap.Int("status_code", http.StatusForbidden),
 	)
-	w.WriteHeader(http.StatusForbidden)
+	wrappedW.WriteHeader(http.StatusForbidden)
 }
 
 func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.Field) {
@@ -426,7 +467,6 @@ func (m *Middleware) getSeverityAction(severity string) string {
 }
 
 func (m *Middleware) Provision(ctx caddy.Context) error {
-	// Get the logger provided by Caddy
 	m.logger = ctx.Logger(m)
 
 	if m.RateLimit.Requests > 0 {
