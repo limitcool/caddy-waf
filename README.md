@@ -46,7 +46,7 @@ rm -rf buildenv_*
 
 # Step 7: Build Caddy with the caddy-waf module
 # This compiles Caddy and includes the caddy-waf module as a custom plugin.
-xcaddy build --with github.com/fabriziosalmi/caddy-waf
+xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
 
 # Step 8: Run the compiled Caddy server
 # This starts the Caddy server with the caddy-waf module enabled.
