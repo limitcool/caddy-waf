@@ -425,7 +425,14 @@ func (m *Middleware) getSeverityAction(severity string) string {
 }
 
 func (m *Middleware) Provision(ctx caddy.Context) error {
-	m.logger = ctx.Logger()
+	// Configure the logger to output JSON
+	config := zap.NewProductionConfig()
+	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	logger, err := config.Build()
+	if err != nil {
+		return fmt.Errorf("failed to create logger: %v", err)
+	}
+	m.logger = logger
 
 	if m.RateLimit.Requests > 0 {
 		m.rateLimiter = &RateLimiter{
