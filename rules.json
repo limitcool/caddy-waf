@@ -1,25 +1,5 @@
 [
     {
-        "id": "whitelist-root",
-        "phase": 1,
-        "pattern": "^/$",
-        "targets": ["PATH"],
-        "severity": "LOW",
-        "action": "pass",
-        "score": 0,
-        "description": "Allow requests to the root path."
-    },
-    {
-        "id": "whitelist-health",
-        "phase": 1,
-        "pattern": "^/(?:about|health|status|ping)$",
-        "targets": ["PATH"],
-        "severity": "LOW",
-        "action": "pass",
-        "score": 0,
-        "description": "Allow requests to common health and status endpoints."
-    },
-    {
         "id": "scanner-detection",
         "phase": 1,
         "pattern": "(?i)(?:sqlmap|acunetix|nikto|nessus|netsparker|nmap|dirbuster|w3af|openvas|burpsuite|webinspect|qualys|commix|zap|arachni|gobuster|hydra|metasploit|zgrab|masscan|wfuzz|crackmapexec|nuclei|shodan|censys|dirsearch|ffuf|vega|skipfish|wpscan|whatweb|dirmap)",
