@@ -61,13 +61,13 @@
     },
     {
         "id": "rce-separators",
-         "phase": 2,
-        "pattern": "(?i)(?:`[^`]+`|\\b(?:;|\\|\\||&&|\\n|%0a|%0d)\\s*[\\(\\w\\-\\>\\|]+\\s*[=\\s>]|;\\s*[\\(\\w\\-\\>\\|]+\\s*=\\s*.*?\\$\\(|\\b.*?\\$\\()",
-        "targets": ["ARGS", "HEADERS"],
+        "phase": 2,
+        "pattern": "(?i)(?:`[^`]+`|\\b(?:;|\\|\\||&&|\\n|%0a|%0d)\\s*(?:rm|cat|echo|curl|wget|python|php|jsp|cmd|exec|system|passthru|shell_exec|exec|system|popen|pcntl_exec))",
+        "targets": ["ARGS", "HEADERS:User-Agent", "HEADERS:Referer"],
         "severity": "HIGH",
         "action": "block",
         "score": 7,
-        "description": "Block command separators, backticks, and command substitution attempts. Added newline %0a %0d and |> for redirecting to file"
+        "description": "Block command separators followed by specific commands in ARGS and selected headers."
     },
     {
         "id": "log4j-exploit",
