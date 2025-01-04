@@ -92,7 +92,7 @@ xcaddy build --with github.com/fabriziosalmi/caddy-waf
             dns_blacklist_file dns_blacklist.txt
             
             # Country blocking (requires MaxMind GeoIP2 database)
-            block_countries GeoLite2-Country.mmdb RU CN NK
+            block_countries GeoLite2-Country.mmdb RU CN KP
 
             # Whitelist countries (requires MaxMind GeoIP2 database)
             # whitelist_countries GeoLite2-Country.mmdb US
@@ -138,7 +138,7 @@ example.com {
         dns_blacklist_file /path/to/dns_blacklist.txt
 
         # Country blocking (requires MaxMind GeoIP2 database)
-        block_countries /path/to/GeoLite2-Country.mmdb RU CN NK
+        block_countries /path/to/GeoLite2-Country.mmdb RU CN KP
 
         # Enable detailed logging
         log_all
