@@ -22,42 +22,42 @@
     {
         "id": "scanner-detection",
         "phase": 1,
-        "pattern": "(?i)(?:sqlmap|acunetix|nikto|nessus|netsparker|nmap|dirbuster|w3af|openvas|burpsuite|webinspect|qualys|commix|zap|arachni|gobuster|hydra|metasploit|zgrab|masscan|wfuzz|crackmapexec)",
+        "pattern": "(?i)(?:sqlmap|acunetix|nikto|nessus|netsparker|nmap|dirbuster|w3af|openvas|burpsuite|webinspect|qualys|commix|zap|arachni|gobuster|hydra|metasploit|zgrab|masscan|wfuzz|crackmapexec|nuclei|shodan|censys|dirsearch|ffuf|vega|skipfish|wpscan|whatweb|dirmap)",
         "targets": ["USER_AGENT"],
         "severity": "CRITICAL",
         "action": "block",
-        "score": 10,
-        "description": "Block requests from known security scanners based on User-Agent."
+        "score": 9,
+        "description": "Block requests from known security scanners based on User-Agent. Added nuclei, shodan, censys, dirsearch, ffuf, vega, skipfish, wpscan, whatweb and dirmap"
     },
     {
         "id": "sql-injection",
         "phase": 2,
-        "pattern": "(?i)(?:\\b(?:select|insert|update|delete|drop|alter)\\b[\\s\\S]*?\\b(?:from|into|where|table)\\b|\\bunion\\b[\\s\\S]*?\\bselect\\b|'\\s*(?:and|or)\\s*['\\d]+\\s*(?:=|[<>]=?|!=)\\s*['\\d]+|\\)\\s*(?:and|or)\\s*\\([\\d]+\\s*(?:=|[<>]=?|!=)\\s*[\\d]+\\)|\\b(?:sleep|benchmark|waitfor\\s+delay)\\s*\\()",
+        "pattern": "(?i)(?:\\b(?:select|insert|update|delete|drop|alter|truncate|create|grant|revoke)\\b(?:\\s|\\/\\*.*?\\*\\/|--.*?)?(?:from|into|where|table|index|user|procedure|function|database)\\b|\\bunion\\b(?:\\s|\\/\\*.*?\\*\\/|--.*?)?(?:all|distinct)?(?:\\s|\\/\\*.*?\\*\\/|--.*?)?\\bselect\\b|'\\s*(?:and|or)\\s*['\\d]+\\s*(?:=|[<>]=?|!=)\\s*['\\d]+|\\)\\s*(?:and|or)\\s*\\([\\d]+\\s*(?:=|[<>]=?|!=)\\s*[\\d]+\\)|\\b(?:sleep|benchmark|waitfor\\s+delay)\\s*\\(|(?:\\bexec\\b|xp_cmdshell))",
         "targets": ["ARGS", "BODY", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
-        "score": 5,
-        "description": "Block SQL injection attempts in request arguments, body, and headers."
+        "score": 7,
+        "description": "Block SQL injection attempts in request arguments, body, and headers. Added more sql keywords like truncate,create,grant,revoke, xp_cmdshell, exec and made it more robust by adding (?:\\s|\\/\\*.*?\\*\\/|--.*?)? to cover comment injection"
     },
     {
         "id": "xss",
         "phase": 2,
-        "pattern": "(?i)(?:<script[^>]*>|<img[^>]*\\s+onerror=|javascript:|<svg[^>]*\\s+onload=|alert\\(|document\\.cookie|eval\\(|base64_decode)",
+       "pattern": "(?i)(?:<script[^>]*>|<img[^>]*\\s+onerror=|javascript:|data:|vbscript:|<svg[^>]*\\s+onload=|alert\\(|document\\.(?:cookie|location)|eval\\(|base64_(?:encode|decode)|expression\\(|\\b(?:on(?:mouse(?:over|out|down|up|move)|focus|blur|click|key(?:press|down|up)|load|error|submit|reset|change))\\s*=|\\bstyle\\s*=)",
         "targets": ["ARGS", "BODY", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
-        "score": 5,
-        "description": "Block XSS attempts using HTML tags, event handlers, and javascript: protocol."
+        "score": 6,
+        "description": "Block XSS attempts using HTML tags, event handlers, javascript: protocol, added data, vbscript and other event handlers and style tag, document.location, base64_encode"
     },
     {
         "id": "path-traversal",
         "phase": 2,
-        "pattern": "(?:\\.\\.[/\\\\]|\\.\\./|\\.\\.\\\\/|%2e%2e[/\\\\]|%2e%2e/|%2e%2e%5c|%252e%252e|\\b(?:etc/passwd|etc/shadow|proc/self/environ)\\b)",
+        "pattern": "(?:\\.\\.[/\\\\]|\\.\\./|\\.\\.\\\\/|%2e%2e[/\\\\]|%2e%2e/|%2e%2e%5c|%252e%252e|\\b(?:etc(?:\\/|%2F)(?:passwd|shadow|hosts)|(?:proc|sys)(?:\\/|%2F)(?:self(?:\\/|%2F)environ|cmdline)|boot(?:\\/|%2F)grub(?:\\/|%2F)grub.cfg)\\b)",
         "targets": ["PATH", "ARGS", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
-        "score": 5,
-        "description": "Block path traversal attempts and direct access to sensitive files."
+        "score": 9,
+        "description": "Block path traversal attempts and direct access to sensitive files. Added more specific paths /proc/self/cmdline /sys/ and /boot/grub/grub.cfg."
     },
     {
         "id": "rce-commands",
@@ -81,53 +81,53 @@
     },
     {
         "id": "rce-separators",
-        "phase": 2,
-        "pattern": "(?i)(?:`[^`]+`|\\b(?:;|\\|\\||&&)\\s*[\\(\\w\\-]+\\s*[=\\s]|;\\s*[\\(\\w\\-]+\\s*=\\s*.*?\\$\\(|\\b.*?\\$\\()",
+         "phase": 2,
+        "pattern": "(?i)(?:`[^`]+`|\\b(?:;|\\|\\||&&|\\n|%0a|%0d)\\s*[\\(\\w\\-\\>\\|]+\\s*[=\\s>]|;\\s*[\\(\\w\\-\\>\\|]+\\s*=\\s*.*?\\$\\(|\\b.*?\\$\\()",
         "targets": ["ARGS", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
-        "score": 5,
-        "description": "Block command separators, backticks, and command substitution attempts."
+        "score": 7,
+        "description": "Block command separators, backticks, and command substitution attempts. Added newline %0a %0d and |> for redirecting to file"
     },
     {
         "id": "log4j-exploit",
         "phase": 2,
-        "pattern": "(?i)(?:\\$\\{jndi:(?:ldap|rmi|dns|iiop|corba|nds|nis|http)://[^}]+\\}|\\$\\{(?:env|sys|java|lower|upper|logger|ctx|date|threadcontext|marker):[^}]+\\})",
+        "pattern": "(?i)(?:\\$\\{jndi:(?:ldap|rmi|dns|iiop|corba|nds|nis|http|ldaps|rmi|nis|custom)://[^}]+\\}|\\$\\{(?:env|sys|java|lower|upper|logger|ctx|date|threadcontext|marker):[^}]+\\}|\\$\\{.*?\\:.*?\\})",
         "targets": ["ARGS", "BODY", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
-        "score": 5,
-        "description": "Block Log4j exploit attempts using JNDI and environment variables."
+        "score": 9,
+        "description": "Block Log4j exploit attempts using JNDI and environment variables, added https, ldaps,rmi,nis,custom and generic regex \\$\\{.*?\\:.*?\\}"
     },
     {
         "id": "header-attacks",
         "phase": 2,
-        "pattern": "(?i)(?:1'\\s+OR\\s+'1'='1|<script[^>]*>|../../etc/passwd|1'\\s+UNION\\s+SELECT\\s+NULL--)",
+        "pattern": "(?i)(?:1'\\s+OR\\s+'1'='1|<script[^>]*>|\\.\\.\\/\\.\\.\\/etc\\/passwd|1'\\s+UNION\\s+SELECT\\s+NULL--|\\b(?:select|insert|update|delete|drop|alter)\\b[\\s\\S]*?\\b(?:from|into|where|table)\\b|\\bunion\\b[\\s\\S]*?\\bselect\\b|'\\s*(?:and|or)\\s*['\\d]+\\s*(?:=|[<>]=?|!=)\\s*['\\d]+|\\)\\s*(?:and|or)\\s*\\([\\d]+\\s*(?:=|[<>]=?|!=)\\s*[\\d]+\\)|\\b(?:sleep|benchmark|waitfor\\s+delay)\\s*\\()",
         "targets": ["HEADERS"],
         "severity": "HIGH",
         "action": "block",
-        "score": 5,
-        "description": "Block SQL injection, XSS, and path traversal attempts in headers."
+        "score": 8,
+        "description": "Block SQL injection, XSS, and path traversal attempts in headers. Added more sql injection patterns"
     },
     {
         "id": "sensitive-files",
         "phase": 1,
-        "pattern": "(?i)(?:/\\.git/(?:HEAD|index|config|refs)|/\\.env(?:\\.local|\\.dev|\\.prod)?$|/\\.htaccess$|/\\.htpasswd$|/\\.svn/|/\\.DS_Store$)",
+        "pattern": "(?i)(?:/\\.git/(?:HEAD|index|config|refs|objects)|/\\.env(?:\\.local|\\.dev|\\.prod)?$|/\\.htaccess$|/\\.htpasswd$|/\\.svn/|/\\.DS_Store$|\\/WEB-INF\\/|\\/WEB-INF\\/web.xml|\\/META-INF\\/)",
         "targets": ["PATH", "URI"],
         "severity": "HIGH",
         "action": "block",
-        "score": 5,
-        "description": "Block access to sensitive files and directories."
+        "score": 9,
+        "description": "Block access to sensitive files and directories. Added /.git/objects, /WEB-INF/, /WEB-INF/web.xml and /META-INF/"
     },
     {
         "id": "unusual-paths",
         "phase": 1,
-        "pattern": "(?i)(?:/wp-admin|/phpmyadmin|/admin|/login|/cgi-bin|/shell|/backdoor|/cmd|/exec|/bin/sh|/bin/bash)",
+        "pattern": "(?i)(?:/wp-admin|/phpmyadmin|/admin|/login|/cgi-bin|/shell|/backdoor|/cmd|/exec|/bin/(?:sh|bash|zsh)|/console|/setup|/test)",
         "targets": ["PATH"],
         "severity": "MEDIUM",
         "action": "block",
-        "score": 3,
-        "description": "Block requests to unusual or suspicious paths."
+        "score": 7,
+        "description": "Block requests to unusual or suspicious paths. Added /console, /setup and /test and  /bin/zsh"
     },
     {
         "id": "block-bad-bots",
