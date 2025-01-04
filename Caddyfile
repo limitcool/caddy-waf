@@ -7,7 +7,7 @@
 :8080 {
     log {
         output stdout
-        format console
+        format json
         level DEBUG
     }
 
