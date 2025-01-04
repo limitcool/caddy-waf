@@ -23,7 +23,7 @@ RUN wget https://git.io/GeoLite2-Country.mmdb
 RUN rm -rf buildenv_*
 
 # Build Caddy with the caddy-waf module
-RUN xcaddy build --with github.com/fabriziosalmi/caddy-waf
+RUN xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
 
 # ---  Runtime Stage (smaller final image) ---
 FROM alpine:latest
