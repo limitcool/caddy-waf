@@ -264,6 +264,7 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 }
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+
 	if m.handlePhase1(w, r) {
 		return nil
 	}
@@ -425,14 +426,8 @@ func (m *Middleware) getSeverityAction(severity string) string {
 }
 
 func (m *Middleware) Provision(ctx caddy.Context) error {
-	// Configure the logger to output JSON
-	config := zap.NewProductionConfig()
-	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	logger, err := config.Build()
-	if err != nil {
-		return fmt.Errorf("failed to create logger: %v", err)
-	}
-	m.logger = logger
+	// Get the logger provided by Caddy
+	m.logger = ctx.Logger(m)
 
 	if m.RateLimit.Requests > 0 {
 		m.rateLimiter = &RateLimiter{
@@ -447,6 +442,14 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			return fmt.Errorf("failed to load GeoIP database: %v", err)
 		}
 		m.CountryBlock.geoIP = reader
+	}
+
+	if m.CountryWhitelist.Enabled {
+		reader, err := maxminddb.Open(m.CountryWhitelist.GeoIPDBPath)
+		if err != nil {
+			return fmt.Errorf("failed to load GeoIP database: %v", err)
+		}
+		m.CountryWhitelist.geoIP = reader
 	}
 
 	for _, file := range m.RuleFiles {
