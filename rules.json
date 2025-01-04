@@ -60,14 +60,34 @@
         "description": "Block path traversal attempts and direct access to sensitive files."
     },
     {
-        "id": "rce",
+        "id": "rce-commands",
         "phase": 2,
-        "pattern": "(?i)(?:\\b(?:cat|base64|whoami)\\b[\\s\\S]*?\\b(?:/etc/passwd|/etc/shadow)\\b|`[^`]+`|;\\s*[\\w\\-]+\\s*[=\\s]|;\\s*[\\w\\-]+=.*?\\$\\(|;\\s*[\\w\\-]+\\s*\\$\\()",
-        "targets": ["ARGS", "BODY", "HEADERS"],
+        "pattern": "(?i)(?:\\b(?:cat|base64|whoami|echo|curl|wget|bash|sh|python|perl)\\b)",
+        "targets": ["ARGS", "HEADERS"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 3,
+        "description": "Block common commands used in RCE attempts."
+    },
+    {
+        "id": "rce-sensitive-files",
+        "phase": 2,
+        "pattern": "(?i)(?:\\b(?:/etc/passwd|/etc/shadow)\\b)",
+        "targets": ["ARGS", "HEADERS"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 4,
+        "description": "Block attempts to access sensitive files."
+    },
+    {
+        "id": "rce-separators",
+        "phase": 2,
+        "pattern": "(?i)(?:`[^`]+`|\\b(?:;|\\|\\||&&)\\s*[\\(\\w\\-]+\\s*[=\\s]|;\\s*[\\(\\w\\-]+\\s*=\\s*.*?\\$\\(|\\b.*?\\$\\()",
+        "targets": ["ARGS", "HEADERS"],
         "severity": "HIGH",
         "action": "block",
         "score": 5,
-        "description": "Block remote code execution attempts using command separators, backticks, and base64-encoded commands."
+        "description": "Block command separators, backticks, and command substitution attempts."
     },
     {
         "id": "log4j-exploit",
