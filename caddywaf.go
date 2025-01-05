@@ -351,6 +351,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 }
 
 func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase int, state *WAFState) {
+	// Log the start of the phase at DEBUG level
 	m.logger.Debug(fmt.Sprintf("Handling phase %d rules", phase))
 
 	// Check country blocking
@@ -364,6 +365,10 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		} else if blocked {
 			m.logRequest(zapcore.InfoLevel, "Request blocked by country",
 				zap.String("ip", r.RemoteAddr),
+				zap.String("user_agent", r.UserAgent()),
+				zap.String("request_method", r.Method),
+				zap.String("request_path", r.URL.Path),
+				zap.String("query_params", r.URL.RawQuery),
 				zap.Int("status_code", http.StatusForbidden),
 			)
 			state.Blocked = true
@@ -385,6 +390,10 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		} else if !whitelisted {
 			m.logRequest(zapcore.InfoLevel, "Request blocked by country whitelist",
 				zap.String("ip", r.RemoteAddr),
+				zap.String("user_agent", r.UserAgent()),
+				zap.String("request_method", r.Method),
+				zap.String("request_path", r.URL.Path),
+				zap.String("query_params", r.URL.RawQuery),
 				zap.Int("status_code", http.StatusForbidden),
 			)
 			state.Blocked = true
@@ -401,6 +410,10 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		if err == nil && m.rateLimiter.isRateLimited(ip) {
 			m.logRequest(zapcore.InfoLevel, "Request blocked by rate limit",
 				zap.String("ip", ip),
+				zap.String("user_agent", r.UserAgent()),
+				zap.String("request_method", r.Method),
+				zap.String("request_path", r.URL.Path),
+				zap.String("query_params", r.URL.RawQuery),
 				zap.Int("status_code", http.StatusTooManyRequests),
 			)
 			state.Blocked = true
@@ -410,10 +423,15 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			return
 		}
 	}
+
 	// Check IP blacklist
 	if phase == 1 && m.isIPBlacklisted(r.RemoteAddr) {
 		m.logRequest(zapcore.InfoLevel, "Request blocked by IP blacklist",
 			zap.String("ip", r.RemoteAddr),
+			zap.String("user_agent", r.UserAgent()),
+			zap.String("request_method", r.Method),
+			zap.String("request_path", r.URL.Path),
+			zap.String("query_params", r.URL.RawQuery),
 			zap.Int("status_code", http.StatusForbidden),
 		)
 		state.Blocked = true
@@ -427,6 +445,10 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 	if phase == 1 && m.isDNSBlacklisted(r.Host) {
 		m.logRequest(zapcore.InfoLevel, "Request blocked by DNS blacklist",
 			zap.String("domain", r.Host),
+			zap.String("user_agent", r.UserAgent()),
+			zap.String("request_method", r.Method),
+			zap.String("request_path", r.URL.Path),
+			zap.String("query_params", r.URL.RawQuery),
 			zap.Int("status_code", http.StatusForbidden),
 		)
 		state.Blocked = true
@@ -436,6 +458,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		return
 	}
 
+	// Check if there are rules for the current phase
 	rules, ok := m.Rules[phase]
 	if !ok {
 		m.logger.Debug(fmt.Sprintf("No rules found for phase: %d", phase))
@@ -468,64 +491,73 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		}
 	}
 
-	// Log the final score after evaluating all rules
-	m.logRequest(zapcore.InfoLevel, fmt.Sprintf("Phase %d Completed", phase),
+	// Log the completion of the phase at DEBUG level
+	m.logger.Debug(fmt.Sprintf("Phase %d Completed", phase),
 		zap.Int("total_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
 }
 
 func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) {
+	// Ensure the rule mode is set to "detect" if empty
 	if rule.Mode == "" {
 		rule.Mode = "detect"
 	}
 
-	// Get the action from the severity config if no mode specified in the rule
+	// Determine the action based on the rule mode and severity configuration
 	action := rule.Mode
 	if action == "detect" {
 		action = m.getSeverityAction(rule.Severity)
 	}
 
-	// Add the score to the total score for all rules
+	// Add the rule's score to the total score for all rules
 	state.TotalScore += rule.Score
 
-	m.logRequest(zapcore.InfoLevel, "Rule Matched",
+	// Prepare detailed request information for logging
+	requestInfo := []zap.Field{
 		zap.String("rule_id", rule.ID),
 		zap.String("target", strings.Join(rule.Targets, ",")),
 		zap.String("value", value),
 		zap.String("description", rule.Description),
 		zap.Int("score", rule.Score),
-		zap.Int("total_score", state.TotalScore), // Log the updated total_score
+		zap.Int("total_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		zap.String("mode", rule.Mode),
 		zap.String("severity_action", action),
-	)
+		zap.String("source_ip", r.RemoteAddr),      // Source IP address
+		zap.String("user_agent", r.UserAgent()),    // User-Agent header
+		zap.String("request_method", r.Method),     // HTTP method (GET, POST, etc.)
+		zap.String("request_path", r.URL.Path),     // Request path
+		zap.String("query_params", r.URL.RawQuery), // Query parameters
+		zap.Any("headers", r.Header),               // All request headers
+		zap.Time("timestamp", time.Now()),          // Timestamp of the request
+	}
 
+	// Log the rule match with detailed request information
+	m.logRequest(zapcore.InfoLevel, "Rule Matched", requestInfo...)
+
+	// Handle the rule action
 	switch action {
 	case "block":
-		m.logRequest(zapcore.WarnLevel, "Rule Matched - Blocking Request",
-			zap.String("rule_id", rule.ID),
-			zap.String("target", strings.Join(rule.Targets, ",")),
-			zap.String("value", value),
-			zap.String("description", rule.Description),
-			zap.Int("score", rule.Score),
-			zap.Int("total_score", state.TotalScore), // Log the updated total_score
-			zap.Int("anomaly_threshold", m.AnomalyThreshold),
-			zap.String("mode", rule.Mode),
-			zap.String("severity_action", action),
-		)
+		// Log the blocking action with detailed request information
+		m.logRequest(zapcore.WarnLevel, "Rule Matched - Blocking Request", requestInfo...)
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
 		w.WriteHeader(state.StatusCode)
 		state.ResponseWritten = true
 		return
+
 	case "log":
-		// Log already done
+		// Logging is already done above, no further action needed
+		return
+
 	case "allow":
 		// Allow the request, but the score has already been added
 		return
+
 	case "detect":
-		// No additional action needed
+		// No additional action needed for "detect" mode
+		return
 	}
 }
 
