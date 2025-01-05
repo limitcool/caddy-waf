@@ -202,6 +202,15 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				default:
 					return d.Errf("invalid severity level: %s", severityLevel)
 				}
+			case "anomaly_threshold":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				threshold, err := strconv.Atoi(d.Val())
+				if err != nil {
+					return d.Errf("invalid anomaly threshold: %v", err)
+				}
+				m.AnomalyThreshold = threshold
 			default:
 				fmt.Println("WAF Unrecognized SubDirective: ", d.Val())
 				return d.Errf("unrecognized subdirective: %s", d.Val())
@@ -293,20 +302,26 @@ func (w *responseWriterWrapper) Write(b []byte) (int, error) {
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	wrappedW := &responseWriterWrapper{ResponseWriter: w}
 
-	if m.handlePhase1(wrappedW, r) {
+	// Handle Phase 1 and get the total score
+	phase1Score := m.handlePhase1(wrappedW, r)
+	if phase1Score < 0 {
+		// Request was blocked in Phase 1 (e.g., IP blacklist, rate limit)
 		return nil
 	}
 
-	totalScore := m.handlePhase2(wrappedW, r)
+	// Handle Phase 2 with the accumulated score
+	totalScore := m.handlePhase2(wrappedW, r, phase1Score)
+
 	if totalScore >= m.AnomalyThreshold {
-		m.handlePhase3(wrappedW, r)
+		m.handlePhase3(wrappedW, r, totalScore)
 		return nil
 	}
 
+	// Proceed to the next handler
 	return next.ServeHTTP(wrappedW, r)
 }
 
-func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
+func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) int {
 	wrappedW, ok := w.(*responseWriterWrapper)
 	if !ok {
 		wrappedW = &responseWriterWrapper{ResponseWriter: w}
@@ -328,7 +343,7 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 				zap.Int("status_code", http.StatusForbidden),
 			)
 			wrappedW.WriteHeader(http.StatusForbidden)
-			return true
+			return -1 // Return -1 to indicate the request is blocked
 		}
 	}
 
@@ -346,7 +361,7 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 				zap.Int("status_code", http.StatusForbidden),
 			)
 			wrappedW.WriteHeader(http.StatusForbidden)
-			return true
+			return -1 // Return -1 to indicate the request is blocked
 		}
 	}
 
@@ -359,7 +374,7 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 				zap.Int("status_code", http.StatusTooManyRequests),
 			)
 			wrappedW.WriteHeader(http.StatusTooManyRequests)
-			return true
+			return -1 // Return -1 to indicate the request is blocked
 		}
 	}
 
@@ -370,7 +385,7 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 			zap.Int("status_code", http.StatusForbidden),
 		)
 		wrappedW.WriteHeader(http.StatusForbidden)
-		return true
+		return -1 // Return -1 to indicate the request is blocked
 	}
 
 	// Check DNS blacklist
@@ -380,51 +395,24 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) bool {
 			zap.Int("status_code", http.StatusForbidden),
 		)
 		wrappedW.WriteHeader(http.StatusForbidden)
-		return true
+		return -1 // Return -1 to indicate the request is blocked
 	}
 
-	// Evaluate phase 1 rules
+	// Evaluate phase 1 rules and accumulate scores
+	totalScore := 0
 	for _, rule := range m.Rules {
 		if rule.Phase != 1 {
 			continue
 		}
 		for _, target := range rule.Targets {
-			value, _ := m.extractValue(target, r)
-			m.logger.Debug("Checking rule",
-				zap.String("rule_id", rule.ID),
-				zap.String("target", target),
-				zap.String("value", value),
-			)
-			if rule.regex.MatchString(value) {
-				m.logRequest(zapcore.InfoLevel, "Rule Matched",
-					zap.String("rule_id", rule.ID),
+			value, err := m.extractValue(target, r)
+			if err != nil {
+				m.logger.Debug("Failed to extract value for target",
 					zap.String("target", target),
-					zap.String("value", value),
-					zap.String("description", rule.Description),
-					zap.Int("status_code", http.StatusForbidden),
+					zap.Error(err),
 				)
-				wrappedW.WriteHeader(http.StatusForbidden)
-				return true
+				continue
 			}
-		}
-	}
-
-	return false
-}
-
-func (m *Middleware) handlePhase2(w http.ResponseWriter, r *http.Request) int {
-	wrappedW, ok := w.(*responseWriterWrapper)
-	if !ok {
-		wrappedW = &responseWriterWrapper{ResponseWriter: w}
-	}
-
-	totalScore := 0
-	for _, rule := range m.Rules {
-		if rule.Phase != 2 {
-			continue
-		}
-		for _, target := range rule.Targets {
-			value, _ := m.extractValue(target, r)
 			m.logger.Debug("Checking rule",
 				zap.String("rule_id", rule.ID),
 				zap.String("target", target),
@@ -432,45 +420,102 @@ func (m *Middleware) handlePhase2(w http.ResponseWriter, r *http.Request) int {
 			)
 			if rule.regex.MatchString(value) {
 				totalScore += rule.Score
-				action := rule.Action
-				if action == "" {
-					action = m.getSeverityAction(rule.Severity)
-				}
-				switch action {
-				case "block":
-					m.logRequest(zapcore.InfoLevel, "Rule Matched",
-						zap.String("rule_id", rule.ID),
-						zap.String("target", target),
-						zap.String("value", value),
-						zap.String("description", rule.Description),
-						zap.Int("status_code", http.StatusForbidden),
-					)
-					wrappedW.WriteHeader(http.StatusForbidden)
-					return totalScore
-				case "log":
-					m.logRequest(zapcore.InfoLevel, "Rule Matched",
-						zap.String("rule_id", rule.ID),
-						zap.String("target", target),
-						zap.String("value", value),
-						zap.String("description", rule.Description),
-						zap.Int("status_code", http.StatusOK),
-					)
-				}
+				m.logRequest(zapcore.InfoLevel, "Rule Matched",
+					zap.String("rule_id", rule.ID),
+					zap.String("target", target),
+					zap.String("value", value),
+					zap.String("description", rule.Description),
+					zap.Int("score", rule.Score),
+					zap.Int("total_score", totalScore),
+					zap.Int("anomaly_threshold", m.AnomalyThreshold),
+				)
 			}
 		}
 	}
+
+	// Log the final score after evaluating all rules
+	m.logRequest(zapcore.InfoLevel, "Phase 1 Completed",
+		zap.Int("total_score", totalScore),
+		zap.Int("anomaly_threshold", m.AnomalyThreshold),
+	)
+
 	return totalScore
 }
 
-func (m *Middleware) handlePhase3(w http.ResponseWriter, r *http.Request) {
+func (m *Middleware) handlePhase2(w http.ResponseWriter, r *http.Request, phase1Score int) int {
 	wrappedW, ok := w.(*responseWriterWrapper)
 	if !ok {
 		wrappedW = &responseWriterWrapper{ResponseWriter: w}
 	}
 
-	m.logRequest(zapcore.InfoLevel, "Request blocked by Anomaly Threshold",
+	totalScore := phase1Score
+	for _, rule := range m.Rules {
+		if rule.Phase != 2 {
+			continue
+		}
+		for _, target := range rule.Targets {
+			value, err := m.extractValue(target, r)
+			if err != nil {
+				m.logger.Debug("Failed to extract value for target",
+					zap.String("target", target),
+					zap.Error(err),
+				)
+				continue
+			}
+			m.logger.Debug("Checking rule",
+				zap.String("rule_id", rule.ID),
+				zap.String("target", target),
+				zap.String("value", value),
+			)
+			if rule.regex.MatchString(value) {
+				totalScore += rule.Score
+				m.logRequest(zapcore.InfoLevel, "Rule Matched - Score Updated",
+					zap.String("rule_id", rule.ID),
+					zap.String("target", target),
+					zap.String("value", value),
+					zap.String("description", rule.Description),
+					zap.Int("score", rule.Score),
+					zap.Int("total_score", totalScore),
+					zap.Int("anomaly_threshold", m.AnomalyThreshold),
+				)
+
+				// Check if the total score exceeds the anomaly threshold
+				if totalScore >= m.AnomalyThreshold {
+					m.logRequest(zapcore.WarnLevel, "Anomaly Threshold Reached - Request Blocked",
+						zap.Int("total_score", totalScore),
+						zap.Int("anomaly_threshold", m.AnomalyThreshold),
+						zap.Int("status_code", http.StatusForbidden),
+					)
+					wrappedW.WriteHeader(http.StatusForbidden)
+					return totalScore
+				}
+			}
+		}
+	}
+
+	// Log the final score after evaluating all rules
+	m.logRequest(zapcore.InfoLevel, "Phase 2 Completed",
+		zap.Int("total_score", totalScore),
+		zap.Int("anomaly_threshold", m.AnomalyThreshold),
+	)
+
+	return totalScore
+}
+
+func (m *Middleware) handlePhase3(w http.ResponseWriter, r *http.Request, totalScore int) {
+	wrappedW, ok := w.(*responseWriterWrapper)
+	if !ok {
+		wrappedW = &responseWriterWrapper{ResponseWriter: w}
+	}
+
+	// Log the blocking event with additional details
+	m.logRequest(zapcore.WarnLevel, "Request blocked by Anomaly Threshold",
+		zap.Int("total_score", totalScore),
+		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		zap.Int("status_code", http.StatusForbidden),
 	)
+
+	// Block the request with a 403 Forbidden response
 	wrappedW.WriteHeader(http.StatusForbidden)
 }
 
