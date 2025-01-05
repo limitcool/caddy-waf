@@ -1,19 +1,20 @@
 {
     auto_https off
     admin off
-    debug   # Enable debug mode for better logging
+    # debug   # Enable debug mode for better logging
 }
+
 
 :8080 {
     log {
         output stdout
         format json
-        level DEBUG
+        level WARN
     }
 
     route {
         waf {
-            # anomaly_threshold 20
+            anomaly_threshold 5
             block_countries GeoLite2-Country.mmdb RU CN KP
             # or whitelist
             # whitelist_countries GeoLite2-Country.mmdb US
@@ -28,8 +29,12 @@
             severity high block
             severity medium log
             severity low log
+
+            log_severity warn
+            log_json
         }
 
         respond "Hello, world!" 200
     }
 }
+
