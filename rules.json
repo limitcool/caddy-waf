@@ -1,5 +1,5 @@
 [
-        {
+    {
         "id": "malicious-referer-test",
         "phase": 2,
         "pattern": "(?i)malicious-referer",
