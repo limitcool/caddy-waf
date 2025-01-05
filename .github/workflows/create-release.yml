@@ -56,11 +56,11 @@ jobs:
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.arch }} xcaddy build --with github.com/fabriziosalmi/caddy-waf=../
         
       - name: Upload Binary Artifact
-        uses: actions/upload-artifact@v4 # Updated to V4
         if: steps.build_caddy.outcome == 'success'
+        uses: actions/upload-artifact@v4 # Updated to V4
         with:
-          name: caddy-waf-${{ matrix.os }}-${{ matrix.arch }} #Unique artifact name
-          path: buildenv_${{ matrix.os }}_${{ matrix.arch }}/caddy
+          name: caddy-waf-builds
+          path: buildenv_*/*/caddy*
   release:
     name: Release
     needs: build
@@ -69,11 +69,13 @@ jobs:
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
+        with:
+          name: caddy-waf-builds
       - name: Combine artifacts
         id: combine_artifacts
         run: |
           mkdir artifacts
-          find . -name "caddy-waf-*" -exec cp {} artifacts \;
+          find . -name "caddy*" -exec cp {} artifacts \;
           echo "Artifacts Combined"
         
       - name: Create Github release
