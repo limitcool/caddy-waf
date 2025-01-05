@@ -309,12 +309,26 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		m.handlePhase(w, r, 1, state)
 	}
 
-	//Handle Phase 2
+	// If the request is blocked after Phase 1, return early
+	if state.Blocked {
+		w.WriteHeader(state.StatusCode)
+		state.ResponseWritten = true
+		return nil
+	}
+
+	// Handle Phase 2
 	if !state.Blocked && !state.ResponseWritten {
 		m.handlePhase(w, r, 2, state)
 	}
 
-	// Handle Phase 3
+	// If the request is blocked after Phase 2, return early
+	if state.Blocked {
+		w.WriteHeader(state.StatusCode)
+		state.ResponseWritten = true
+		return nil
+	}
+
+	// Handle Phase 3 (Anomaly Threshold Check)
 	if state.TotalScore >= m.AnomalyThreshold && !state.Blocked && !state.ResponseWritten {
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
@@ -325,13 +339,14 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		)
 	}
 
-	if state.Blocked && !state.ResponseWritten {
+	// If the request is blocked after Phase 3, return early
+	if state.Blocked {
 		w.WriteHeader(state.StatusCode)
 		state.ResponseWritten = true
 		return nil
 	}
 
-	// Proceed to the next handler
+	// Proceed to the next handler only if the request is not blocked
 	return next.ServeHTTP(w, r)
 }
 
@@ -461,7 +476,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 }
 
 func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) {
-
 	if rule.Mode == "" {
 		rule.Mode = "detect"
 	}
@@ -471,17 +485,24 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	if action == "detect" {
 		action = m.getSeverityAction(rule.Severity)
 	}
+
+	// Add the score to the total score for all actions except "allow"
+	if action != "allow" {
+		state.TotalScore += rule.Score
+	}
+
 	m.logRequest(zapcore.InfoLevel, "Rule Matched",
 		zap.String("rule_id", rule.ID),
 		zap.String("target", strings.Join(rule.Targets, ",")),
 		zap.String("value", value),
 		zap.String("description", rule.Description),
 		zap.Int("score", rule.Score),
-		zap.Int("total_score", state.TotalScore),
+		zap.Int("total_score", state.TotalScore), // Log the updated total_score
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		zap.String("mode", rule.Mode),
 		zap.String("severity_action", action),
 	)
+
 	switch action {
 	case "block":
 		m.logRequest(zapcore.WarnLevel, "Rule Matched - Blocking Request",
@@ -490,7 +511,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 			zap.String("value", value),
 			zap.String("description", rule.Description),
 			zap.Int("score", rule.Score),
-			zap.Int("total_score", state.TotalScore),
+			zap.Int("total_score", state.TotalScore), // Log the updated total_score
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
 			zap.String("mode", rule.Mode),
 			zap.String("severity_action", action),
@@ -505,7 +526,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	case "allow":
 		return
 	case "detect":
-		state.TotalScore += rule.Score
+		// No additional action needed
 	}
 }
 
@@ -904,15 +925,13 @@ func (m *Middleware) loadRulesFromFile(path string) error {
 		}
 		rules[i].regex = regex
 		if rule.Mode == "" {
-			rules[i].Mode = "detect"
+			rules[i].Mode = rule.Action // Map "action" to "mode" if "mode" is empty
 		}
 		if _, ok := m.Rules[rule.Phase]; !ok {
 			m.Rules[rule.Phase] = []Rule{}
 		}
 		m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rules[i])
-
 	}
-
 	return nil
 }
 
