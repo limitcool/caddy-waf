@@ -14,7 +14,7 @@
     route {
         waf {
             anomaly_threshold 50
-            block_countries GeoLite2-Country.mmdb RU CN KP IT
+            block_countries GeoLite2-Country.mmdb RU CN KP
             # or whitelist
             # whitelist_countries GeoLite2-Country.mmdb US
             rate_limit 1000 1m  
