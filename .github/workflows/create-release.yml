@@ -48,15 +48,18 @@ jobs:
         run: wget https://git.io/GeoLite2-Country.mmdb
 
       - name: Build Caddy with WAF module
+        id: build_caddy
         run: |
           mkdir -p buildenv_${{ matrix.os }}_${{ matrix.arch }}
           cd buildenv_${{ matrix.os }}_${{ matrix.arch }}
           cp ../GeoLite2-Country.mmdb ./
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.arch }} xcaddy build --with github.com/fabriziosalmi/caddy-waf=../
+        
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4 # Updated to V4
+        if: steps.build_caddy.outcome == 'success'
         with:
-          name: caddy-waf-${{ matrix.goos }}-${{ matrix.arch }}
+          name: caddy-waf-${{ matrix.os }}-${{ matrix.arch }}-${{ github.run_id }} # Unique artifact name
           path: buildenv_${{ matrix.os }}_${{ matrix.arch }}/caddy
   release:
     name: Release
