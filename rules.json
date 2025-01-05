@@ -1,4 +1,14 @@
 [
+        {
+        "id": "malicious-referer-test",
+        "phase": 2,
+        "pattern": "(?i)malicious-referer",
+        "targets": ["HEADERS:Referer"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 5,
+        "description": "Block requests with malicious Referer headers"
+    },
     {
         "id": "scanner-detection",
         "phase": 1,
