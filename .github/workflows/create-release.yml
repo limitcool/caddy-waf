@@ -54,13 +54,14 @@ jobs:
           cd buildenv_${{ matrix.os }}_${{ matrix.arch }}
           cp ../GeoLite2-Country.mmdb ./
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.arch }} xcaddy build --with github.com/fabriziosalmi/caddy-waf=../
+          ls -l ./
         
       - name: Upload Binary Artifact
-        if: steps.build_caddy.outcome == 'success'
         uses: actions/upload-artifact@v4 # Updated to V4
+        if: steps.build_caddy.outcome == 'success'
         with:
           name: caddy-waf-builds
-          path: buildenv_*/*/caddy*
+          path: buildenv_${{ matrix.os }}_${{ matrix.arch }}/caddy
   release:
     name: Release
     needs: build
@@ -93,7 +94,7 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
             upload_url: ${{ github.event.release.upload_url }}
-            asset_path: artifacts/caddy-waf-darwin-amd64/caddy
+            asset_path: artifacts/caddy
             asset_name: caddy-waf_darwin_amd64
             asset_content_type: application/octet-stream
       - name: Upload release artifacts - darwin arm64
@@ -102,7 +103,7 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
             upload_url: ${{ github.event.release.upload_url }}
-            asset_path: artifacts/caddy-waf-darwin-arm64/caddy
+            asset_path: artifacts/caddy
             asset_name: caddy-waf_darwin_arm64
             asset_content_type: application/octet-stream
       - name: Upload release artifacts - linux amd64
@@ -111,7 +112,7 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
             upload_url: ${{ github.event.release.upload_url }}
-            asset_path: artifacts/caddy-waf-linux-amd64/caddy
+            asset_path: artifacts/caddy
             asset_name: caddy-waf_linux_amd64
             asset_content_type: application/octet-stream
       - name: Upload release artifacts - linux arm64
@@ -120,7 +121,7 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
             upload_url: ${{ github.event.release.upload_url }}
-            asset_path: artifacts/caddy-waf-linux-arm64/caddy
+            asset_path: artifacts/caddy
             asset_name: caddy-waf_linux_arm64
             asset_content_type: application/octet-stream
       - name: Upload release artifacts - windows amd64
@@ -129,6 +130,6 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
             upload_url: ${{ github.event.release.upload_url }}
-            asset_path: artifacts/caddy-waf-windows-amd64/caddy.exe
+            asset_path: artifacts/caddy.exe
             asset_name: caddy-waf_windows_amd64.exe
             asset_content_type: application/octet-stream
