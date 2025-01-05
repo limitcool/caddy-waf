@@ -36,22 +36,26 @@ var (
 	_ caddyfile.Unmarshaler       = (*Middleware)(nil)
 )
 
+// RateLimit struct
 type RateLimit struct {
 	Requests int           `json:"requests"`
 	Window   time.Duration `json:"window"`
 }
 
+// requestCounter struct
 type requestCounter struct {
 	count  int
 	window time.Time
 }
 
+// RateLimiter struct
 type RateLimiter struct {
 	sync.RWMutex
 	requests map[string]*requestCounter
 	config   RateLimit
 }
 
+// CountryAccessFilter struct
 type CountryAccessFilter struct {
 	Enabled     bool     `json:"enabled"`
 	CountryList []string `json:"country_list"`
@@ -59,25 +63,28 @@ type CountryAccessFilter struct {
 	geoIP       *maxminddb.Reader
 }
 
+// GeoIPRecord struct
 type GeoIPRecord struct {
 	Country struct {
 		ISOCode string `maxminddb:"iso_code"`
 	} `maxminddb:"country"`
 }
 
+// Rule struct
 type Rule struct {
 	ID          string   `json:"id"`
 	Phase       int      `json:"phase"`
 	Pattern     string   `json:"pattern"`
 	Targets     []string `json:"targets"`
 	Severity    string   `json:"severity"`
-	Action      string   `json:"action"`
+	Action      string   `json:"action"` // Not Directly Used, defaults to mode if mode is not set.
 	Score       int      `json:"score"`
-	Mode        string   `json:"mode"`
+	Mode        string   `json:"mode"` // Added mode, defaults to "detect"
 	Description string   `json:"description"`
 	regex       *regexp.Regexp
 }
 
+// SeverityConfig struct
 type SeverityConfig struct {
 	Critical string `json:"critical,omitempty"`
 	High     string `json:"high,omitempty"`
@@ -85,21 +92,31 @@ type SeverityConfig struct {
 	Low      string `json:"low,omitempty"`
 }
 
+// Middleware struct
 type Middleware struct {
 	RuleFiles        []string            `json:"rule_files"`
 	IPBlacklistFile  string              `json:"ip_blacklist_file"`
 	DNSBlacklistFile string              `json:"dns_blacklist_file"`
-	LogAll           bool                `json:"log_all"`
+	LogAll           bool                `json:"log_all"` // Changed LogAll to LogLevel
 	AnomalyThreshold int                 `json:"anomaly_threshold"`
 	RateLimit        RateLimit           `json:"rate_limit"`
 	CountryBlock     CountryAccessFilter `json:"country_block"`
 	CountryWhitelist CountryAccessFilter `json:"country_whitelist"`
 	Severity         SeverityConfig      `json:"severity,omitempty"`
-	Rules            []Rule              `json:"-"`
+	Rules            map[int][]Rule      `json:"-"` // Changed rules to a map of phase -> []Rule
 	ipBlacklist      map[string]bool     `json:"-"`
 	dnsBlacklist     []string            `json:"-"`
 	rateLimiter      *RateLimiter        `json:"-"`
 	logger           *zap.Logger
+	LogSeverity      string `json:"log_severity,omitempty"`
+	LogJSON          bool   `json:"log_json,omitempty"`
+}
+
+// WAFState struct: Used to maintain state between phases
+type WAFState struct {
+	TotalScore int
+	Blocked    bool
+	StatusCode int
 }
 
 func (Middleware) CaddyModule() caddy.ModuleInfo {
@@ -160,7 +177,14 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				for d.NextArg() {
 					m.CountryWhitelist.CountryList = append(m.CountryWhitelist.CountryList, strings.ToUpper(d.Val()))
 				}
-			case "log_all":
+			case "log_severity":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				m.LogSeverity = d.Val()
+			case "log_json":
+				m.LogJSON = true
+			case "log_all": //Deprecated
 				fmt.Println("WAF Log All Enabled")
 				m.LogAll = true
 			case "rule_file":
@@ -272,65 +296,46 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 	return false, nil
 }
 
-type responseWriterWrapper struct {
-	http.ResponseWriter
-	headerSent  bool
-	bodyAllowed bool
-}
-
-func (w *responseWriterWrapper) WriteHeader(statusCode int) {
-	if !w.headerSent {
-		w.ResponseWriter.WriteHeader(statusCode)
-		w.headerSent = true
-		// Disallow body writes for 403 status
-		if statusCode == http.StatusForbidden {
-			w.bodyAllowed = false
-		} else {
-			w.bodyAllowed = true
-		}
-	}
-}
-
-func (w *responseWriterWrapper) Write(b []byte) (int, error) {
-	if w.headerSent && w.bodyAllowed {
-		return w.ResponseWriter.Write(b)
-	}
-	// Discard the body if not allowed
-	return len(b), nil
-}
-
+// ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	wrappedW := &responseWriterWrapper{ResponseWriter: w}
-
-	// Handle Phase 1 and get the total score
-	phase1Score := m.handlePhase1(wrappedW, r)
-	if phase1Score < 0 {
-		// Request was blocked in Phase 1 (e.g., IP blacklist, rate limit)
-		return nil
+	state := &WAFState{
+		TotalScore: 0,
+		Blocked:    false,
+		StatusCode: http.StatusOK,
 	}
 
-	// Handle Phase 2 with the accumulated score
-	totalScore := m.handlePhase2(wrappedW, r, phase1Score)
+	// Handle Phase 1
+	m.handlePhase(w, r, 1, state)
 
-	if totalScore >= m.AnomalyThreshold {
-		m.handlePhase3(wrappedW, r, totalScore)
-		return nil
+	//Handle Phase 2
+	if !state.Blocked {
+		m.handlePhase(w, r, 2, state)
 	}
 
+	// Handle Phase 3
+	if state.TotalScore >= m.AnomalyThreshold && !state.Blocked {
+		state.Blocked = true
+		state.StatusCode = http.StatusForbidden
+		m.logRequest(zapcore.WarnLevel, "Request blocked by Anomaly Threshold",
+			zap.Int("total_score", state.TotalScore),
+			zap.Int("anomaly_threshold", m.AnomalyThreshold),
+			zap.Int("status_code", state.StatusCode),
+		)
+	}
+
+	if state.Blocked {
+		w.WriteHeader(state.StatusCode)
+		return nil
+	}
 	// Proceed to the next handler
-	return next.ServeHTTP(wrappedW, r)
+	return next.ServeHTTP(w, r)
 }
 
-func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) int {
-	wrappedW, ok := w.(*responseWriterWrapper)
-	if !ok {
-		wrappedW = &responseWriterWrapper{ResponseWriter: w}
-	}
-
-	m.logger.Debug("Handling phase 1 rules")
+func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase int, state *WAFState) {
+	m.logger.Debug(fmt.Sprintf("Handling phase %d rules", phase))
 
 	// Check country blocking
-	if m.CountryBlock.Enabled {
+	if phase == 1 && m.CountryBlock.Enabled {
 		blocked, err := m.isCountryInList(r.RemoteAddr, m.CountryBlock.CountryList, m.CountryBlock.geoIP)
 		if err != nil {
 			m.logRequest(zapcore.ErrorLevel, "Failed to check country block",
@@ -342,13 +347,14 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) int {
 				zap.String("ip", r.RemoteAddr),
 				zap.Int("status_code", http.StatusForbidden),
 			)
-			wrappedW.WriteHeader(http.StatusForbidden)
-			return -1 // Return -1 to indicate the request is blocked
+			state.Blocked = true
+			state.StatusCode = http.StatusForbidden
+			return
 		}
 	}
 
 	// Check country whitelisting
-	if m.CountryWhitelist.Enabled {
+	if phase == 1 && m.CountryWhitelist.Enabled {
 		whitelisted, err := m.isCountryInList(r.RemoteAddr, m.CountryWhitelist.CountryList, m.CountryWhitelist.geoIP)
 		if err != nil {
 			m.logRequest(zapcore.ErrorLevel, "Failed to check country whitelist",
@@ -360,50 +366,55 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) int {
 				zap.String("ip", r.RemoteAddr),
 				zap.Int("status_code", http.StatusForbidden),
 			)
-			wrappedW.WriteHeader(http.StatusForbidden)
-			return -1 // Return -1 to indicate the request is blocked
+			state.Blocked = true
+			state.StatusCode = http.StatusForbidden
+			return
 		}
 	}
 
 	// Check rate limiting
-	if m.rateLimiter != nil {
+	if phase == 1 && m.rateLimiter != nil {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err == nil && m.rateLimiter.isRateLimited(ip) {
 			m.logRequest(zapcore.InfoLevel, "Request blocked by rate limit",
 				zap.String("ip", ip),
 				zap.Int("status_code", http.StatusTooManyRequests),
 			)
-			wrappedW.WriteHeader(http.StatusTooManyRequests)
-			return -1 // Return -1 to indicate the request is blocked
+			state.Blocked = true
+			state.StatusCode = http.StatusTooManyRequests
+			return
 		}
 	}
-
 	// Check IP blacklist
-	if m.isIPBlacklisted(r.RemoteAddr) {
+	if phase == 1 && m.isIPBlacklisted(r.RemoteAddr) {
 		m.logRequest(zapcore.InfoLevel, "Request blocked by IP blacklist",
 			zap.String("ip", r.RemoteAddr),
 			zap.Int("status_code", http.StatusForbidden),
 		)
-		wrappedW.WriteHeader(http.StatusForbidden)
-		return -1 // Return -1 to indicate the request is blocked
+		state.Blocked = true
+		state.StatusCode = http.StatusForbidden
+		return
 	}
 
 	// Check DNS blacklist
-	if m.isDNSBlacklisted(r.Host) {
+	if phase == 1 && m.isDNSBlacklisted(r.Host) {
 		m.logRequest(zapcore.InfoLevel, "Request blocked by DNS blacklist",
 			zap.String("domain", r.Host),
 			zap.Int("status_code", http.StatusForbidden),
 		)
-		wrappedW.WriteHeader(http.StatusForbidden)
-		return -1 // Return -1 to indicate the request is blocked
+		state.Blocked = true
+		state.StatusCode = http.StatusForbidden
+		return
 	}
 
-	// Evaluate phase 1 rules and accumulate scores
-	totalScore := 0
-	for _, rule := range m.Rules {
-		if rule.Phase != 1 {
-			continue
-		}
+	rules, ok := m.Rules[phase]
+	if !ok {
+		m.logger.Debug(fmt.Sprintf("No rules found for phase: %d", phase))
+		return
+	}
+
+	// Evaluate rules for the current phase
+	for _, rule := range rules {
 		for _, target := range rule.Targets {
 			value, err := m.extractValue(target, r)
 			if err != nil {
@@ -418,119 +429,116 @@ func (m *Middleware) handlePhase1(w http.ResponseWriter, r *http.Request) int {
 				zap.String("target", target),
 				zap.String("value", value),
 			)
+
 			if rule.regex.MatchString(value) {
-				totalScore += rule.Score
-				m.logRequest(zapcore.InfoLevel, "Rule Matched",
-					zap.String("rule_id", rule.ID),
-					zap.String("target", target),
-					zap.String("value", value),
-					zap.String("description", rule.Description),
-					zap.Int("score", rule.Score),
-					zap.Int("total_score", totalScore),
-					zap.Int("anomaly_threshold", m.AnomalyThreshold),
-				)
+				m.processRuleMatch(r, &rule, value, state)
 			}
 		}
 	}
 
 	// Log the final score after evaluating all rules
-	m.logRequest(zapcore.InfoLevel, "Phase 1 Completed",
-		zap.Int("total_score", totalScore),
+	m.logRequest(zapcore.InfoLevel, fmt.Sprintf("Phase %d Completed", phase),
+		zap.Int("total_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
-
-	return totalScore
 }
 
-func (m *Middleware) handlePhase2(w http.ResponseWriter, r *http.Request, phase1Score int) int {
-	wrappedW, ok := w.(*responseWriterWrapper)
-	if !ok {
-		wrappedW = &responseWriterWrapper{ResponseWriter: w}
+func (m *Middleware) processRuleMatch(r *http.Request, rule *Rule, value string, state *WAFState) {
+
+	if rule.Mode == "" {
+		rule.Mode = "detect"
 	}
 
-	totalScore := phase1Score
-	for _, rule := range m.Rules {
-		if rule.Phase != 2 {
-			continue
-		}
-		for _, target := range rule.Targets {
-			value, err := m.extractValue(target, r)
-			if err != nil {
-				m.logger.Debug("Failed to extract value for target",
-					zap.String("target", target),
-					zap.Error(err),
-				)
-				continue
-			}
-			m.logger.Debug("Checking rule",
-				zap.String("rule_id", rule.ID),
-				zap.String("target", target),
-				zap.String("value", value),
-			)
-			if rule.regex.MatchString(value) {
-				totalScore += rule.Score
-				m.logRequest(zapcore.InfoLevel, "Rule Matched - Score Updated",
-					zap.String("rule_id", rule.ID),
-					zap.String("target", target),
-					zap.String("value", value),
-					zap.String("description", rule.Description),
-					zap.Int("score", rule.Score),
-					zap.Int("total_score", totalScore),
-					zap.Int("anomaly_threshold", m.AnomalyThreshold),
-				)
-
-				// Check if the total score exceeds the anomaly threshold
-				if totalScore >= m.AnomalyThreshold {
-					m.logRequest(zapcore.WarnLevel, "Anomaly Threshold Reached - Request Blocked",
-						zap.Int("total_score", totalScore),
-						zap.Int("anomaly_threshold", m.AnomalyThreshold),
-						zap.Int("status_code", http.StatusForbidden),
-					)
-					wrappedW.WriteHeader(http.StatusForbidden)
-					return totalScore
-				}
-			}
-		}
+	// Get the action from the severity config if no mode specified in the rule
+	action := rule.Mode
+	if action == "detect" {
+		action = m.getSeverityAction(rule.Severity)
 	}
-
-	// Log the final score after evaluating all rules
-	m.logRequest(zapcore.InfoLevel, "Phase 2 Completed",
-		zap.Int("total_score", totalScore),
+	m.logRequest(zapcore.InfoLevel, "Rule Matched",
+		zap.String("rule_id", rule.ID),
+		zap.String("target", strings.Join(rule.Targets, ",")),
+		zap.String("value", value),
+		zap.String("description", rule.Description),
+		zap.Int("score", rule.Score),
+		zap.Int("total_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
+		zap.String("mode", rule.Mode),
+		zap.String("severity_action", action),
 	)
-
-	return totalScore
-}
-
-func (m *Middleware) handlePhase3(w http.ResponseWriter, r *http.Request, totalScore int) {
-	wrappedW, ok := w.(*responseWriterWrapper)
-	if !ok {
-		wrappedW = &responseWriterWrapper{ResponseWriter: w}
+	switch action {
+	case "block":
+		m.logRequest(zapcore.WarnLevel, "Rule Matched - Blocking Request",
+			zap.String("rule_id", rule.ID),
+			zap.String("target", strings.Join(rule.Targets, ",")),
+			zap.String("value", value),
+			zap.String("description", rule.Description),
+			zap.Int("score", rule.Score),
+			zap.Int("total_score", state.TotalScore),
+			zap.Int("anomaly_threshold", m.AnomalyThreshold),
+			zap.String("mode", rule.Mode),
+			zap.String("severity_action", action),
+		)
+		state.Blocked = true
+		state.StatusCode = http.StatusForbidden
+		return
+	case "log":
+		// Log already done
+	case "allow":
+		return
+	case "detect":
+		state.TotalScore += rule.Score
 	}
-
-	// Log the blocking event with additional details
-	m.logRequest(zapcore.WarnLevel, "Request blocked by Anomaly Threshold",
-		zap.Int("total_score", totalScore),
-		zap.Int("anomaly_threshold", m.AnomalyThreshold),
-		zap.Int("status_code", http.StatusForbidden),
-	)
-
-	// Block the request with a 403 Forbidden response
-	wrappedW.WriteHeader(http.StatusForbidden)
 }
 
 func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.Field) {
-	switch level {
-	case zapcore.DebugLevel:
-		m.logger.Debug(msg, fields...)
-	case zapcore.InfoLevel:
-		m.logger.Info(msg, fields...)
-	case zapcore.WarnLevel:
-		m.logger.Warn(msg, fields...)
-	case zapcore.ErrorLevel:
-		m.logger.Error(msg, fields...)
-	default:
-		m.logger.Info(msg, fields...)
+	if m.logger == nil {
+		return
+	}
+	if m.LogSeverity == "" {
+		m.LogSeverity = "info"
+	}
+	logLevel := zapcore.InfoLevel
+	switch strings.ToLower(m.LogSeverity) {
+	case "debug":
+		logLevel = zapcore.DebugLevel
+	case "info":
+		logLevel = zapcore.InfoLevel
+	case "warn":
+		logLevel = zapcore.WarnLevel
+	case "error":
+		logLevel = zapcore.ErrorLevel
+	}
+
+	if level < logLevel {
+		return
+	}
+	if m.LogJSON {
+		fields = append(fields, zap.String("message", msg))
+		switch level {
+		case zapcore.DebugLevel:
+			m.logger.Debug("", fields...)
+		case zapcore.InfoLevel:
+			m.logger.Info("", fields...)
+		case zapcore.WarnLevel:
+			m.logger.Warn("", fields...)
+		case zapcore.ErrorLevel:
+			m.logger.Error("", fields...)
+		default:
+			m.logger.Info("", fields...)
+		}
+	} else {
+		switch level {
+		case zapcore.DebugLevel:
+			m.logger.Debug(msg, fields...)
+		case zapcore.InfoLevel:
+			m.logger.Info(msg, fields...)
+		case zapcore.WarnLevel:
+			m.logger.Warn(msg, fields...)
+		case zapcore.ErrorLevel:
+			m.logger.Error(msg, fields...)
+		default:
+			m.logger.Info(msg, fields...)
+		}
 	}
 }
 
@@ -552,7 +560,15 @@ func (m *Middleware) getSeverityAction(severity string) string {
 func (m *Middleware) Provision(ctx caddy.Context) error {
 	// Initialize the logger
 	m.logger = ctx.Logger(m)
-	m.logger.Info("Provisioning WAF middleware")
+	if m.LogSeverity == "" {
+		m.LogSeverity = "info"
+	}
+
+	m.logger.Info("Provisioning WAF middleware",
+		zap.String("log_level", m.LogSeverity),
+		zap.Bool("log_json", m.LogJSON),
+		zap.Int("anomaly_threshold", m.AnomalyThreshold),
+	)
 
 	// Initialize rate limiter if configured
 	if m.RateLimit.Requests > 0 {
@@ -597,6 +613,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Load rules from rule files
+	m.Rules = make(map[int][]Rule)
 	for _, file := range m.RuleFiles {
 		m.logger.Debug("Loading rules from file",
 			zap.String("file", file),
@@ -609,35 +626,42 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	// Validate and log each rule
 	m.logger.Info("Validating loaded rules")
 	var invalidRules []string
-	for _, rule := range m.Rules {
-		m.logger.Debug("Validating rule",
-			zap.String("rule_id", rule.ID),
-			zap.Int("phase", rule.Phase),
-			zap.String("pattern", rule.Pattern),
-			zap.Strings("targets", rule.Targets),
-			zap.String("severity", rule.Severity),
-			zap.String("action", rule.Action),
-			zap.Int("score", rule.Score),
-			zap.String("description", rule.Description),
-		)
+	for _, rules := range m.Rules {
+		for _, rule := range rules {
+			m.logger.Debug("Validating rule",
+				zap.String("rule_id", rule.ID),
+				zap.Int("phase", rule.Phase),
+				zap.String("pattern", rule.Pattern),
+				zap.Strings("targets", rule.Targets),
+				zap.String("severity", rule.Severity),
+				zap.String("action", rule.Action),
+				zap.Int("score", rule.Score),
+				zap.String("description", rule.Description),
+				zap.String("mode", rule.Mode),
+			)
 
-		// Validate the rule
-		if rule.ID == "" {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule with empty ID: %v", rule))
-			continue
+			// Validate the rule
+			if rule.ID == "" {
+				invalidRules = append(invalidRules, fmt.Sprintf("Rule with empty ID: %v", rule))
+				continue
+			}
+			if rule.Pattern == "" {
+				invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has an empty pattern", rule.ID))
+				continue
+			}
+			if len(rule.Targets) == 0 {
+				invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has no targets", rule.ID))
+				continue
+			}
+			if rule.regex == nil {
+				invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has an invalid regex pattern", rule.ID))
+				continue
+			}
+			if rule.Mode == "" {
+				rule.Mode = "detect"
+			}
 		}
-		if rule.Pattern == "" {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has an empty pattern", rule.ID))
-			continue
-		}
-		if len(rule.Targets) == 0 {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has no targets", rule.ID))
-			continue
-		}
-		if rule.regex == nil {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has an invalid regex pattern", rule.ID))
-			continue
-		}
+
 	}
 
 	// Log invalid rules
@@ -820,10 +844,15 @@ func (m *Middleware) loadRulesFromFile(path string) error {
 		}
 		rules[i].regex = regex
 		if rule.Mode == "" {
-			rules[i].Mode = rule.Action
+			rules[i].Mode = "detect"
 		}
+		if _, ok := m.Rules[rule.Phase]; !ok {
+			m.Rules[rule.Phase] = []Rule{}
+		}
+		m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rules[i])
+
 	}
-	m.Rules = append(m.Rules, rules...)
+
 	return nil
 }
 
@@ -852,6 +881,7 @@ func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
 }
 
 func (m *Middleware) ReloadConfig() error {
+	m.Rules = make(map[int][]Rule)
 	if err := m.loadRulesFromFiles(); err != nil {
 		return err
 	}
@@ -865,7 +895,6 @@ func (m *Middleware) ReloadConfig() error {
 }
 
 func (m *Middleware) loadRulesFromFiles() error {
-	m.Rules = []Rule{}
 	for _, file := range m.RuleFiles {
 		if err := m.loadRulesFromFile(file); err != nil {
 			return err
