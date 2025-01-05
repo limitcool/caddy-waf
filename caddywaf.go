@@ -755,11 +755,7 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 	case target == "URL":
 		return r.URL.Path, nil
 	case target == "USER_AGENT":
-		userAgent := r.UserAgent()
-		m.logger.Debug("Extracted User-Agent",
-			zap.String("user_agent", userAgent),
-		)
-		return userAgent, nil
+		return r.UserAgent(), nil
 	case target == "COOKIES":
 		return fmt.Sprintf("%v", r.Cookies()), nil
 	case target == "PATH":
@@ -767,14 +763,42 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 	case target == "URI":
 		return r.RequestURI, nil
 	case strings.HasPrefix(target, "HEADERS:"):
-		// Extract the specific header name after "HEADERS:"
 		headerName := strings.TrimPrefix(target, "HEADERS:")
-		headerValue := r.Header.Get(headerName)
-		m.logger.Debug("Extracted specific header",
-			zap.String("header", headerName),
-			zap.String("value", headerValue),
-		)
-		return headerValue, nil
+		return r.Header.Get(headerName), nil
+	case strings.HasPrefix(target, "ARGS:"):
+		argName := strings.TrimPrefix(target, "ARGS:")
+		return r.URL.Query().Get(argName), nil
+	case strings.HasPrefix(target, "COOKIES:"):
+		cookieName := strings.TrimPrefix(target, "COOKIES:")
+		cookie, err := r.Cookie(cookieName)
+		if err != nil {
+			return "", nil
+		}
+		return cookie.Value, nil
+	case strings.HasPrefix(target, "FORM:"):
+		fieldName := strings.TrimPrefix(target, "FORM:")
+		if err := r.ParseForm(); err != nil {
+			return "", err
+		}
+		return r.Form.Get(fieldName), nil
+	case strings.HasPrefix(target, "JSON:"):
+		fieldName := strings.TrimPrefix(target, "JSON:")
+		if r.Body == nil {
+			return "", nil
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			return "", err
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		var jsonData map[string]interface{}
+		if err := json.Unmarshal(body, &jsonData); err != nil {
+			return "", err
+		}
+		if value, ok := jsonData[fieldName]; ok {
+			return fmt.Sprintf("%v", value), nil
+		}
+		return "", nil
 	default:
 		return "", fmt.Errorf("unknown target: %s", target)
 	}
