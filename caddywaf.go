@@ -486,10 +486,8 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		action = m.getSeverityAction(rule.Severity)
 	}
 
-	// Add the score to the total score for all actions except "allow"
-	if action != "allow" {
-		state.TotalScore += rule.Score
-	}
+	// Add the score to the total score for all rules
+	state.TotalScore += rule.Score
 
 	m.logRequest(zapcore.InfoLevel, "Rule Matched",
 		zap.String("rule_id", rule.ID),
@@ -524,6 +522,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	case "log":
 		// Log already done
 	case "allow":
+		// Allow the request, but the score has already been added
 		return
 	case "detect":
 		// No additional action needed
