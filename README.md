@@ -10,7 +10,6 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
     *   [Final Notes](#final-notes)
 3.  [🛠️ Configuration](#️-configuration)
     *   [Basic Caddyfile Setup](#basic-caddyfile-setup)
-    *   [Reverse Proxy with WAF Setup](#reverse-proxy-with-waf-setup)
 4.  [⚙️ Configuration Options](#️-configuration-options)
 5.  [📜 Rules Format (`rules.json`)](#-rules-format-rulesjson)
     *   [Rule Fields](#rule-fields)
@@ -143,64 +142,6 @@ xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
             log_json
         }
         respond "Hello, world!" 200
-    }
-}
-```
-
-### Reverse Proxy with WAF Setup
-
-```caddyfile
-# Global options
-{
-    # Enable the global error log
-    log {
-        output file /var/log/caddy/errors.log
-        level ERROR
-    }
-    # Automatic HTTPS settings
-    email admin@example.com
-}
-
-# Reverse proxy for example.com
-example.com {
-    # Enable WAF
-    waf {
-         # Anomaly threshold will block request if the score is => the threshold
-            anomaly_threshold 20
-
-        # Rate limiting: 100 requests per 5 seconds
-        rate_limit 100 5s
-
-        # Rules and blacklists
-        rule_file /path/to/rules.json
-        ip_blacklist_file /path/to/ip_blacklist.txt
-        dns_blacklist_file /path/to/dns_blacklist.txt
-
-        # Country blocking (requires MaxMind GeoIP2 database)
-        block_countries /path/to/GeoLite2-Country.mmdb RU CN KP
-
-        # Define actions based on severity
-        severity critical block
-        severity high block
-        severity medium log
-        severity low log
-
-        # Set Log Severity
-        log_severity warn
-    }
-
-    # Log access to a file
-    log {
-        output file /var/log/caddy/access.log
-        format single_field common_log
-    }
-
-    # Reverse proxy to the origin server
-    reverse_proxy http://origin-server:8080 {
-        # Optional: Add headers to forward to the backend
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
     }
 }
 ```
