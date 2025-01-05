@@ -186,14 +186,14 @@ Rules are defined in a JSON file. Each rule specifies a pattern to match, target
 ```json
 [
     {
-        "id": "sql_injection",
-        "phase": 1,
-        "pattern": "(?i)(?:select|insert|update|delete|drop|alter)(?:[\\s\\v\\/\\*]+)(?:from|into|where|table)\\b",
-        "targets": ["ARGS", "BODY", "HEADERS", "COOKIES"],
-        "severity": "CRITICAL",
+        "id": "wordpress-brute-force",
+        "phase": 2,
+        "pattern": "(?i)(?:wp-login\\.php|xmlrpc\\.php).*?(?:username=|pwd=)",
+        "targets": ["URI", "ARGS"],
+        "severity": "HIGH",
         "action": "block",
-        "score": 10,
-        "description": "Block SQL injection attempts."
+        "score": 8,
+        "description": "Block brute force attempts targeting WordPress login and XML-RPC endpoints."
     }
 ]
 ```
