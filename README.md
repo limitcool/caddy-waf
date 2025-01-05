@@ -180,7 +180,7 @@ example.com {
 | `block_countries` | Country blocking config | `block_countries GeoLite2-Country.mmdb RU CN NK` |
 | `log_all` | Enable detailed logging | `log_all` |
 | `severity` | Define actions based on severity levels | `severity critical block` |
-
+| `anomaly_threshold` | Anomaly threshold | `anomaly_threshold 20` |
 
 ## 📜 Rules Format (`rules.json`)
 
