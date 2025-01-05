@@ -83,8 +83,11 @@ xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
     
     route {
         waf {
-            # Rate limiting: 100 requests per 5 seconds
-            rate_limit 100 5s
+            # Anomaly threshold will block request if the score is => the threshold
+            # anomaly_threshold 20
+
+            # Rate limiting: 1000 requests per 1 minute
+            rate_limit 1000 1m
             
             # Rules and blacklists
             rule_file rules.json
