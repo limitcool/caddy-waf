@@ -13,6 +13,7 @@
 
     route {
         waf {
+            anomaly_threshold 50
             block_countries GeoLite2-Country.mmdb RU CN KP IT
             # or whitelist
             # whitelist_countries GeoLite2-Country.mmdb US
