@@ -4,7 +4,6 @@ import re       # For regular expression pattern matching
 import ipaddress  # For IP address validation and classification
 
 # List of URLs containing known malicious IP addresses
-# These sources provide regularly updated lists of IPs associated with malicious activity
 ip_list_urls = [
     "https://feodotracker.abuse.ch/downloads/ipblocklist.txt",      # Feodo Tracker botnet C&C servers
     "https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level1.netset",  # FireHOL Level 1 threats
@@ -26,26 +25,17 @@ os.makedirs(temp_dir, exist_ok=True)
 ip_set = set()
 
 # Regular expression to match IPv4 addresses and CIDR notation
-# Matches patterns like: 192.168.1.1 or 192.168.1.0/24
 ip_regex = re.compile(r'^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?:/[0-9]{1,2})?$')
 
 def is_valid_public_ip(ip):
     """
     Validates if an IP address or CIDR range is both valid and public.
-    
-    Args:
-        ip (str): IP address or CIDR range to validate
-        
-    Returns:
-        bool: True if IP is valid and public, False otherwise
     """
     try:
-        # Convert string to IP network object
         ip_obj = ipaddress.ip_network(ip, strict=False)
-        # Check if IP is not in special-use ranges
-        return not (ip_obj.is_private or 
-                   ip_obj.is_multicast or 
-                   ip_obj.is_reserved or 
+        return not (ip_obj.is_private or
+                   ip_obj.is_multicast or
+                   ip_obj.is_reserved or
                    ip_obj.is_loopback)
     except ValueError:
         return False
@@ -53,20 +43,10 @@ def is_valid_public_ip(ip):
 def download_ip_list(url, temp_dir):
     """
     Downloads an IP list from given URL and saves it to temporary directory.
-    
-    Args:
-        url (str): URL of the IP list to download
-        temp_dir (str): Directory to save downloaded file
-        
-    Returns:
-        str: Path to downloaded file, or None if download failed
     """
     try:
-        # Download IP list with timeout
         response = requests.get(url, timeout=15)
         response.raise_for_status()
-        
-        # Save to temporary file
         filename = os.path.join(temp_dir, os.path.basename(url))
         with open(filename, "w") as f:
             f.write(response.text)
@@ -77,14 +57,11 @@ def download_ip_list(url, temp_dir):
 
 # Process each IP list URL
 for url in ip_list_urls:
-    # Download the IP list
     file_path = download_ip_list(url, temp_dir)
     if file_path:
-        # Read and process each line in the downloaded file
         with open(file_path, "r") as f:
             for line in f:
                 line = line.strip()
-                # Add IP to set if it matches regex and is valid public IP
                 if ip_regex.match(line) and is_valid_public_ip(line):
                     ip_set.add(line)
 
@@ -93,7 +70,31 @@ with open(output_file, "w") as f:
     for ip in sorted(ip_set):
         f.write(ip + "\n")
 
-print(f"Merged IP list saved to {output_file}")
+# Count individual IPs and IP ranges
+individual_ips = []
+ip_ranges = []
+for ip in ip_set:
+    if '/' in ip:
+        ip_ranges.append(ip)
+    else:
+        individual_ips.append(ip)
+
+# Calculate total unique IPs (including those in ranges)
+total_unique_ips = len(individual_ips)
+for ip_range in ip_ranges:
+    network = ipaddress.ip_network(ip_range, strict=False)
+    total_unique_ips += network.num_addresses
+
+# Print counts
+print(f"Total individual IPs: {len(individual_ips)}")
+print(f"Total IP ranges: {len(ip_ranges)}")
+print(f"Total unique IPs (including ranges): {total_unique_ips}")
+
+# Save counts to a file
+with open("ip_counts.txt", "w") as f:
+    f.write(f"Total individual IPs: {len(individual_ips)}\n")
+    f.write(f"Total IP ranges: {len(ip_ranges)}\n")
+    f.write(f"Total unique IPs (including ranges): {total_unique_ips}\n")
 
 # Cleanup: Remove temporary files and directory
 for temp_file in os.listdir(temp_dir):
