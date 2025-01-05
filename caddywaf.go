@@ -77,9 +77,9 @@ type Rule struct {
 	Pattern     string   `json:"pattern"`
 	Targets     []string `json:"targets"`
 	Severity    string   `json:"severity"`
-	Action      string   `json:"action"` // Not Directly Used, defaults to mode if mode is not set.
+	Action      string   `json:"action"`
 	Score       int      `json:"score"`
-	Mode        string   `json:"mode"` // Added mode, defaults to "detect"
+	Mode        string   `json:"mode"`
 	Description string   `json:"description"`
 	regex       *regexp.Regexp
 }
@@ -97,13 +97,12 @@ type Middleware struct {
 	RuleFiles        []string            `json:"rule_files"`
 	IPBlacklistFile  string              `json:"ip_blacklist_file"`
 	DNSBlacklistFile string              `json:"dns_blacklist_file"`
-	LogAll           bool                `json:"log_all"` // Changed LogAll to LogLevel
 	AnomalyThreshold int                 `json:"anomaly_threshold"`
 	RateLimit        RateLimit           `json:"rate_limit"`
 	CountryBlock     CountryAccessFilter `json:"country_block"`
 	CountryWhitelist CountryAccessFilter `json:"country_whitelist"`
 	Severity         SeverityConfig      `json:"severity,omitempty"`
-	Rules            map[int][]Rule      `json:"-"` // Changed rules to a map of phase -> []Rule
+	Rules            map[int][]Rule      `json:"-"`
 	ipBlacklist      map[string]bool     `json:"-"`
 	dnsBlacklist     []string            `json:"-"`
 	rateLimiter      *RateLimiter        `json:"-"`
@@ -114,9 +113,10 @@ type Middleware struct {
 
 // WAFState struct: Used to maintain state between phases
 type WAFState struct {
-	TotalScore int
-	Blocked    bool
-	StatusCode int
+	TotalScore      int
+	Blocked         bool
+	StatusCode      int
+	ResponseWritten bool
 }
 
 func (Middleware) CaddyModule() caddy.ModuleInfo {
@@ -137,6 +137,8 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 
 func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	fmt.Println("WAF UnmarshalCaddyfile Called")
+	m.LogSeverity = "info" //Default log level if not specified
+	m.LogJSON = false      //Default log json to false if not specified
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {
@@ -184,9 +186,6 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				m.LogSeverity = d.Val()
 			case "log_json":
 				m.LogJSON = true
-			case "log_all": //Deprecated
-				fmt.Println("WAF Log All Enabled")
-				m.LogAll = true
 			case "rule_file":
 				fmt.Println("WAF Loading Rule File")
 				if !d.NextArg() {
@@ -299,21 +298,24 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	state := &WAFState{
-		TotalScore: 0,
-		Blocked:    false,
-		StatusCode: http.StatusOK,
+		TotalScore:      0,
+		Blocked:         false,
+		StatusCode:      http.StatusOK,
+		ResponseWritten: false,
 	}
 
 	// Handle Phase 1
-	m.handlePhase(w, r, 1, state)
+	if !state.ResponseWritten {
+		m.handlePhase(w, r, 1, state)
+	}
 
 	//Handle Phase 2
-	if !state.Blocked {
+	if !state.Blocked && !state.ResponseWritten {
 		m.handlePhase(w, r, 2, state)
 	}
 
 	// Handle Phase 3
-	if state.TotalScore >= m.AnomalyThreshold && !state.Blocked {
+	if state.TotalScore >= m.AnomalyThreshold && !state.Blocked && !state.ResponseWritten {
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
 		m.logRequest(zapcore.WarnLevel, "Request blocked by Anomaly Threshold",
@@ -323,10 +325,12 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		)
 	}
 
-	if state.Blocked {
+	if state.Blocked && !state.ResponseWritten {
 		w.WriteHeader(state.StatusCode)
+		state.ResponseWritten = true
 		return nil
 	}
+
 	// Proceed to the next handler
 	return next.ServeHTTP(w, r)
 }
@@ -349,6 +353,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			)
 			state.Blocked = true
 			state.StatusCode = http.StatusForbidden
+			w.WriteHeader(state.StatusCode)
+			state.ResponseWritten = true
 			return
 		}
 	}
@@ -368,6 +374,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			)
 			state.Blocked = true
 			state.StatusCode = http.StatusForbidden
+			w.WriteHeader(state.StatusCode)
+			state.ResponseWritten = true
 			return
 		}
 	}
@@ -382,6 +390,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			)
 			state.Blocked = true
 			state.StatusCode = http.StatusTooManyRequests
+			w.WriteHeader(state.StatusCode)
+			state.ResponseWritten = true
 			return
 		}
 	}
@@ -393,6 +403,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		)
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
+		w.WriteHeader(state.StatusCode)
+		state.ResponseWritten = true
 		return
 	}
 
@@ -404,6 +416,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		)
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
+		w.WriteHeader(state.StatusCode)
+		state.ResponseWritten = true
 		return
 	}
 
@@ -431,7 +445,10 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			)
 
 			if rule.regex.MatchString(value) {
-				m.processRuleMatch(r, &rule, value, state)
+				m.processRuleMatch(w, r, &rule, value, state)
+				if state.ResponseWritten {
+					return
+				}
 			}
 		}
 	}
@@ -443,7 +460,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 	)
 }
 
-func (m *Middleware) processRuleMatch(r *http.Request, rule *Rule, value string, state *WAFState) {
+func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) {
 
 	if rule.Mode == "" {
 		rule.Mode = "detect"
@@ -480,6 +497,8 @@ func (m *Middleware) processRuleMatch(r *http.Request, rule *Rule, value string,
 		)
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
+		w.WriteHeader(state.StatusCode)
+		state.ResponseWritten = true
 		return
 	case "log":
 		// Log already done
@@ -545,12 +564,24 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 func (m *Middleware) getSeverityAction(severity string) string {
 	switch strings.ToLower(severity) {
 	case "critical":
+		if m.Severity.Critical == "" {
+			return "log"
+		}
 		return m.Severity.Critical
 	case "high":
+		if m.Severity.High == "" {
+			return "log"
+		}
 		return m.Severity.High
 	case "medium":
+		if m.Severity.Medium == "" {
+			return "log"
+		}
 		return m.Severity.Medium
 	case "low":
+		if m.Severity.Low == "" {
+			return "log"
+		}
 		return m.Severity.Low
 	default:
 		return "log"
@@ -612,6 +643,19 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		)
 	}
 
+	// Set default severity actions
+	if m.Severity.Critical == "" {
+		m.Severity.Critical = "log"
+	}
+	if m.Severity.High == "" {
+		m.Severity.High = "log"
+	}
+	if m.Severity.Medium == "" {
+		m.Severity.Medium = "log"
+	}
+	if m.Severity.Low == "" {
+		m.Severity.Low = "log"
+	}
 	// Load rules from rule files
 	m.Rules = make(map[int][]Rule)
 	for _, file := range m.RuleFiles {
@@ -653,8 +697,12 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 				invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has no targets", rule.ID))
 				continue
 			}
-			if rule.regex == nil {
-				invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has an invalid regex pattern", rule.ID))
+			if _, err := regexp.Compile(rule.Pattern); err != nil {
+				invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has an invalid regex pattern: %v", rule.ID, err))
+				continue
+			}
+			if rule.Score < 0 {
+				invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has a negative score", rule.ID))
 				continue
 			}
 			if rule.Mode == "" {
@@ -768,12 +816,19 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 		if r.Body == nil {
 			return "", nil
 		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			return "", err
+
+		var bodyBytes []byte
+		if r.ContentLength > 0 {
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				return "", err
+			}
+			// Restore the io.ReadCloser to its original state
+			r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+
 		}
-		r.Body = io.NopCloser(bytes.NewReader(body))
-		return string(body), nil
+		return string(bodyBytes), nil
+
 	case target == "HEADERS":
 		return fmt.Sprintf("%v", r.Header), nil
 	case target == "URL":
@@ -810,13 +865,18 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 		if r.Body == nil {
 			return "", nil
 		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			return "", err
+		var bodyBytes []byte
+		if r.ContentLength > 0 {
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				return "", err
+			}
+			// Restore the io.ReadCloser to its original state
+			r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		}
-		r.Body = io.NopCloser(bytes.NewReader(body))
+
 		var jsonData map[string]interface{}
-		if err := json.Unmarshal(body, &jsonData); err != nil {
+		if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
 			return "", err
 		}
 		if value, ok := jsonData[fieldName]; ok {
