@@ -1170,13 +1170,19 @@ func validateRule(rule *Rule) error {
 }
 
 func (m *Middleware) loadIPBlacklistFromFile(path string) error {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("failed to read IP blacklist file: %s, error: %w", path, err)
-	}
-
 	// Initialize the IP blacklist
 	m.ipBlacklist = make(map[string]bool)
+
+	// Attempt to read the file
+	content, err := os.ReadFile(path)
+	if err != nil {
+		// Log a warning and continue with an empty blacklist
+		m.logger.Warn("Failed to read IP blacklist file",
+			zap.String("file", path),
+			zap.Error(err),
+		)
+		return nil // Continue with an empty blacklist
+	}
 
 	// Split the file content into lines
 	lines := strings.Split(string(content), "\n")
@@ -1221,18 +1227,21 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 }
 
 func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
+	// Initialize an empty DNS blacklist
+	m.dnsBlacklist = []string{}
+
 	// Log the attempt to load the DNS blacklist file
 	m.logger.Debug("Loading DNS blacklist from file", zap.String("file", path))
 
-	// Read the file content
+	// Attempt to read the file
 	content, err := os.ReadFile(path)
 	if err != nil {
-		// Log the error and return a descriptive error message
-		m.logger.Error("Failed to read DNS blacklist file",
+		// Log a warning and continue with an empty blacklist
+		m.logger.Warn("Failed to read DNS blacklist file",
 			zap.String("file", path),
 			zap.Error(err),
 		)
-		return fmt.Errorf("failed to read DNS blacklist file %s: %v", path, err)
+		return nil // Continue with an empty blacklist
 	}
 
 	// Convert all entries to lowercase and trim whitespace
@@ -1274,28 +1283,33 @@ func (m *Middleware) ReloadConfig() error {
 	return nil
 }
 
-func (m *Middleware) loadRulesFromFiles() error { // Correct function name
-	totalRules := 0 // Initialize a counter for total rules
+func (m *Middleware) loadRulesFromFiles() error {
+	totalRules := 0
+	var invalidFiles []string
 
 	for _, file := range m.RuleFiles {
-		// Load rules from the current file
+		// Attempt to load rules from the file
 		if err := m.loadRulesFromFile(file); err != nil {
-			return err
+			// Log a warning and skip this file
+			m.logger.Warn("Failed to load rules from file",
+				zap.String("file", file),
+				zap.Error(err),
+			)
+			invalidFiles = append(invalidFiles, file)
+			continue
 		}
 
-		// Count the number of rules loaded from the current file
+		// Count the number of rules loaded from this file
 		rulesInFile := 0
 		for _, rules := range m.Rules {
 			rulesInFile += len(rules)
 		}
 
-		// Log the number of rules loaded from the current file
 		m.logger.Info("Loaded rules from file",
 			zap.String("file", file),
 			zap.Int("rules_loaded", rulesInFile),
 		)
 
-		// Add the rules from this file to the total count
 		totalRules += rulesInFile
 	}
 
@@ -1303,6 +1317,18 @@ func (m *Middleware) loadRulesFromFiles() error { // Correct function name
 	m.logger.Info("Total rules loaded",
 		zap.Int("total_rules", totalRules),
 	)
+
+	// Log a warning if any files were invalid or missing
+	if len(invalidFiles) > 0 {
+		m.logger.Warn("Some rule files could not be loaded",
+			zap.Strings("invalid_files", invalidFiles),
+		)
+	}
+
+	// If no rules were loaded at all, return an error
+	if totalRules == 0 {
+		return fmt.Errorf("no valid rules were loaded from any file")
+	}
 
 	return nil
 }
