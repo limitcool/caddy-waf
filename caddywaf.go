@@ -2,6 +2,7 @@ package caddywaf
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"github.com/google/uuid"
 	"github.com/oschwald/maxminddb-golang"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -322,6 +324,14 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+
+	// Generate a unique log ID for this request
+	logID := uuid.New().String()
+
+	// Store the log ID in the request context
+	ctx := context.WithValue(r.Context(), "logID", logID)
+	r = r.WithContext(ctx)
+
 	state := &WAFState{
 		TotalScore:      0,
 		Blocked:         false,
@@ -337,6 +347,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	// If the request is blocked after Phase 1, return early
 	if state.Blocked {
 		m.logRequest(zapcore.InfoLevel, "Request blocked in Phase 1",
+			zap.String("log_id", logID),
 			zap.Int("status_code", state.StatusCode),
 			zap.String("source_ip", r.RemoteAddr),
 			zap.String("user_agent", r.UserAgent()),
@@ -357,6 +368,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	// If the request is blocked after Phase 2, return early
 	if state.Blocked {
 		m.logRequest(zapcore.InfoLevel, "Request blocked in Phase 2",
+			zap.String("log_id", logID),
 			zap.Int("status_code", state.StatusCode),
 			zap.String("source_ip", r.RemoteAddr),
 			zap.String("user_agent", r.UserAgent()),
@@ -378,8 +390,23 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 	state.StatusCode = statusCode
 	state.ResponseWritten = true
 
+	// Extract the log ID from the context
+	var logID string
+	if ctxValue := r.Context().Value("logID"); ctxValue != nil {
+		if id, ok := ctxValue.(string); ok {
+			logID = id
+		}
+	}
+
+	// If logID is not found in the context, generate a new one (fallback)
+	if logID == "" {
+		logID = uuid.New().String()
+	}
+
+	// Log the blocked request with the log ID
 	m.logRequest(zapcore.InfoLevel, reason,
 		append(fields,
+			zap.String("log_id", logID),
 			zap.String("source_ip", r.RemoteAddr),
 			zap.String("user_agent", r.UserAgent()),
 			zap.String("request_method", r.Method),
@@ -611,9 +638,31 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 	if m.logger == nil {
 		return
 	}
+
+	// Extract the log ID from the fields (if it exists)
+	var logID string
+	for i, field := range fields {
+		if field.Key == "log_id" {
+			// Use field.String to get the value of the log_id field
+			logID = field.String
+			// Remove the log_id field from the original fields slice
+			fields = append(fields[:i], fields[i+1:]...)
+			break
+		}
+	}
+
+	// If logID is not found in the fields, generate a new one (fallback)
+	if logID == "" {
+		logID = uuid.New().String()
+	}
+
+	// Include the log ID in the log entry
+	fields = append(fields, zap.String("log_id", logID))
+
 	if m.LogSeverity == "" {
 		m.LogSeverity = "info"
 	}
+
 	logLevel := zapcore.InfoLevel
 	switch strings.ToLower(m.LogSeverity) {
 	case "debug":
@@ -629,6 +678,7 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 	if level < logLevel {
 		return
 	}
+
 	if m.LogJSON {
 		fields = append(fields, zap.String("message", msg))
 		switch level {
