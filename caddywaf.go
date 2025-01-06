@@ -1021,33 +1021,46 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 }
 
 func (m *Middleware) loadRulesFromFile(path string) error {
+	// Read the file content
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read rule file %s: %v", path, err)
 	}
+
+	// Unmarshal the JSON content into a slice of Rule structs
 	var rules []Rule
 	if err := json.Unmarshal(content, &rules); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal rules from %s: %v", path, err)
 	}
+
+	// Validate and process each rule
 	for i, rule := range rules {
-		// Validate phase
+		// Validate the rule phase
 		if rule.Phase < 1 || rule.Phase > 2 {
 			return fmt.Errorf("invalid phase in rule %s: %d", rule.ID, rule.Phase)
 		}
 
+		// Compile the regex pattern
 		regex, err := regexp.Compile(rule.Pattern)
 		if err != nil {
 			return fmt.Errorf("invalid pattern in rule %s: %v", rule.ID, err)
 		}
 		rules[i].regex = regex
+
+		// Set default mode if empty
 		if rule.Mode == "" {
 			rules[i].Mode = rule.Action // Map "action" to "mode" if "mode" is empty
 		}
+
+		// Initialize the phase map if it doesn't exist
 		if _, ok := m.Rules[rule.Phase]; !ok {
 			m.Rules[rule.Phase] = []Rule{}
 		}
+
+		// Append the rule to the appropriate phase
 		m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rules[i])
 	}
+
 	return nil
 }
 
