@@ -278,9 +278,6 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return d.Errf("invalid anomaly threshold: %v", err)
 				}
 				m.AnomalyThreshold = threshold
-				m.logger.Debug("Anomaly threshold set from Caddyfile",
-					zap.Int("threshold", m.AnomalyThreshold),
-				)
 			default:
 				m.logger.Warn("WAF Unrecognized SubDirective", zap.String("directive", d.Val()))
 				return d.Errf("unrecognized subdirective: %s", d.Val())
@@ -390,7 +387,6 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 			zap.String("request_path", r.URL.Path),
 			zap.String("query_params", r.URL.RawQuery),
 			zap.Int("status_code", statusCode),
-			zap.Int("anomaly_threshold", m.AnomalyThreshold), // Log the anomaly threshold
 		)...,
 	)
 
@@ -537,14 +533,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 }
 
 func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) {
-
-	lue string, state *WAFState) {
-		m.logger.Debug("Processing rule match",
-			zap.Int("anomaly_threshold", m.AnomalyThreshold),
-			zap.Int("total_score", state.TotalScore),
-		) zap.Int("total_score", state.TotalScore),
-    )
-
 	// If rule.Mode is empty, default to "block"
 	if rule.Mode == "" {
 		rule.Mode = "block"
@@ -673,36 +661,18 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 }
 
 func (m *Middleware) Provision(ctx caddy.Context) error {
-    // Initialize the logger
-    m.logger = ctx.Logger(m)
-    if m.LogSeverity == "" {
-        m.LogSeverity = "info"
-    }
-
-    // Log the initial anomaly threshold value at the very beginning
-    m.logger.Info("Initial anomaly threshold value",
-        zap.Int("anomaly_threshold", m.AnomalyThreshold),
-    )
-
-    // Log that the middleware is being provisioned
-    m.logger.Info("Provisioning WAF middleware",
-        zap.String("log_level", m.LogSeverity),
-        zap.Bool("log_json", m.LogJSON),
-        zap.Int("anomaly_threshold", m.AnomalyThreshold),
-    )
-	)
-
-	// Set default anomaly threshold only if it's not already configured
-	if m.AnomalyThreshold == 0 {
-		m.AnomalyThreshold = 5
-		m.logger.Debug("Setting default anomaly threshold",
-			zap.Int("threshold", m.AnomalyThreshold),
-		)
-	} else {
-		m.logger.Debug("Anomaly threshold already set from Caddyfile",
-			zap.Int("threshold", m.AnomalyThreshold),
-		)
+	// Initialize the logger
+	m.logger = ctx.Logger(m)
+	if m.LogSeverity == "" {
+		m.LogSeverity = "info"
 	}
+
+	// Log that the middleware is being provisioned
+	m.logger.Info("Provisioning WAF middleware",
+		zap.String("log_level", m.LogSeverity),
+		zap.Bool("log_json", m.LogJSON),
+		zap.Int("anomaly_threshold", m.AnomalyThreshold),
+	)
 
 	// Initialize rate limiter if configured
 	if m.RateLimit.Requests > 0 {
@@ -825,14 +795,10 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		zap.Int("total_rules", totalRules),
 	)
 
-	// Set default anomaly threshold only if it's not already configured
+	// Set default anomaly threshold if not configured
 	if m.AnomalyThreshold == 0 {
 		m.AnomalyThreshold = 5
 		m.logger.Debug("Setting default anomaly threshold",
-			zap.Int("threshold", m.AnomalyThreshold),
-		)
-	} else {
-		m.logger.Debug("Anomaly threshold already set from Caddyfile",
 			zap.Int("threshold", m.AnomalyThreshold),
 		)
 	}
