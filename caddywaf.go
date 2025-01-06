@@ -35,23 +35,93 @@ var (
 	_ caddyfile.Unmarshaler       = (*Middleware)(nil)
 )
 
-// RateLimit struct
-type RateLimit struct {
-	Requests int           `json:"requests"`
-	Window   time.Duration `json:"window"`
-}
-
 // requestCounter struct
 type requestCounter struct {
 	count  int
 	window time.Time
 }
 
+// RateLimit struct
+type RateLimit struct {
+	Requests int           `json:"requests"`
+	Window   time.Duration `json:"window"`
+}
+
 // RateLimiter struct
 type RateLimiter struct {
 	sync.RWMutex
-	requests map[string]*requestCounter
-	config   RateLimit
+	requests    map[string]*requestCounter
+	config      RateLimit
+	stopCleanup chan struct{} // Channel to signal cleanup goroutine to stop
+}
+
+// isRateLimited checks if a given IP is rate limited.
+func (rl *RateLimiter) isRateLimited(ip string) bool {
+	rl.Lock()
+	defer rl.Unlock()
+
+	now := time.Now()
+
+	// Check if the IP already exists in the map
+	if counter, exists := rl.requests[ip]; exists {
+		// If the window has expired, reset the counter
+		if now.Sub(counter.window) > rl.config.Window {
+			counter.count = 1
+			counter.window = now
+			return false
+		}
+
+		// Increment the counter and check if it exceeds the limit
+		counter.count++
+		return counter.count > rl.config.Requests
+	}
+
+	// If the IP is not in the map, add it with a count of 1
+	rl.requests[ip] = &requestCounter{
+		count:  1,
+		window: now,
+	}
+
+	return false
+}
+
+// cleanupExpiredEntries removes expired entries from the rate limiter.
+func (rl *RateLimiter) cleanupExpiredEntries() {
+	rl.Lock()
+	defer rl.Unlock()
+
+	now := time.Now()
+
+	for ip, counter := range rl.requests {
+		if now.Sub(counter.window) > rl.config.Window {
+			delete(rl.requests, ip)
+		}
+	}
+}
+
+// startCleanup starts the goroutine to periodically clean up expired entries.
+func (rl *RateLimiter) startCleanup() {
+	rl.stopCleanup = make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(time.Minute) // Adjust cleanup interval as needed
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				rl.cleanupExpiredEntries()
+			case <-rl.stopCleanup:
+				return
+			}
+		}
+	}()
+}
+
+// signalStopCleanup signals the cleanup goroutine to stop.
+func (rl *RateLimiter) signalStopCleanup() {
+	if rl.stopCleanup != nil {
+		close(rl.stopCleanup)
+		rl.stopCleanup = nil
+	}
 }
 
 // CountryAccessFilter struct
@@ -215,44 +285,6 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		}
 	}
 	return nil
-}
-
-func (rl *RateLimiter) isRateLimited(ip string) bool {
-	rl.Lock()
-	defer rl.Unlock()
-
-	now := time.Now()
-
-	// Check if the IP already exists in the map
-	if counter, exists := rl.requests[ip]; exists {
-		// If the window has expired, reset the counter
-		if now.Sub(counter.window) > rl.config.Window {
-			counter.count = 1
-			counter.window = now
-			return false
-		}
-
-		// Increment the counter and check if it exceeds the limit
-		counter.count++
-		return counter.count > rl.config.Requests
-	}
-
-	// If the IP is not in the map, add it with a count of 1
-	rl.requests[ip] = &requestCounter{
-		count:  1,
-		window: now,
-	}
-
-	// Periodically clean up expired entries to prevent memory leaks
-	if len(rl.requests) > 1000 { // Adjust this threshold as needed
-		for ipKey, counter := range rl.requests {
-			if now.Sub(counter.window) > rl.config.Window {
-				delete(rl.requests, ipKey)
-			}
-		}
-	}
-
-	return false
 }
 
 func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, geoIP *maxminddb.Reader) (bool, error) {
@@ -652,6 +684,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			requests: make(map[string]*requestCounter),
 			config:   m.RateLimit,
 		}
+		m.rateLimiter.startCleanup() // Start the cleanup goroutine
 	}
 
 	// Load GeoIP database if either country blocking or whitelisting is enabled
