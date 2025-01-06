@@ -254,27 +254,35 @@ func (rl *RateLimiter) isRateLimited(ip string) bool {
 
 	now := time.Now()
 
-	// Clean up expired entries
-	for ipKey, counter := range rl.requests {
-		if now.Sub(counter.window) > rl.config.Window {
-			delete(rl.requests, ipKey)
-		}
-	}
-
+	// Check if the IP already exists in the map
 	if counter, exists := rl.requests[ip]; exists {
+		// If the window has expired, reset the counter
 		if now.Sub(counter.window) > rl.config.Window {
 			counter.count = 1
 			counter.window = now
 			return false
 		}
+
+		// Increment the counter and check if it exceeds the limit
 		counter.count++
 		return counter.count > rl.config.Requests
 	}
 
+	// If the IP is not in the map, add it with a count of 1
 	rl.requests[ip] = &requestCounter{
 		count:  1,
 		window: now,
 	}
+
+	// Periodically clean up expired entries to prevent memory leaks
+	if len(rl.requests) > 1000 { // Adjust this threshold as needed
+		for ipKey, counter := range rl.requests {
+			if now.Sub(counter.window) > rl.config.Window {
+				delete(rl.requests, ipKey)
+			}
+		}
+	}
+
 	return false
 }
 
