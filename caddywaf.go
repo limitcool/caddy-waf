@@ -169,6 +169,7 @@ type Middleware struct {
 	logger           *zap.Logger
 	LogSeverity      string `json:"log_severity,omitempty"`
 	LogJSON          bool   `json:"log_json,omitempty"`
+	Disabled         bool   `json:"disabled"` // New field to disable WAF
 }
 
 // WAFState struct: Used to maintain state between phases
@@ -208,6 +209,9 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {
+			case "disabled":
+				m.Disabled = true
+				m.logger.Warn("WAF functionality is disabled") // Log a warning when WAF is disabled
 			case "rate_limit":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -400,6 +404,11 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	// Check if WAF is disabled
+	if m.Disabled {
+		return next.ServeHTTP(w, r)
+	}
+
 	state := &WAFState{
 		TotalScore:      0,
 		Blocked:         false,
@@ -750,6 +759,12 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		zap.Bool("log_json", m.LogJSON),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
+
+	// Check if WAF is disabled
+	if m.Disabled {
+		m.logger.Warn("WAF functionality is disabled; skipping initialization")
+		return nil
+	}
 
 	// Initialize rate limiter if configured
 	if m.RateLimit.Requests > 0 {
