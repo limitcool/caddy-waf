@@ -24,10 +24,9 @@ import (
 )
 
 func init() {
-	zap.L().Info("Registering WAF Middleware")
+	// Register the module and directive without logging
 	caddy.RegisterModule(Middleware{})
 	httpcaddyfile.RegisterHandlerDirective("waf", parseCaddyfile)
-	zap.L().Info("WAF Middleware Registered Successfully")
 }
 
 var (
@@ -692,6 +691,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		m.LogSeverity = "info"
 	}
 
+	// Log that the middleware is being provisioned
 	m.logger.Info("Provisioning WAF middleware",
 		zap.String("log_level", m.LogSeverity),
 		zap.Bool("log_json", m.LogJSON),
