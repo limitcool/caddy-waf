@@ -24,10 +24,10 @@ import (
 )
 
 func init() {
-	fmt.Println("Registering WAF Middleware")
+	zap.L().Info("Registering WAF Middleware")
 	caddy.RegisterModule(Middleware{})
 	httpcaddyfile.RegisterHandlerDirective("waf", parseCaddyfile)
-	fmt.Println("WAF Middleware Registered Successfully")
+	zap.L().Info("WAF Middleware Registered Successfully")
 }
 
 var (
@@ -248,6 +248,14 @@ func (rl *RateLimiter) isRateLimited(ip string) bool {
 	defer rl.Unlock()
 
 	now := time.Now()
+
+	// Clean up expired entries
+	for ipKey, counter := range rl.requests {
+		if now.Sub(counter.window) > rl.config.Window {
+			delete(rl.requests, ipKey)
+		}
+	}
+
 	if counter, exists := rl.requests[ip]; exists {
 		if now.Sub(counter.window) > rl.config.Window {
 			counter.count = 1
@@ -270,9 +278,13 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 		return false, fmt.Errorf("GeoIP database not loaded")
 	}
 
-	ip, _, err := net.SplitHostPort(remoteAddr)
-	if err != nil {
-		ip = remoteAddr
+	ip := remoteAddr
+	if strings.Contains(remoteAddr, ":") {
+		var err error
+		ip, _, err = net.SplitHostPort(remoteAddr)
+		if err != nil {
+			ip = remoteAddr
+		}
 	}
 
 	parsedIP := net.ParseIP(ip)
@@ -281,7 +293,7 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 	}
 
 	var record GeoIPRecord
-	err = geoIP.Lookup(parsedIP, &record)
+	err := geoIP.Lookup(parsedIP, &record)
 	if err != nil {
 		return false, err
 	}
@@ -367,9 +379,43 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	return next.ServeHTTP(w, r)
 }
 
+func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, reason string, fields ...zap.Field) {
+	state.Blocked = true
+	state.StatusCode = statusCode
+	state.ResponseWritten = true
+
+	m.logRequest(zapcore.InfoLevel, reason,
+		append(fields,
+			zap.String("source_ip", r.RemoteAddr),
+			zap.String("user_agent", r.UserAgent()),
+			zap.String("request_method", r.Method),
+			zap.String("request_path", r.URL.Path),
+			zap.String("query_params", r.URL.RawQuery),
+			zap.Int("status_code", statusCode),
+		)...,
+	)
+
+	w.WriteHeader(statusCode)
+}
+
+// extractIP extracts the IP address from a remote address string.
+// It handles cases where the remote address includes a port (e.g., "192.168.1.1:12345").
+func extractIP(remoteAddr string) string {
+	if strings.Contains(remoteAddr, ":") {
+		ip, _, err := net.SplitHostPort(remoteAddr)
+		if err == nil {
+			return ip
+		}
+	}
+	return remoteAddr
+}
+
 func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase int, state *WAFState) {
-	// Log the start of the phase at DEBUG level
-	m.logger.Debug(fmt.Sprintf("Handling phase %d rules", phase))
+	m.logger.Debug("Starting phase evaluation",
+		zap.Int("phase", phase),
+		zap.String("source_ip", r.RemoteAddr),
+		zap.String("user_agent", r.UserAgent()),
+	)
 
 	// Check country blocking
 	if phase == 1 && m.CountryBlock.Enabled {
@@ -379,19 +425,14 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				zap.String("ip", r.RemoteAddr),
 				zap.Error(err),
 			)
-		} else if blocked {
-			m.logRequest(zapcore.InfoLevel, "Request blocked by country",
-				zap.String("ip", r.RemoteAddr),
-				zap.String("user_agent", r.UserAgent()),
-				zap.String("request_method", r.Method),
-				zap.String("request_path", r.URL.Path),
-				zap.String("query_params", r.URL.RawQuery),
-				zap.Int("status_code", http.StatusForbidden),
+			m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked due to internal error",
+				zap.String("reason", "internal_error"),
 			)
-			state.Blocked = true
-			state.StatusCode = http.StatusForbidden
-			w.WriteHeader(state.StatusCode)
-			state.ResponseWritten = true
+			return
+		} else if blocked {
+			m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked by country",
+				zap.String("reason", "country_block"),
+			)
 			return
 		}
 	}
@@ -404,81 +445,51 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				zap.String("ip", r.RemoteAddr),
 				zap.Error(err),
 			)
-		} else if !whitelisted {
-			m.logRequest(zapcore.InfoLevel, "Request blocked by country whitelist",
-				zap.String("ip", r.RemoteAddr),
-				zap.String("user_agent", r.UserAgent()),
-				zap.String("request_method", r.Method),
-				zap.String("request_path", r.URL.Path),
-				zap.String("query_params", r.URL.RawQuery),
-				zap.Int("status_code", http.StatusForbidden),
+			m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked due to internal error",
+				zap.String("reason", "internal_error"),
 			)
-			state.Blocked = true
-			state.StatusCode = http.StatusForbidden
-			w.WriteHeader(state.StatusCode)
-			state.ResponseWritten = true
+			return
+		} else if !whitelisted {
+			m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked by country whitelist",
+				zap.String("reason", "country_whitelist"),
+			)
 			return
 		}
 	}
 
 	// Check rate limiting
 	if phase == 1 && m.rateLimiter != nil {
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err == nil && m.rateLimiter.isRateLimited(ip) {
-			m.logRequest(zapcore.InfoLevel, "Request blocked by rate limit",
-				zap.String("ip", ip),
-				zap.String("user_agent", r.UserAgent()),
-				zap.String("request_method", r.Method),
-				zap.String("request_path", r.URL.Path),
-				zap.String("query_params", r.URL.RawQuery),
-				zap.Int("status_code", http.StatusTooManyRequests),
+		ip := extractIP(r.RemoteAddr)
+		if m.rateLimiter.isRateLimited(ip) {
+			m.blockRequest(w, r, state, http.StatusTooManyRequests, "Request blocked by rate limit",
+				zap.String("reason", "rate_limit"),
 			)
-			state.Blocked = true
-			state.StatusCode = http.StatusTooManyRequests
-			w.WriteHeader(state.StatusCode)
-			state.ResponseWritten = true
 			return
 		}
 	}
 
 	// Check IP blacklist
 	if phase == 1 && m.isIPBlacklisted(r.RemoteAddr) {
-		m.logRequest(zapcore.InfoLevel, "Request blocked by IP blacklist",
-			zap.String("ip", r.RemoteAddr),
-			zap.String("user_agent", r.UserAgent()),
-			zap.String("request_method", r.Method),
-			zap.String("request_path", r.URL.Path),
-			zap.String("query_params", r.URL.RawQuery),
-			zap.Int("status_code", http.StatusForbidden),
+		m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked by IP blacklist",
+			zap.String("reason", "ip_blacklist"),
 		)
-		state.Blocked = true
-		state.StatusCode = http.StatusForbidden
-		w.WriteHeader(state.StatusCode)
-		state.ResponseWritten = true
 		return
 	}
 
 	// Check DNS blacklist
 	if phase == 1 && m.isDNSBlacklisted(r.Host) {
-		m.logRequest(zapcore.InfoLevel, "Request blocked by DNS blacklist",
-			zap.String("domain", r.Host),
-			zap.String("user_agent", r.UserAgent()),
-			zap.String("request_method", r.Method),
-			zap.String("request_path", r.URL.Path),
-			zap.String("query_params", r.URL.RawQuery),
-			zap.Int("status_code", http.StatusForbidden),
+		m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked by DNS blacklist",
+			zap.String("reason", "dns_blacklist"),
 		)
-		state.Blocked = true
-		state.StatusCode = http.StatusForbidden
-		w.WriteHeader(state.StatusCode)
-		state.ResponseWritten = true
 		return
 	}
 
 	// Check if there are rules for the current phase
 	rules, ok := m.Rules[phase]
 	if !ok {
-		m.logger.Debug(fmt.Sprintf("No rules found for phase: %d", phase))
+		m.logger.Debug("No rules found for phase",
+			zap.Int("phase", phase),
+		)
 		return
 	}
 
@@ -493,6 +504,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				)
 				continue
 			}
+
 			m.logger.Debug("Checking rule",
 				zap.String("rule_id", rule.ID),
 				zap.String("target", target),
@@ -501,15 +513,15 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 
 			if rule.regex.MatchString(value) {
 				m.processRuleMatch(w, r, &rule, value, state)
-				if state.ResponseWritten {
-					return
+				if state.Blocked || state.ResponseWritten {
+					return // Exit early if the request is blocked
 				}
 			}
 		}
 	}
 
-	// Log the completion of the phase at DEBUG level
-	m.logger.Debug(fmt.Sprintf("Phase %d Completed", phase),
+	m.logger.Debug("Completed phase evaluation",
+		zap.Int("phase", phase),
 		zap.Int("total_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
@@ -891,20 +903,17 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 	case target == "ARGS":
 		return r.URL.RawQuery, nil
 	case target == "BODY":
-		if r.Body == nil {
+		if r.Body == nil || r.ContentLength == 0 {
 			return "", nil
 		}
 
-		var bodyBytes []byte
-		if r.ContentLength > 0 {
-			bodyBytes, err := io.ReadAll(r.Body)
-			if err != nil {
-				return "", err
-			}
-			// Restore the io.ReadCloser to its original state
-			r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			return "", fmt.Errorf("failed to read request body: %v", err)
 		}
+		// Restore the io.ReadCloser to its original state
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+
 		return string(bodyBytes), nil
 
 	case target == "HEADERS":
@@ -940,22 +949,20 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 		return r.Form.Get(fieldName), nil
 	case strings.HasPrefix(target, "JSON:"):
 		fieldName := strings.TrimPrefix(target, "JSON:")
-		if r.Body == nil {
+		if r.Body == nil || r.ContentLength == 0 {
 			return "", nil
 		}
-		var bodyBytes []byte
-		if r.ContentLength > 0 {
-			bodyBytes, err := io.ReadAll(r.Body)
-			if err != nil {
-				return "", err
-			}
-			// Restore the io.ReadCloser to its original state
-			r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			return "", fmt.Errorf("failed to read request body: %v", err)
 		}
+		// Restore the io.ReadCloser to its original state
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 
 		var jsonData map[string]interface{}
 		if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to unmarshal JSON: %v", err)
 		}
 		if value, ok := jsonData[fieldName]; ok {
 			return fmt.Sprintf("%v", value), nil
@@ -976,6 +983,11 @@ func (m *Middleware) loadRulesFromFile(path string) error {
 		return err
 	}
 	for i, rule := range rules {
+		// Validate phase
+		if rule.Phase < 1 || rule.Phase > 2 {
+			return fmt.Errorf("invalid phase in rule %s: %d", rule.ID, rule.Phase)
+		}
+
 		regex, err := regexp.Compile(rule.Pattern)
 		if err != nil {
 			return fmt.Errorf("invalid pattern in rule %s: %v", rule.ID, err)
@@ -1000,9 +1012,17 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 	ips := strings.Split(string(content), "\n")
 	m.ipBlacklist = make(map[string]bool)
 	for _, ip := range ips {
-		if ip != "" {
-			m.ipBlacklist[ip] = true
+		ip = strings.TrimSpace(ip)
+		if ip == "" {
+			continue
 		}
+		// Validate IP or CIDR
+		if _, _, err := net.ParseCIDR(ip); err != nil {
+			if net.ParseIP(ip) == nil {
+				return fmt.Errorf("invalid IP or CIDR in blacklist: %s", ip)
+			}
+		}
+		m.ipBlacklist[ip] = true
 	}
 	return nil
 }
@@ -1019,13 +1039,13 @@ func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
 func (m *Middleware) ReloadConfig() error {
 	m.Rules = make(map[int][]Rule)
 	if err := m.loadRulesFromFiles(); err != nil {
-		return err
+		return fmt.Errorf("failed to reload rules: %v", err)
 	}
 	if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
-		return err
+		return fmt.Errorf("failed to reload IP blacklist: %v", err)
 	}
 	if err := m.loadDNSBlacklistFromFile(m.DNSBlacklistFile); err != nil {
-		return err
+		return fmt.Errorf("failed to reload DNS blacklist: %v", err)
 	}
 	return nil
 }
