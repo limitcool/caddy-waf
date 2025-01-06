@@ -146,9 +146,8 @@ type Rule struct {
 	Pattern     string   `json:"pattern"`
 	Targets     []string `json:"targets"`
 	Severity    string   `json:"severity"` // Used for logging only
-	Action      string   `json:"action"`   // Deprecated (remove if unused)
 	Score       int      `json:"score"`
-	Mode        string   `json:"mode"` // Determines the action (block/log)
+	Action      string   `json:"mode"` // Determines the action (block/log)
 	Description string   `json:"description"`
 	regex       *regexp.Regexp
 }
@@ -533,9 +532,9 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 }
 
 func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) {
-	// If rule.Mode is empty, default to "block"
-	if rule.Mode == "" {
-		rule.Mode = "block"
+	// If rule.Action is empty, default to "block"
+	if rule.Action == "" {
+		rule.Action = "block"
 	}
 
 	// Add the rule's score to the total score for all rules
@@ -550,7 +549,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.Int("score", rule.Score),
 		zap.Int("total_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
-		zap.String("mode", rule.Mode),
+		zap.String("mode", rule.Action),
 		zap.String("severity", rule.Severity), // Log the severity level
 		zap.String("source_ip", r.RemoteAddr),
 		zap.String("user_agent", r.UserAgent()),
@@ -584,7 +583,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	}
 
 	// Handle the rule action based on the mode
-	switch rule.Mode {
+	switch rule.Action {
 	case "block":
 		m.logRequest(zapcore.WarnLevel, "Request blocked by rule", requestInfo...)
 		state.Blocked = true
@@ -599,7 +598,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 
 	default:
 		// Handle unknown actions by blocking the request (security-first approach)
-		m.logRequest(zapcore.WarnLevel, "Unknown rule action - Blocking request", zap.String("action", rule.Mode))
+		m.logRequest(zapcore.WarnLevel, "Unknown rule action - Blocking request", zap.String("action", rule.Action))
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
 		w.WriteHeader(state.StatusCode)
@@ -749,7 +748,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 				zap.String("action", rule.Action),
 				zap.Int("score", rule.Score),
 				zap.String("description", rule.Description),
-				zap.String("mode", rule.Mode),
+				zap.String("mode", rule.Action),
 			)
 
 			// Validate the rule
@@ -773,8 +772,8 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 				invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s' has a negative score", rule.ID))
 				continue
 			}
-			if rule.Mode == "" {
-				rule.Mode = "log" // Default to log if mode is empty
+			if rule.Action == "" {
+				rule.Action = "log" // Default to log if mode is empty
 			}
 
 			totalRules++ // Increment the total rule count
@@ -1023,8 +1022,8 @@ func (m *Middleware) loadRulesFromFile(path string) error {
 		}
 
 		// Validate the rule mode
-		if rule.Mode != "" && rule.Mode != "block" && rule.Mode != "log" {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid mode '%s'", rule.ID, rule.Mode))
+		if rule.Action != "" && rule.Action != "block" && rule.Action != "log" {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid mode '%s'", rule.ID, rule.Action))
 			continue
 		}
 
