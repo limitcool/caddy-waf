@@ -1136,18 +1136,42 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 }
 
 func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
+	// Log the attempt to load the DNS blacklist file
+	m.logger.Debug("Loading DNS blacklist from file", zap.String("file", path))
+
+	// Read the file content
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		// Log the error and return a descriptive error message
+		m.logger.Error("Failed to read DNS blacklist file",
+			zap.String("file", path),
+			zap.Error(err),
+		)
+		return fmt.Errorf("failed to read DNS blacklist file %s: %v", path, err)
 	}
 
 	// Convert all entries to lowercase and trim whitespace
 	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
-		lines[i] = strings.ToLower(strings.TrimSpace(line))
+	validEntries := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		line = strings.ToLower(strings.TrimSpace(line))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue // Skip empty lines and comments
+		}
+
+		validEntries = append(validEntries, line)
 	}
 
-	m.dnsBlacklist = lines
+	// Update the DNS blacklist
+	m.dnsBlacklist = validEntries
+
+	// Log the successful loading of the DNS blacklist
+	m.logger.Info("DNS blacklist loaded successfully",
+		zap.String("file", path),
+		zap.Int("entries_loaded", len(validEntries)),
+	)
+
 	return nil
 }
 
