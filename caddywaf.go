@@ -824,9 +824,6 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		if err := m.loadDNSBlacklistFromFile(m.DNSBlacklistFile); err != nil {
 			return fmt.Errorf("failed to load DNS blacklist from %s: %v", m.DNSBlacklistFile, err)
 		}
-		m.logger.Info("DNS blacklist loaded successfully",
-			zap.Int("count", len(m.dnsBlacklist)),
-		)
 	} else {
 		m.dnsBlacklist = []string{}
 		m.logger.Debug("No DNS blacklist file specified, initializing empty blacklist")
