@@ -718,43 +718,38 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		}
 	}
 
-	// Load GeoIP database for country blocking
-	if m.CountryBlock.Enabled {
-		// Validate GeoIP database path
-		if !fileExists(m.CountryBlock.GeoIPDBPath) {
-			return fmt.Errorf("GeoIP database for country blocking does not exist or is not readable: %s", m.CountryBlock.GeoIPDBPath)
+	// Load GeoIP database if either country blocking or whitelisting is enabled
+	if m.CountryBlock.Enabled || m.CountryWhitelist.Enabled {
+		// Determine the GeoIP database path
+		geoIPPath := m.CountryBlock.GeoIPDBPath
+		if m.CountryWhitelist.Enabled {
+			geoIPPath = m.CountryWhitelist.GeoIPDBPath
 		}
 
-		m.logger.Debug("Loading GeoIP database for country blocking",
-			zap.String("path", m.CountryBlock.GeoIPDBPath),
+		// Validate the GeoIP database path
+		if !fileExists(geoIPPath) {
+			return fmt.Errorf("GeoIP database does not exist or is not readable: %s", geoIPPath)
+		}
+
+		// Load the GeoIP database
+		m.logger.Debug("Loading GeoIP database",
+			zap.String("path", geoIPPath),
 		)
-		reader, err := maxminddb.Open(m.CountryBlock.GeoIPDBPath)
+		reader, err := maxminddb.Open(geoIPPath)
 		if err != nil {
-			return fmt.Errorf("failed to load GeoIP database for country blocking: %v", err)
-		}
-		m.CountryBlock.geoIP = reader
-		m.logger.Info("GeoIP database loaded for country blocking",
-			zap.String("path", m.CountryBlock.GeoIPDBPath),
-		)
-	}
-
-	// Load GeoIP database for country whitelisting
-	if m.CountryWhitelist.Enabled {
-		// Validate GeoIP database path
-		if !fileExists(m.CountryWhitelist.GeoIPDBPath) {
-			return fmt.Errorf("GeoIP database for country whitelisting does not exist or is not readable: %s", m.CountryWhitelist.GeoIPDBPath)
+			return fmt.Errorf("failed to load GeoIP database: %v", err)
 		}
 
-		m.logger.Debug("Loading GeoIP database for country whitelisting",
-			zap.String("path", m.CountryWhitelist.GeoIPDBPath),
-		)
-		reader, err := maxminddb.Open(m.CountryWhitelist.GeoIPDBPath)
-		if err != nil {
-			return fmt.Errorf("failed to load GeoIP database for country whitelisting: %v", err)
+		// Share the GeoIP database between CountryBlock and CountryWhitelist
+		if m.CountryBlock.Enabled {
+			m.CountryBlock.geoIP = reader
 		}
-		m.CountryWhitelist.geoIP = reader
-		m.logger.Info("GeoIP database loaded for country whitelisting",
-			zap.String("path", m.CountryWhitelist.GeoIPDBPath),
+		if m.CountryWhitelist.Enabled {
+			m.CountryWhitelist.geoIP = reader
+		}
+
+		m.logger.Info("GeoIP database loaded successfully",
+			zap.String("path", geoIPPath),
 		)
 	}
 
