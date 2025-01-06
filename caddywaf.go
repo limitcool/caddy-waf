@@ -292,7 +292,7 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, geoIP *maxminddb.Reader) (bool, error) {
 	if geoIP == nil {
-		return false, fmt.Errorf("GeoIP database not loaded")
+		return false, fmt.Errorf("geoip database not loaded")
 	}
 
 	ip := remoteAddr
@@ -300,19 +300,22 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 		var err error
 		ip, _, err = net.SplitHostPort(remoteAddr)
 		if err != nil {
-			ip = remoteAddr
+			m.logger.Error("failed to split host and port", zap.String("remote_addr", remoteAddr), zap.Error(err))
+			return false, fmt.Errorf("failed to split host and port: %w", err)
 		}
 	}
 
 	parsedIP := net.ParseIP(ip)
 	if parsedIP == nil {
+		m.logger.Error("invalid IP address", zap.String("ip", ip))
 		return false, fmt.Errorf("invalid IP address: %s", ip)
 	}
 
 	var record GeoIPRecord
 	err := geoIP.Lookup(parsedIP, &record)
 	if err != nil {
-		return false, err
+		m.logger.Error("geoip lookup failed", zap.String("ip", ip), zap.Error(err))
+		return false, fmt.Errorf("geoip lookup failed: %w", err)
 	}
 
 	for _, country := range countryList {
@@ -324,6 +327,7 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 	return false, nil
 }
 
+// ServeHTTP implements caddyhttp.MiddlewareHandler.
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 
@@ -356,6 +360,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 			zap.String("request_method", r.Method),
 			zap.String("request_path", r.URL.Path),
 			zap.String("query_params", r.URL.RawQuery),
+			zap.String("reason", "phase_1_block"),
 		)
 		w.WriteHeader(state.StatusCode)
 		state.ResponseWritten = true
@@ -377,6 +382,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 			zap.String("request_method", r.Method),
 			zap.String("request_path", r.URL.Path),
 			zap.String("query_params", r.URL.RawQuery),
+			zap.String("reason", "phase_2_block"),
 		)
 		w.WriteHeader(state.StatusCode)
 		state.ResponseWritten = true
@@ -406,7 +412,7 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 	}
 
 	// Log the blocked request with the log ID
-	m.logRequest(zapcore.WarnLevel, reason,
+	m.logRequest(zapcore.WarnLevel, "Request blocked",
 		append(fields,
 			zap.String("log_id", logID),
 			zap.String("source_ip", r.RemoteAddr),
@@ -415,6 +421,7 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 			zap.String("request_path", r.URL.Path),
 			zap.String("query_params", r.URL.RawQuery),
 			zap.Int("status_code", statusCode),
+			zap.String("reason", reason),
 		)...,
 	)
 
@@ -551,7 +558,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			if rule.regex.MatchString(value) {
 				m.processRuleMatch(w, r, &rule, value, state)
 				if state.Blocked || state.ResponseWritten {
-					return // Exit early if the request is blocked
+					return
 				}
 			}
 		}
