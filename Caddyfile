@@ -16,7 +16,7 @@
         waf {
             # uncomment next line to disable the WAF
             # disabled 
-            anomaly_threshold 5
+            anomaly_threshold 10
             block_countries GeoLite2-Country.mmdb RU CN KP
             # or whitelist
             # whitelist_countries GeoLite2-Country.mmdb US
