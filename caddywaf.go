@@ -763,7 +763,6 @@ func (m *Middleware) getCommonLogFields(fields []zap.Field) []zap.Field {
 	var requestPath string
 	var queryParams string
 	var statusCode int
-	var reason string
 
 	for _, field := range fields {
 		switch field.Key {
@@ -781,8 +780,6 @@ func (m *Middleware) getCommonLogFields(fields []zap.Field) []zap.Field {
 			queryParams = field.String
 		case "status_code":
 			statusCode = int(field.Integer) // Explicit conversion here
-		case "reason":
-			reason = field.String
 		}
 	}
 
@@ -794,7 +791,6 @@ func (m *Middleware) getCommonLogFields(fields []zap.Field) []zap.Field {
 		zap.String("request_path", requestPath),
 		zap.String("query_params", queryParams),
 		zap.Int("status_code", statusCode),
-		zap.String("reason", reason),
 	}
 }
 
