@@ -1068,52 +1068,61 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 	switch {
 	case target == "ARGS":
 		return r.URL.RawQuery, nil
+
 	case target == "BODY":
 		if r.Body == nil || r.ContentLength == 0 {
 			return "", nil
 		}
 
-		// Read the body once and store it
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			return "", fmt.Errorf("failed to read request body: %w", err)
 		}
-		// Restore the original body to the request for further reads
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 
 		return string(bodyBytes), nil
 
 	case target == "HEADERS":
 		return fmt.Sprintf("%v", r.Header), nil
+
 	case target == "URL":
 		return r.URL.Path, nil
+
 	case target == "USER_AGENT":
 		return r.UserAgent(), nil
+
 	case target == "COOKIES":
 		return fmt.Sprintf("%v", r.Cookies()), nil
+
 	case target == "PATH":
 		return r.URL.Path, nil
+
 	case target == "URI":
 		return r.RequestURI, nil
+
 	case strings.HasPrefix(target, "HEADERS:"):
 		headerName := strings.TrimPrefix(target, "HEADERS:")
 		return r.Header.Get(headerName), nil
+
 	case strings.HasPrefix(target, "ARGS:"):
 		argName := strings.TrimPrefix(target, "ARGS:")
 		return r.URL.Query().Get(argName), nil
+
 	case strings.HasPrefix(target, "COOKIES:"):
 		cookieName := strings.TrimPrefix(target, "COOKIES:")
 		cookie, err := r.Cookie(cookieName)
 		if err != nil {
-			return "", nil
+			return "", fmt.Errorf("missing or invalid cookie: %s, error: %w", cookieName, err)
 		}
 		return cookie.Value, nil
+
 	case strings.HasPrefix(target, "FORM:"):
 		fieldName := strings.TrimPrefix(target, "FORM:")
 		if err := r.ParseForm(); err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to parse form data: %w", err)
 		}
 		return r.Form.Get(fieldName), nil
+
 	case strings.HasPrefix(target, "JSON:"):
 		fieldName := strings.TrimPrefix(target, "JSON:")
 		if r.Body == nil || r.ContentLength == 0 {
@@ -1124,17 +1133,17 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 		if err != nil {
 			return "", fmt.Errorf("failed to read request body: %w", err)
 		}
-		// Restore the original body to the request for further reads
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 
 		var jsonData map[string]interface{}
 		if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
-			return "", fmt.Errorf("failed to unmarshal JSON: %w", err)
+			return "", fmt.Errorf("invalid JSON in request body: %w", err)
 		}
 		if value, ok := jsonData[fieldName]; ok {
 			return fmt.Sprintf("%v", value), nil
 		}
-		return "", nil
+		return "", fmt.Errorf("JSON field not found: %s", fieldName)
+
 	default:
 		return "", fmt.Errorf("unknown target: %s", target)
 	}
