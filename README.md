@@ -51,35 +51,27 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
 
 ```bash
 # Step 1: Clone the caddy-waf repository from GitHub
-# This downloads the source code for the caddy-waf module to your local machine.
 git clone https://github.com/fabriziosalmi/caddy-waf.git
 
 # Step 2: Navigate into the caddy-waf directory
-# This changes your current working directory to the caddy-waf project folder.
 cd caddy-waf
 
 # Step 3: Clean up and update the go.mod file
-# This ensures that your project's dependencies are up-to-date and consistent.
 go mod tidy
 
 # Step 4: Fetch and install the required Go modules
-# This downloads and installs the caddy-waf module, Caddy v2, and the maxminddb-golang library.
 go get -v github.com/fabriziosalmi/caddy-waf github.com/caddyserver/caddy/v2 github.com/oschwald/maxminddb-golang
 
 # Step 5: Download the GeoLite2 Country database
-# This downloads the GeoLite2 Country database, which is required for IP-based country filtering.
 wget https://git.io/GeoLite2-Country.mmdb
 
-# Step 6: Clean up previous build artifacts
-# This removes any temporary build directories from previous builds to ensure a clean build environment.
-rm -rf buildenv_*
+# Step 6 (optional): Clean up previous build artifacts
+# rm -rf buildenv_*
 
 # Step 7: Build Caddy with the caddy-waf module
-# This compiles Caddy and includes the caddy-waf module as a custom plugin.
 xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
 
 # Step 8: Run the compiled Caddy server
-# This starts the Caddy server with the caddy-waf module enabled.
 ./caddy run
 ```
 
