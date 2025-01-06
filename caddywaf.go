@@ -937,11 +937,17 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 	if m.dnsBlacklist == nil || len(m.dnsBlacklist) == 0 {
 		return false
 	}
+
+	// Normalize the host to lowercase and trim whitespace
+	host = strings.ToLower(strings.TrimSpace(host))
+
+	// Check if the host is in the blacklist
 	for _, blacklistedDomain := range m.dnsBlacklist {
-		if strings.EqualFold(host, blacklistedDomain) {
+		if host == blacklistedDomain {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -1127,7 +1133,14 @@ func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
 	if err != nil {
 		return err
 	}
-	m.dnsBlacklist = strings.Split(string(content), "\n")
+
+	// Convert all entries to lowercase and trim whitespace
+	lines := strings.Split(string(content), "\n")
+	for i, line := range lines {
+		lines[i] = strings.ToLower(strings.TrimSpace(line))
+	}
+
+	m.dnsBlacklist = lines
 	return nil
 }
 
