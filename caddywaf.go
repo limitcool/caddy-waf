@@ -370,25 +370,6 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		return nil
 	}
 
-	// Handle Phase 3 (Anomaly Threshold Check)
-	if state.TotalScore >= m.AnomalyThreshold && !state.Blocked && !state.ResponseWritten {
-		state.Blocked = true
-		state.StatusCode = http.StatusForbidden
-		m.logRequest(zapcore.WarnLevel, "Request blocked by Anomaly Threshold",
-			zap.Int("total_score", state.TotalScore),
-			zap.Int("anomaly_threshold", m.AnomalyThreshold),
-			zap.Int("status_code", state.StatusCode),
-			zap.String("source_ip", r.RemoteAddr),
-			zap.String("user_agent", r.UserAgent()),
-			zap.String("request_method", r.Method),
-			zap.String("request_path", r.URL.Path),
-			zap.String("query_params", r.URL.RawQuery),
-		)
-		w.WriteHeader(state.StatusCode)
-		state.ResponseWritten = true
-		return nil
-	}
-
 	// Proceed to the next handler only if the request is not blocked
 	return next.ServeHTTP(w, r)
 }
@@ -582,6 +563,25 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 
 	// Log the rule match with detailed request information
 	m.logRequest(zapcore.InfoLevel, "Rule matched", requestInfo...)
+
+	// Check if the total score exceeds the anomaly threshold
+	if state.TotalScore >= m.AnomalyThreshold {
+		m.logRequest(zapcore.WarnLevel, "Request blocked by Anomaly Threshold",
+			zap.Int("total_score", state.TotalScore),
+			zap.Int("anomaly_threshold", m.AnomalyThreshold),
+			zap.Int("status_code", http.StatusForbidden),
+			zap.String("source_ip", r.RemoteAddr),
+			zap.String("user_agent", r.UserAgent()),
+			zap.String("request_method", r.Method),
+			zap.String("request_path", r.URL.Path),
+			zap.String("query_params", r.URL.RawQuery),
+		)
+		state.Blocked = true
+		state.StatusCode = http.StatusForbidden
+		w.WriteHeader(state.StatusCode)
+		state.ResponseWritten = true
+		return
+	}
 
 	// Handle the rule action based on the mode
 	switch rule.Mode {
@@ -989,19 +989,22 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 }
 
 func (m *Middleware) loadRulesFromFile(path string) error {
+	// Read the rule file
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read rule file %s: %v", path, err)
 	}
 
+	// Unmarshal the JSON content into a slice of Rule structs
 	var rules []Rule
 	if err := json.Unmarshal(content, &rules); err != nil {
 		return fmt.Errorf("failed to unmarshal rules from %s: %v", path, err)
 	}
 
-	var invalidRules []string
+	var invalidRules []string        // Track invalid rules for logging
 	ruleIDs := make(map[string]bool) // Track rule IDs to detect duplicates
 
+	// Iterate through each rule in the file
 	for i, rule := range rules {
 		// Validate the rule ID
 		if rule.ID == "" {
@@ -1033,9 +1036,17 @@ func (m *Middleware) loadRulesFromFile(path string) error {
 			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: empty pattern", rule.ID))
 			continue
 		}
+
+		// Compile the regex pattern and log detailed errors if it fails
 		regex, err := regexp.Compile(rule.Pattern)
 		if err != nil {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid regex pattern '%s'", rule.ID, rule.Pattern))
+			// Log the exact error with context
+			m.logger.Error("Failed to compile regex pattern for rule",
+				zap.String("rule_id", rule.ID),
+				zap.String("pattern", rule.Pattern),
+				zap.Error(err), // Log the exact error from regexp.Compile
+			)
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid regex pattern '%s' (error: %v)", rule.ID, rule.Pattern, err))
 			continue
 		}
 		rules[i].regex = regex
