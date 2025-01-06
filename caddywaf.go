@@ -856,9 +856,6 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
 			return fmt.Errorf("failed to load IP blacklist from %s: %v", m.IPBlacklistFile, err)
 		}
-		m.logger.Info("IP blacklist loaded successfully",
-			zap.Int("count", len(m.ipBlacklist)),
-		)
 	} else {
 		m.ipBlacklist = make(map[string]bool)
 		m.logger.Debug("No IP blacklist file specified, initializing empty blacklist")
@@ -915,6 +912,9 @@ func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 
 	// Check if the IP is directly blacklisted
 	if m.ipBlacklist[ipStr] {
+		m.logger.Debug("IP is directly blacklisted",
+			zap.String("ip", ipStr),
+		)
 		return true
 	}
 
@@ -929,6 +929,10 @@ func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 
 		// Check if the IP falls within the CIDR range
 		if ipNet.Contains(ip) {
+			m.logger.Debug("IP falls within a blacklisted CIDR range",
+				zap.String("ip", ipStr),
+				zap.String("cidr", blacklistEntry),
+			)
 			return true
 		}
 	}
@@ -1124,7 +1128,7 @@ func validateRule(rule *Rule) error {
 func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read IP blacklist file: %v", err)
 	}
 
 	// Initialize the IP blacklist
@@ -1134,17 +1138,23 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 	lines := strings.Split(string(content), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" {
-			continue // Skip empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue // Skip empty lines and comments
 		}
 
-		// Validate the line as either an IP or a CIDR range
+		// Check if the line is a valid IP or CIDR range
 		if ip := net.ParseIP(line); ip != nil {
 			// It's a valid IP address
 			m.ipBlacklist[line] = true
+			m.logger.Debug("Added IP to blacklist",
+				zap.String("ip", line),
+			)
 		} else if _, _, err := net.ParseCIDR(line); err == nil {
 			// It's a valid CIDR range
 			m.ipBlacklist[line] = true
+			m.logger.Debug("Added CIDR range to blacklist",
+				zap.String("cidr", line),
+			)
 		} else {
 			// Log invalid entries for debugging
 			m.logger.Warn("Invalid IP or CIDR range in blacklist",
@@ -1153,6 +1163,9 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 		}
 	}
 
+	m.logger.Info("IP blacklist loaded successfully",
+		zap.Int("count", len(m.ipBlacklist)),
+	)
 	return nil
 }
 
