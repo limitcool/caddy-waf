@@ -163,13 +163,11 @@ type Middleware struct {
 	CountryWhitelist CountryAccessFilter `json:"country_whitelist"`
 	Rules            map[int][]Rule      `json:"-"`
 	ipBlacklist      map[string]bool     `json:"-"` // Changed type here
-	ipBlacklistTrie  *CIDRTrie           `json:"-"` // New field for CIDR-aware trie
 	dnsBlacklist     []string            `json:"-"`
 	rateLimiter      *RateLimiter        `json:"-"`
 	logger           *zap.Logger
 	LogSeverity      string `json:"log_severity,omitempty"`
 	LogJSON          bool   `json:"log_json,omitempty"`
-	Disabled         bool   `json:"disabled"` // New field to disable WAF
 }
 
 // WAFState struct: Used to maintain state between phases
@@ -209,9 +207,6 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {
-			case "disabled":
-				m.Disabled = true
-				m.logger.Warn("WAF functionality is disabled") // Log a warning when WAF is disabled
 			case "rate_limit":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -292,82 +287,6 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	return nil
 }
 
-type CIDRTrie struct {
-	children map[byte]*CIDRTrie
-	isEnd    bool // Marks the end of a CIDR range
-}
-
-func NewCIDRTrie() *CIDRTrie {
-	return &CIDRTrie{
-		children: make(map[byte]*CIDRTrie),
-		isEnd:    false,
-	}
-}
-
-func (t *CIDRTrie) Insert(entry string) error {
-	// Try parsing the entry as a CIDR range
-	_, ipNet, err := net.ParseCIDR(entry)
-	if err != nil {
-		// If parsing as CIDR fails, try parsing as a plain IP address
-		ip := net.ParseIP(entry)
-		if ip == nil {
-			return fmt.Errorf("invalid IP or CIDR address: %s", entry)
-		}
-
-		// Convert the plain IP address to a CIDR range with a full mask
-		if ip.To4() != nil {
-			// IPv4 address: use /32 mask
-			entry = fmt.Sprintf("%s/32", ip.String())
-		} else {
-			// IPv6 address: use /128 mask
-			entry = fmt.Sprintf("%s/128", ip.String())
-		}
-
-		// Parse the new CIDR range
-		_, ipNet, err = net.ParseCIDR(entry)
-		if err != nil {
-			return fmt.Errorf("failed to convert IP to CIDR: %v", err)
-		}
-	}
-
-	// Convert the IP to a byte slice
-	ipBytes := ipNet.IP.To16() // Ensure IPv6 compatibility
-	maskSize, _ := ipNet.Mask.Size()
-
-	current := t
-	for i := 0; i < maskSize; i++ {
-		bit := (ipBytes[i/8] >> (7 - i%8)) & 1
-		if current.children[bit] == nil {
-			current.children[bit] = NewCIDRTrie()
-		}
-		current = current.children[bit]
-	}
-	current.isEnd = true
-	return nil
-}
-
-func (t *CIDRTrie) Contains(ipStr string) bool {
-	ip := net.ParseIP(ipStr)
-	if ip == nil {
-		return false
-	}
-
-	ipBytes := ip.To16() // Ensure IPv6 compatibility
-	current := t
-
-	for i := 0; i < len(ipBytes)*8; i++ {
-		bit := (ipBytes[i/8] >> (7 - i%8)) & 1
-		if current.children[bit] == nil {
-			return false
-		}
-		current = current.children[bit]
-		if current.isEnd {
-			return true
-		}
-	}
-	return false
-}
-
 func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, geoIP *maxminddb.Reader) (bool, error) {
 	if geoIP == nil {
 		return false, fmt.Errorf("GeoIP database not loaded")
@@ -404,11 +323,6 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	// Check if WAF is disabled
-	if m.Disabled {
-		return next.ServeHTTP(w, r)
-	}
-
 	state := &WAFState{
 		TotalScore:      0,
 		Blocked:         false,
@@ -760,12 +674,6 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
 
-	// Check if WAF is disabled
-	if m.Disabled {
-		m.logger.Warn("WAF functionality is disabled; skipping initialization")
-		return nil
-	}
-
 	// Initialize rate limiter if configured
 	if m.RateLimit.Requests > 0 {
 		m.logger.Debug("Initializing rate limiter",
@@ -941,7 +849,7 @@ func fileExists(path string) bool {
 }
 
 func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
-	if m.ipBlacklistTrie == nil {
+	if len(m.ipBlacklist) == 0 {
 		return false
 	}
 
@@ -951,8 +859,40 @@ func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 		return false
 	}
 
-	// Check if the IP is in the trie
-	return m.ipBlacklistTrie.Contains(ipStr)
+	// Parse the IP address
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+
+	// Check if the IP is directly blacklisted
+	if m.ipBlacklist[ipStr] {
+		m.logger.Debug("IP is directly blacklisted",
+			zap.String("ip", ipStr),
+		)
+		return true
+	}
+
+	// Check if the IP falls within any CIDR range in the blacklist
+	for blacklistEntry := range m.ipBlacklist {
+		// Try to parse the blacklist entry as a CIDR range
+		_, ipNet, err := net.ParseCIDR(blacklistEntry)
+		if err != nil {
+			// If it's not a CIDR range, skip
+			continue
+		}
+
+		// Check if the IP falls within the CIDR range
+		if ipNet.Contains(ip) {
+			m.logger.Debug("IP falls within a blacklisted CIDR range",
+				zap.String("ip", ipStr),
+				zap.String("cidr", blacklistEntry),
+			)
+			return true
+		}
+	}
+
+	return false
 }
 
 func (m *Middleware) isDNSBlacklisted(host string) bool {
@@ -1146,8 +1086,8 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 		return fmt.Errorf("failed to read IP blacklist file: %v", err)
 	}
 
-	// Initialize the CIDR trie
-	m.ipBlacklistTrie = NewCIDRTrie()
+	// Initialize the IP blacklist
+	m.ipBlacklist = make(map[string]bool)
 
 	// Split the file content into lines
 	lines := strings.Split(string(content), "\n")
@@ -1157,21 +1097,29 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 			continue // Skip empty lines and comments
 		}
 
-		// Insert the CIDR range or IP into the trie
-		if err := m.ipBlacklistTrie.Insert(line); err != nil {
-			m.logger.Warn("Invalid IP or CIDR range in blacklist",
-				zap.String("entry", line),
-				zap.Error(err),
+		// Check if the line is a valid IP or CIDR range
+		if _, _, err := net.ParseCIDR(line); err == nil {
+			// It's a valid CIDR range
+			m.ipBlacklist[line] = true
+			m.logger.Debug("Added CIDR range to blacklist",
+				zap.String("cidr", line),
+			)
+		} else if ip := net.ParseIP(line); ip != nil {
+			// It's a valid IP address
+			m.ipBlacklist[line] = true
+			m.logger.Debug("Added IP to blacklist",
+				zap.String("ip", line),
 			)
 		} else {
-			m.logger.Debug("Added IP/CIDR to blacklist",
+			// Log invalid entries for debugging
+			m.logger.Warn("Invalid IP or CIDR range in blacklist",
 				zap.String("entry", line),
 			)
 		}
 	}
 
 	m.logger.Info("IP blacklist loaded successfully",
-		zap.Int("count", len(lines)),
+		zap.Int("count", len(m.ipBlacklist)),
 	)
 	return nil
 }
