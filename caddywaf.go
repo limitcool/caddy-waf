@@ -1122,88 +1122,166 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 }
 
 func (m *Middleware) extractValue(target string, r *http.Request) (string, error) {
+	// Normalize the target to handle case insensitivity
+	target = strings.ToUpper(strings.TrimSpace(target))
+
 	switch {
 	case target == "ARGS":
+		// Return the raw query string
 		return r.URL.RawQuery, nil
 
 	case target == "BODY":
+		// Handle empty or nil body
 		if r.Body == nil || r.ContentLength == 0 {
 			return "", nil
 		}
 
+		// Read the body and rewind it for future use
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
+			m.logger.Error("Failed to read request body", zap.Error(err))
 			return "", fmt.Errorf("failed to read request body: %w", err)
 		}
-		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Rewind the body
 
 		return string(bodyBytes), nil
 
 	case target == "HEADERS":
+		// Return all headers as a string
 		return fmt.Sprintf("%v", r.Header), nil
 
 	case target == "URL":
+		// Return the URL path
 		return r.URL.Path, nil
 
 	case target == "USER_AGENT":
+		// Return the User-Agent header
 		return r.UserAgent(), nil
 
 	case target == "COOKIES":
+		// Return all cookies as a string
 		return fmt.Sprintf("%v", r.Cookies()), nil
 
 	case target == "PATH":
+		// Return the URL path (same as "URL")
 		return r.URL.Path, nil
 
 	case target == "URI":
+		// Return the full request URI
 		return r.RequestURI, nil
 
 	case strings.HasPrefix(target, "HEADERS:"):
+		// Extract a specific header
 		headerName := strings.TrimPrefix(target, "HEADERS:")
 		return r.Header.Get(headerName), nil
 
 	case strings.HasPrefix(target, "ARGS:"):
+		// Extract a specific query parameter
 		argName := strings.TrimPrefix(target, "ARGS:")
 		return r.URL.Query().Get(argName), nil
 
 	case strings.HasPrefix(target, "COOKIES:"):
+		// Extract a specific cookie
 		cookieName := strings.TrimPrefix(target, "COOKIES:")
 		cookie, err := r.Cookie(cookieName)
 		if err != nil {
+			m.logger.Warn("Missing or invalid cookie", zap.String("cookie", cookieName), zap.Error(err))
 			return "", fmt.Errorf("missing or invalid cookie: %s, error: %w", cookieName, err)
 		}
 		return cookie.Value, nil
 
 	case strings.HasPrefix(target, "FORM:"):
+		// Extract a specific form field
 		fieldName := strings.TrimPrefix(target, "FORM:")
 		if err := r.ParseForm(); err != nil {
+			m.logger.Error("Failed to parse form data", zap.Error(err))
 			return "", fmt.Errorf("failed to parse form data: %w", err)
 		}
 		return r.Form.Get(fieldName), nil
 
 	case strings.HasPrefix(target, "JSON:"):
-		fieldName := strings.TrimPrefix(target, "JSON:")
+		// Extract a specific JSON field (supports nested fields)
+		fieldPath := strings.TrimPrefix(target, "JSON:")
 		if r.Body == nil || r.ContentLength == 0 {
 			return "", nil
 		}
 
+		// Read and rewind the body
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
+			m.logger.Error("Failed to read request body", zap.Error(err))
 			return "", fmt.Errorf("failed to read request body: %w", err)
 		}
-		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Rewind the body
 
-		var jsonData map[string]interface{}
+		// Parse JSON
+		var jsonData interface{}
 		if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
+			m.logger.Error("Invalid JSON in request body", zap.Error(err))
 			return "", fmt.Errorf("invalid JSON in request body: %w", err)
 		}
-		if value, ok := jsonData[fieldName]; ok {
-			return fmt.Sprintf("%v", value), nil
+
+		// Extract the nested field
+		value, err := extractNestedJSONField(jsonData, fieldPath)
+		if err != nil {
+			m.logger.Warn("Failed to extract JSON field", zap.String("field", fieldPath), zap.Error(err))
+			return "", fmt.Errorf("failed to extract JSON field '%s': %w", fieldPath, err)
 		}
-		return "", fmt.Errorf("JSON field not found: %s", fieldName)
+
+		return fmt.Sprintf("%v", value), nil
 
 	default:
+		// Handle unknown targets
+		m.logger.Warn("Unknown target", zap.String("target", target))
 		return "", fmt.Errorf("unknown target: %s", target)
 	}
+}
+
+// extractNestedJSONField extracts a nested field from a JSON object.
+// Supports dot notation (e.g., "user.name") and array indexing (e.g., "items[0].id").
+func extractNestedJSONField(data interface{}, fieldPath string) (interface{}, error) {
+	parts := strings.Split(fieldPath, ".")
+	var current interface{} = data
+
+	for _, part := range parts {
+		// Handle array indexing (e.g., "items[0]")
+		if strings.Contains(part, "[") && strings.HasSuffix(part, "]") {
+			indexStr := strings.TrimPrefix(strings.TrimSuffix(part, "]"), "[")
+			index, err := strconv.Atoi(indexStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid array index '%s': %w", indexStr, err)
+			}
+
+			// Ensure the current value is a slice
+			slice, ok := current.([]interface{})
+			if !ok {
+				return nil, fmt.Errorf("expected array at '%s', got %T", part, current)
+			}
+
+			// Check if the index is within bounds
+			if index < 0 || index >= len(slice) {
+				return nil, fmt.Errorf("index %d out of bounds for array at '%s'", index, part)
+			}
+
+			current = slice[index]
+		} else {
+			// Handle nested objects
+			obj, ok := current.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("expected object at '%s', got %T", part, current)
+			}
+
+			// Check if the field exists
+			value, exists := obj[part]
+			if !exists {
+				return nil, fmt.Errorf("field '%s' not found", part)
+			}
+
+			current = value
+		}
+	}
+
+	return current, nil
 }
 
 // validateRule checks if a rule is valid
