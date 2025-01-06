@@ -420,25 +420,28 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 }
 
 // extractIP extracts the IP address from a remote address string.
-// It handles cases where the remote address includes a port (e.g., "192.168.1.1:12345" or "[2001:db8::1]:8080").
 func extractIP(remoteAddr string) string {
-	// Try to split the address into host and port
+	if remoteAddr == "" {
+		return ""
+	}
+
+	// Remove brackets from IPv6 addresses
+	if strings.HasPrefix(remoteAddr, "[") && strings.HasSuffix(remoteAddr, "]") {
+		remoteAddr = strings.TrimPrefix(remoteAddr, "[")
+		remoteAddr = strings.TrimSuffix(remoteAddr, "]")
+	}
+
 	host, _, err := net.SplitHostPort(remoteAddr)
 	if err == nil {
-		// If successful, return the host part (IP address)
 		return host
 	}
 
-	// If SplitHostPort fails, assume the remoteAddr is just an IP address
-	// Try to parse it as a standalone IP address
 	ip := net.ParseIP(remoteAddr)
 	if ip != nil {
-		// If parsing succeeds, return the IP address as a string
 		return ip.String()
 	}
 
-	// If all else fails, return the original remoteAddr
-	return remoteAddr
+	return ""
 }
 
 func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase int, state *WAFState) {
@@ -895,17 +898,17 @@ func fileExists(path string) bool {
 }
 
 func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
+	// Early return if the blacklist is empty
 	if len(m.ipBlacklist) == 0 {
 		return false
 	}
 
-	// Extract the IP from the remote address
+	// Extract and validate the IP from the remote address
 	ipStr := extractIP(remoteAddr)
 	if ipStr == "" {
 		return false
 	}
 
-	// Parse the IP address
 	ip := net.ParseIP(ipStr)
 	if ip == nil {
 		return false
@@ -921,10 +924,18 @@ func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 
 	// Check if the IP falls within any CIDR range in the blacklist
 	for blacklistEntry := range m.ipBlacklist {
-		// Try to parse the blacklist entry as a CIDR range
+		// Skip if the entry is not a CIDR range
+		if !strings.Contains(blacklistEntry, "/") {
+			continue
+		}
+
+		// Parse the CIDR range
 		_, ipNet, err := net.ParseCIDR(blacklistEntry)
 		if err != nil {
-			// If it's not a CIDR range, skip
+			m.logger.Warn("Invalid CIDR range in blacklist",
+				zap.String("cidr", blacklistEntry),
+				zap.Error(err),
+			)
 			continue
 		}
 
@@ -942,16 +953,25 @@ func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 }
 
 func (m *Middleware) isDNSBlacklisted(host string) bool {
-	if m.dnsBlacklist == nil || len(m.dnsBlacklist) == 0 {
+	// Early return if the blacklist is empty or nil
+	if len(m.dnsBlacklist) == 0 {
 		return false
 	}
 
 	// Normalize the host to lowercase and trim whitespace
 	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" {
+		return false
+	}
 
 	// Check if the host is in the blacklist
 	for _, blacklistedDomain := range m.dnsBlacklist {
-		if host == blacklistedDomain {
+		// Check for exact match or subdomain match
+		if host == blacklistedDomain || strings.HasSuffix(host, "."+blacklistedDomain) {
+			m.logger.Debug("Host is blacklisted",
+				zap.String("host", host),
+				zap.String("blacklisted_domain", blacklistedDomain),
+			)
 			return true
 		}
 	}
