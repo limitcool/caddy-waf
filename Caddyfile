@@ -14,6 +14,8 @@
 
     route {
         waf {
+            # uncomment next line to disable the WAF
+            # disabled 
             anomaly_threshold 5
             block_countries GeoLite2-Country.mmdb RU CN KP
             # or whitelist
