@@ -136,9 +136,15 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 }
 
 func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
-	fmt.Println("WAF UnmarshalCaddyfile Called")
-	m.LogSeverity = "info" //Default log level if not specified
-	m.LogJSON = false      //Default log json to false if not specified
+	// Initialize a temporary logger if it's nil
+	if m.logger == nil {
+		m.logger = zap.NewNop() // Use a no-op logger if no logger is available
+	}
+
+	m.logger.Debug("WAF UnmarshalCaddyfile Called")
+	m.LogSeverity = "info" // Default log level if not specified
+	m.LogJSON = false      // Default log json to false if not specified
+
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {
@@ -187,19 +193,19 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			case "log_json":
 				m.LogJSON = true
 			case "rule_file":
-				fmt.Println("WAF Loading Rule File")
+				m.logger.Info("WAF Loading Rule File", zap.String("file", d.Val()))
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
 				m.RuleFiles = append(m.RuleFiles, d.Val())
 			case "ip_blacklist_file":
-				fmt.Println("WAF Loading IP Blacklist File")
+				m.logger.Info("WAF Loading IP Blacklist File", zap.String("file", d.Val()))
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
 				m.IPBlacklistFile = d.Val()
 			case "dns_blacklist_file":
-				fmt.Println("WAF Loading DNS Blacklist File")
+				m.logger.Info("WAF Loading DNS Blacklist File", zap.String("file", d.Val()))
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
@@ -235,7 +241,7 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				}
 				m.AnomalyThreshold = threshold
 			default:
-				fmt.Println("WAF Unrecognized SubDirective: ", d.Val())
+				m.logger.Warn("WAF Unrecognized SubDirective", zap.String("directive", d.Val()))
 				return d.Errf("unrecognized subdirective: %s", d.Val())
 			}
 		}
