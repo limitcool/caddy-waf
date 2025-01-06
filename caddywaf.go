@@ -406,7 +406,7 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 	}
 
 	// Log the blocked request with the log ID
-	m.logRequest(zapcore.InfoLevel, reason,
+	m.logRequest(zapcore.WarnLevel, reason,
 		append(fields,
 			zap.String("log_id", logID),
 			zap.String("source_ip", r.RemoteAddr),
@@ -516,6 +516,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 	if phase == 1 && m.isDNSBlacklisted(r.Host) {
 		m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked by DNS blacklist",
 			zap.String("reason", "dns_blacklist"),
+			zap.String("host", r.Host),
 		)
 		return
 	}
@@ -966,10 +967,10 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 		return false
 	}
 
-	// Check if the host is in the blacklist
+	// Check if the host is an exact match to any blacklisted domain
 	for _, blacklistedDomain := range m.dnsBlacklist {
-		// Check for exact match or subdomain match
-		if host == blacklistedDomain || strings.HasSuffix(host, "."+blacklistedDomain) {
+		blacklistedDomain = strings.ToLower(strings.TrimSpace(blacklistedDomain)) // Normalize blacklisted domain as well
+		if host == blacklistedDomain {
 			m.logger.Debug("Host is blacklisted",
 				zap.String("host", host),
 				zap.String("blacklisted_domain", blacklistedDomain),
