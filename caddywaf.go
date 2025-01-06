@@ -516,14 +516,14 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 }
 
 func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) {
-	// Ensure the rule mode is set to "detect" if empty
+	// If rule.Mode is empty, default to "block"
 	if rule.Mode == "" {
-		rule.Mode = "detect"
+		rule.Mode = "block"
 	}
 
 	// Determine the action based on the rule mode and severity configuration
 	action := rule.Mode
-	if action == "detect" {
+	if action == "log" {
 		action = m.getSeverityAction(rule.Severity)
 	}
 
@@ -568,12 +568,13 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		// Logging is already done above, no further action needed
 		return
 
-	case "allow":
-		// Allow the request, but the score has already been added
-		return
-
-	case "detect":
-		// No additional action needed for "detect" mode
+	default:
+		// Handle unknown actions by blocking the request (security-first approach)
+		m.logRequest(zapcore.WarnLevel, "Unknown rule action - Blocking Request", zap.String("action", action))
+		state.Blocked = true
+		state.StatusCode = http.StatusForbidden
+		w.WriteHeader(state.StatusCode)
+		state.ResponseWritten = true
 		return
 	}
 }
