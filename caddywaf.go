@@ -1286,28 +1286,21 @@ func (m *Middleware) ReloadConfig() error {
 	defer m.mu.Unlock()
 
 	// Reload rules
-	rules := make(map[int][]Rule)
 	if err := m.loadRulesFromFiles(); err != nil {
 		return fmt.Errorf("failed to reload rules: %v", err)
 	}
 
 	// Reload IP blacklist
-	ipBlacklist := make(map[string]bool)
 	if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
 		return fmt.Errorf("failed to reload IP blacklist: %v", err)
 	}
 
 	// Reload DNS blacklist
-	var dnsBlacklist []string
 	if err := m.loadDNSBlacklistFromFile(m.DNSBlacklistFile); err != nil {
 		return fmt.Errorf("failed to reload DNS blacklist: %v", err)
 	}
 
-	// Update shared state atomically
-	m.Rules = rules
-	m.ipBlacklist = ipBlacklist
-	m.dnsBlacklist = dnsBlacklist
-
+	// Update shared state while holding the lock
 	return nil
 }
 
