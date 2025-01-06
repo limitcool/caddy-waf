@@ -1021,36 +1021,31 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 }
 
 func (m *Middleware) loadRulesFromFile(path string) error {
-	// Read the file content
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read rule file %s: %v", path, err)
 	}
 
-	// Unmarshal the JSON content into a slice of Rule structs
 	var rules []Rule
 	if err := json.Unmarshal(content, &rules); err != nil {
 		return fmt.Errorf("failed to unmarshal rules from %s: %v", path, err)
 	}
 
-	// Validate and process each rule
+	var invalidRules []string
 	for i, rule := range rules {
-		// Validate the rule phase
-		if rule.Phase < 1 || rule.Phase > 2 {
-			return fmt.Errorf("invalid phase in rule %s: %d", rule.ID, rule.Phase)
+		// Validate the rule
+		if err := validateRule(&rule); err != nil {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule %d: %v", i+1, err))
+			continue // Skip invalid rules
 		}
 
 		// Compile the regex pattern
 		regex, err := regexp.Compile(rule.Pattern)
 		if err != nil {
-			return fmt.Errorf("invalid pattern in rule %s: %v", rule.ID, err)
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid regex pattern: %v", rule.ID, err))
+			continue // Skip rules with invalid patterns
 		}
 		rules[i].regex = regex
-
-		// Set default mode if empty
-		if rule.Mode == "" {
-			rules[i].Mode = rule.Action // Map "action" to "mode" if "mode" is empty
-		}
 
 		// Initialize the phase map if it doesn't exist
 		if _, ok := m.Rules[rule.Phase]; !ok {
@@ -1061,6 +1056,34 @@ func (m *Middleware) loadRulesFromFile(path string) error {
 		m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rules[i])
 	}
 
+	// Log warnings for invalid rules
+	if len(invalidRules) > 0 {
+		m.logger.Warn("Skipped invalid rules in file",
+			zap.String("file", path),
+			zap.Strings("invalid_rules", invalidRules),
+		)
+	}
+
+	return nil
+}
+
+// validateRule checks if a rule is valid
+func validateRule(rule *Rule) error {
+	if rule.ID == "" {
+		return fmt.Errorf("rule has an empty ID")
+	}
+	if rule.Pattern == "" {
+		return fmt.Errorf("rule '%s' has an empty pattern", rule.ID)
+	}
+	if len(rule.Targets) == 0 {
+		return fmt.Errorf("rule '%s' has no targets", rule.ID)
+	}
+	if rule.Phase < 1 || rule.Phase > 2 {
+		return fmt.Errorf("rule '%s' has an invalid phase: %d", rule.ID, rule.Phase)
+	}
+	if rule.Score < 0 {
+		return fmt.Errorf("rule '%s' has a negative score", rule.ID)
+	}
 	return nil
 }
 
