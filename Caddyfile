@@ -1,7 +1,6 @@
 {
     auto_https off
     admin off
-    # debug   # Enable debug mode for better logging
 }
 
 
