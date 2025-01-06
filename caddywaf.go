@@ -897,30 +897,39 @@ func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 	if len(m.ipBlacklist) == 0 {
 		return false
 	}
-	ip, _, err := net.SplitHostPort(remoteAddr)
-	if err != nil {
-		return false
-	}
-	if m.ipBlacklist[ip] {
-		return true
-	}
-	parsedIP := net.ParseIP(ip)
-	if parsedIP == nil {
+
+	// Extract the IP from the remote address
+	ipStr := extractIP(remoteAddr)
+	if ipStr == "" {
 		return false
 	}
 
-	for blacklistIP := range m.ipBlacklist {
-		_, ipNet, err := net.ParseCIDR(blacklistIP)
+	// Parse the IP address
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+
+	// Check if the IP is directly blacklisted
+	if m.ipBlacklist[ipStr] {
+		return true
+	}
+
+	// Check if the IP falls within any CIDR range in the blacklist
+	for blacklistEntry := range m.ipBlacklist {
+		// Try to parse the blacklist entry as a CIDR range
+		_, ipNet, err := net.ParseCIDR(blacklistEntry)
 		if err != nil {
-			if blacklistIP == ip {
-				return true
-			}
+			// If it's not a CIDR range, skip
 			continue
 		}
-		if ipNet.Contains(parsedIP) {
+
+		// Check if the IP falls within the CIDR range
+		if ipNet.Contains(ip) {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -1047,21 +1056,33 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 	if err != nil {
 		return err
 	}
-	ips := strings.Split(string(content), "\n")
+
+	// Initialize the IP blacklist
 	m.ipBlacklist = make(map[string]bool)
-	for _, ip := range ips {
-		ip = strings.TrimSpace(ip)
-		if ip == "" {
-			continue
+
+	// Split the file content into lines
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue // Skip empty lines
 		}
-		// Validate IP or CIDR
-		if _, _, err := net.ParseCIDR(ip); err != nil {
-			if net.ParseIP(ip) == nil {
-				return fmt.Errorf("invalid IP or CIDR in blacklist: %s", ip)
-			}
+
+		// Validate the line as either an IP or a CIDR range
+		if ip := net.ParseIP(line); ip != nil {
+			// It's a valid IP address
+			m.ipBlacklist[line] = true
+		} else if _, _, err := net.ParseCIDR(line); err == nil {
+			// It's a valid CIDR range
+			m.ipBlacklist[line] = true
+		} else {
+			// Log invalid entries for debugging
+			m.logger.Warn("Invalid IP or CIDR range in blacklist",
+				zap.String("entry", line),
+			)
 		}
-		m.ipBlacklist[ip] = true
 	}
+
 	return nil
 }
 
