@@ -541,23 +541,22 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		zap.String("mode", rule.Mode),
 		zap.String("severity_action", action),
-		zap.String("source_ip", r.RemoteAddr),      // Source IP address
-		zap.String("user_agent", r.UserAgent()),    // User-Agent header
-		zap.String("request_method", r.Method),     // HTTP method (GET, POST, etc.)
-		zap.String("request_path", r.URL.Path),     // Request path
-		zap.String("query_params", r.URL.RawQuery), // Query parameters
-		zap.Any("headers", r.Header),               // All request headers
-		zap.Time("timestamp", time.Now()),          // Timestamp of the request
+		zap.String("source_ip", r.RemoteAddr),
+		zap.String("user_agent", r.UserAgent()),
+		zap.String("request_method", r.Method),
+		zap.String("request_path", r.URL.Path),
+		zap.String("query_params", r.URL.RawQuery),
+		zap.Any("headers", r.Header),
+		zap.Time("timestamp", time.Now()),
 	}
 
 	// Log the rule match with detailed request information
-	m.logRequest(zapcore.InfoLevel, "Rule Matched", requestInfo...)
+	m.logRequest(zapcore.InfoLevel, "Rule matched", requestInfo...)
 
 	// Handle the rule action
 	switch action {
 	case "block":
-		// Log the blocking action with detailed request information
-		m.logRequest(zapcore.WarnLevel, "Rule Matched - Blocking Request", requestInfo...)
+		m.logRequest(zapcore.WarnLevel, "Request blocked by rule", requestInfo...)
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
 		w.WriteHeader(state.StatusCode)
@@ -565,12 +564,12 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		return
 
 	case "log":
-		// Logging is already done above, no further action needed
+		// No further action needed; logging is already done above
 		return
 
 	default:
 		// Handle unknown actions by blocking the request (security-first approach)
-		m.logRequest(zapcore.WarnLevel, "Unknown rule action - Blocking Request", zap.String("action", action))
+		m.logRequest(zapcore.WarnLevel, "Unknown rule action - Blocking request", zap.String("action", action))
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
 		w.WriteHeader(state.StatusCode)
@@ -715,17 +714,18 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 
 	// Set default severity actions
 	if m.Severity.Critical == "" {
-		m.Severity.Critical = "log"
+		m.Severity.Critical = "block" // Default to block for critical severity
 	}
 	if m.Severity.High == "" {
-		m.Severity.High = "log"
+		m.Severity.High = "block" // Default to block for high severity
 	}
 	if m.Severity.Medium == "" {
-		m.Severity.Medium = "log"
+		m.Severity.Medium = "log" // Default to log for medium severity
 	}
 	if m.Severity.Low == "" {
-		m.Severity.Low = "log"
+		m.Severity.Low = "log" // Default to log for low severity
 	}
+
 	// Load rules from rule files
 	m.Rules = make(map[int][]Rule)
 	for _, file := range m.RuleFiles {
@@ -740,11 +740,13 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	// Validate and log each rule
 	m.logger.Info("Validating loaded rules")
 	var invalidRules []string
-	for _, rules := range m.Rules {
+	totalRules := 0 // Track the total number of rules
+
+	for phase, rules := range m.Rules {
 		for _, rule := range rules {
 			m.logger.Debug("Validating rule",
 				zap.String("rule_id", rule.ID),
-				zap.Int("phase", rule.Phase),
+				zap.Int("phase", phase),
 				zap.String("pattern", rule.Pattern),
 				zap.Strings("targets", rule.Targets),
 				zap.String("severity", rule.Severity),
@@ -776,10 +778,11 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 				continue
 			}
 			if rule.Mode == "" {
-				rule.Mode = "detect"
+				rule.Mode = "block" // Default to block if mode is empty
 			}
-		}
 
+			totalRules++ // Increment the total rule count
+		}
 	}
 
 	// Log invalid rules
@@ -790,6 +793,11 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	} else {
 		m.logger.Info("All rules validated successfully")
 	}
+
+	// Log the total number of rules loaded
+	m.logger.Info("Total rules loaded",
+		zap.Int("total_rules", totalRules),
+	)
 
 	// Set default anomaly threshold if not configured
 	if m.AnomalyThreshold == 0 {
@@ -1023,10 +1031,34 @@ func (m *Middleware) ReloadConfig() error {
 }
 
 func (m *Middleware) loadRulesFromFiles() error {
+	totalRules := 0 // Initialize a counter for total rules
+
 	for _, file := range m.RuleFiles {
+		// Load rules from the current file
 		if err := m.loadRulesFromFile(file); err != nil {
 			return err
 		}
+
+		// Count the number of rules loaded from the current file
+		rulesInFile := 0
+		for _, rules := range m.Rules {
+			rulesInFile += len(rules)
+		}
+
+		// Log the number of rules loaded from the current file
+		m.logger.Info("Loaded rules from file",
+			zap.String("file", file),
+			zap.Int("rules_loaded", rulesInFile),
+		)
+
+		// Add the rules from this file to the total count
+		totalRules += rulesInFile
 	}
+
+	// Log the total number of rules loaded
+	m.logger.Info("Total rules loaded",
+		zap.Int("total_rules", totalRules),
+	)
+
 	return nil
 }
