@@ -311,6 +311,14 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 
 	// If the request is blocked after Phase 1, return early
 	if state.Blocked {
+		m.logRequest(zapcore.InfoLevel, "Request blocked in Phase 1",
+			zap.Int("status_code", state.StatusCode),
+			zap.String("source_ip", r.RemoteAddr),
+			zap.String("user_agent", r.UserAgent()),
+			zap.String("request_method", r.Method),
+			zap.String("request_path", r.URL.Path),
+			zap.String("query_params", r.URL.RawQuery),
+		)
 		w.WriteHeader(state.StatusCode)
 		state.ResponseWritten = true
 		return nil
@@ -323,6 +331,14 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 
 	// If the request is blocked after Phase 2, return early
 	if state.Blocked {
+		m.logRequest(zapcore.InfoLevel, "Request blocked in Phase 2",
+			zap.Int("status_code", state.StatusCode),
+			zap.String("source_ip", r.RemoteAddr),
+			zap.String("user_agent", r.UserAgent()),
+			zap.String("request_method", r.Method),
+			zap.String("request_path", r.URL.Path),
+			zap.String("query_params", r.URL.RawQuery),
+		)
 		w.WriteHeader(state.StatusCode)
 		state.ResponseWritten = true
 		return nil
@@ -336,11 +352,12 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 			zap.Int("total_score", state.TotalScore),
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
 			zap.Int("status_code", state.StatusCode),
+			zap.String("source_ip", r.RemoteAddr),
+			zap.String("user_agent", r.UserAgent()),
+			zap.String("request_method", r.Method),
+			zap.String("request_path", r.URL.Path),
+			zap.String("query_params", r.URL.RawQuery),
 		)
-	}
-
-	// If the request is blocked after Phase 3, return early
-	if state.Blocked {
 		w.WriteHeader(state.StatusCode)
 		state.ResponseWritten = true
 		return nil
