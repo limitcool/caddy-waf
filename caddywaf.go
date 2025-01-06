@@ -319,14 +319,9 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 		return false, fmt.Errorf("geoip database not loaded")
 	}
 
-	ip := remoteAddr
-	if strings.Contains(remoteAddr, ":") {
-		var err error
-		ip, _, err = net.SplitHostPort(remoteAddr)
-		if err != nil {
-			m.logger.Error("failed to split host and port", zap.String("remote_addr", remoteAddr), zap.Error(err))
-			return false, fmt.Errorf("failed to split host and port: %w", err)
-		}
+	ip, err := m.extractIPFromRemoteAddr(remoteAddr)
+	if err != nil {
+		return false, err
 	}
 
 	parsedIP := net.ParseIP(ip)
@@ -336,7 +331,7 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 	}
 
 	var record GeoIPRecord
-	err := geoIP.Lookup(parsedIP, &record)
+	err = geoIP.Lookup(parsedIP, &record)
 	if err != nil {
 		m.logger.Error("geoip lookup failed", zap.String("ip", ip), zap.Error(err))
 		return false, fmt.Errorf("geoip lookup failed: %w", err)
@@ -349,6 +344,19 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 	}
 
 	return false, nil
+}
+
+func (m *Middleware) extractIPFromRemoteAddr(remoteAddr string) (string, error) {
+	ip := remoteAddr
+	if strings.Contains(remoteAddr, ":") {
+		var err error
+		ip, _, err = net.SplitHostPort(remoteAddr)
+		if err != nil {
+			m.logger.Error("failed to split host and port", zap.String("remote_addr", remoteAddr), zap.Error(err))
+			return "", fmt.Errorf("failed to split host and port: %w", err)
+		}
+	}
+	return ip, nil
 }
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
@@ -679,10 +687,8 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 	var logID string
 	for i, field := range fields {
 		if field.Key == "log_id" {
-			// Use field.String to get the value of the log_id field
 			logID = field.String
-			// Remove the log_id field from the original fields slice
-			fields = append(fields[:i], fields[i+1:]...)
+			fields = append(fields[:i], fields[i+1:]...) // Remove the log_id field
 			break
 		}
 	}
@@ -694,6 +700,10 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 
 	// Include the log ID in the log entry
 	fields = append(fields, zap.String("log_id", logID))
+
+	// Get common log fields and merge them
+	commonFields := m.getCommonLogFields(fields)
+	fields = append(fields, commonFields...)
 
 	if m.LogSeverity == "" {
 		m.LogSeverity = "info"
@@ -742,6 +752,49 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 		default:
 			m.logger.Info(msg, fields...)
 		}
+	}
+}
+
+func (m *Middleware) getCommonLogFields(fields []zap.Field) []zap.Field {
+	var logID string
+	var sourceIP string
+	var userAgent string
+	var requestMethod string
+	var requestPath string
+	var queryParams string
+	var statusCode int
+	var reason string
+
+	for _, field := range fields {
+		switch field.Key {
+		case "log_id":
+			logID = field.String
+		case "source_ip":
+			sourceIP = field.String
+		case "user_agent":
+			userAgent = field.String
+		case "request_method":
+			requestMethod = field.String
+		case "request_path":
+			requestPath = field.String
+		case "query_params":
+			queryParams = field.String
+		case "status_code":
+			statusCode = int(field.Integer) // Explicit conversion here
+		case "reason":
+			reason = field.String
+		}
+	}
+
+	return []zap.Field{
+		zap.String("log_id", logID),
+		zap.String("source_ip", sourceIP),
+		zap.String("user_agent", userAgent),
+		zap.String("request_method", requestMethod),
+		zap.String("request_path", requestPath),
+		zap.String("query_params", queryParams),
+		zap.Int("status_code", statusCode),
+		zap.String("reason", reason),
 	}
 }
 
@@ -1114,7 +1167,7 @@ func validateRule(rule *Rule) error {
 func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read IP blacklist file: %s, error: %v", path, err)
+		return fmt.Errorf("failed to read IP blacklist file: %s, error: %w", path, err)
 	}
 
 	// Initialize the IP blacklist
@@ -1135,20 +1188,24 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 			m.logger.Debug("Added CIDR range to blacklist",
 				zap.String("cidr", line),
 			)
-		} else if ip := net.ParseIP(line); ip != nil {
+			continue
+		}
+
+		if ip := net.ParseIP(line); ip != nil {
 			// It's a valid IP address
 			m.ipBlacklist[line] = true
 			m.logger.Debug("Added IP to blacklist",
 				zap.String("ip", line),
 			)
-		} else {
-			// Log invalid entries for debugging
-			m.logger.Warn("Invalid IP or CIDR range in blacklist file",
-				zap.String("file", path),
-				zap.Int("line", i+1),
-				zap.String("entry", line),
-			)
+			continue
 		}
+
+		// Log invalid entries for debugging
+		m.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
+			zap.String("file", path),
+			zap.Int("line", i+1),
+			zap.String("entry", line),
+		)
 	}
 
 	m.logger.Info("IP blacklist loaded successfully",
