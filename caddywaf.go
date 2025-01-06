@@ -405,14 +405,24 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 }
 
 // extractIP extracts the IP address from a remote address string.
-// It handles cases where the remote address includes a port (e.g., "192.168.1.1:12345").
+// It handles cases where the remote address includes a port (e.g., "192.168.1.1:12345" or "[2001:db8::1]:8080").
 func extractIP(remoteAddr string) string {
-	if strings.Contains(remoteAddr, ":") {
-		ip, _, err := net.SplitHostPort(remoteAddr)
-		if err == nil {
-			return ip
-		}
+	// Try to split the address into host and port
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err == nil {
+		// If successful, return the host part (IP address)
+		return host
 	}
+
+	// If SplitHostPort fails, assume the remoteAddr is just an IP address
+	// Try to parse it as a standalone IP address
+	ip := net.ParseIP(remoteAddr)
+	if ip != nil {
+		// If parsing succeeds, return the IP address as a string
+		return ip.String()
+	}
+
+	// If all else fails, return the original remoteAddr
 	return remoteAddr
 }
 
