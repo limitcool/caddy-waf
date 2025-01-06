@@ -1038,18 +1038,43 @@ func (m *Middleware) loadRulesFromFile(path string) error {
 	}
 
 	var invalidRules []string
+	ruleIDs := make(map[string]bool) // Track rule IDs to detect duplicates
+
 	for i, rule := range rules {
-		// Validate the rule
-		if err := validateRule(&rule); err != nil {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule %d: %v", i+1, err))
-			continue // Skip invalid rules
+		// Validate the rule ID
+		if rule.ID == "" {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule %d: empty ID", i+1))
+			continue
 		}
 
-		// Compile the regex pattern
+		// Check for duplicate rule IDs
+		if _, exists := ruleIDs[rule.ID]; exists {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule %d: duplicate ID '%s'", i+1, rule.ID))
+			continue
+		}
+		ruleIDs[rule.ID] = true
+
+		// Validate the rule phase
+		if rule.Phase < 1 || rule.Phase > 2 {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid phase '%d'", rule.ID, rule.Phase))
+			continue
+		}
+
+		// Validate the rule mode
+		if rule.Mode != "" && rule.Mode != "block" && rule.Mode != "log" {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid mode '%s'", rule.ID, rule.Mode))
+			continue
+		}
+
+		// Validate the regex pattern
+		if rule.Pattern == "" {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: empty pattern", rule.ID))
+			continue
+		}
 		regex, err := regexp.Compile(rule.Pattern)
 		if err != nil {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid regex pattern: %v", rule.ID, err))
-			continue // Skip rules with invalid patterns
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid regex pattern '%s'", rule.ID, rule.Pattern))
+			continue
 		}
 		rules[i].regex = regex
 
