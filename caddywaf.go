@@ -831,7 +831,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 				continue
 			}
 			if rule.Action == "" {
-				rule.Action = "log" // Default to log if mode is empty
+				rule.Action = "block" // Default to block if mode is empty
 			}
 
 			totalRules++ // Increment the total rule count
