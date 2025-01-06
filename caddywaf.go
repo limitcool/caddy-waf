@@ -75,23 +75,14 @@ type Rule struct {
 	Phase       int      `json:"phase"`
 	Pattern     string   `json:"pattern"`
 	Targets     []string `json:"targets"`
-	Severity    string   `json:"severity"`
-	Action      string   `json:"action"`
+	Severity    string   `json:"severity"` // Used for logging only
+	Action      string   `json:"action"`   // Deprecated (remove if unused)
 	Score       int      `json:"score"`
-	Mode        string   `json:"mode"`
+	Mode        string   `json:"mode"` // Determines the action (block/log)
 	Description string   `json:"description"`
 	regex       *regexp.Regexp
 }
 
-// SeverityConfig struct
-type SeverityConfig struct {
-	Critical string `json:"critical,omitempty"`
-	High     string `json:"high,omitempty"`
-	Medium   string `json:"medium,omitempty"`
-	Low      string `json:"low,omitempty"`
-}
-
-// Middleware struct
 type Middleware struct {
 	RuleFiles        []string            `json:"rule_files"`
 	IPBlacklistFile  string              `json:"ip_blacklist_file"`
@@ -100,7 +91,6 @@ type Middleware struct {
 	RateLimit        RateLimit           `json:"rate_limit"`
 	CountryBlock     CountryAccessFilter `json:"country_block"`
 	CountryWhitelist CountryAccessFilter `json:"country_whitelist"`
-	Severity         SeverityConfig      `json:"severity,omitempty"`
 	Rules            map[int][]Rule      `json:"-"`
 	ipBlacklist      map[string]bool     `json:"-"`
 	dnsBlacklist     []string            `json:"-"`
@@ -209,27 +199,6 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return d.ArgErr()
 				}
 				m.DNSBlacklistFile = d.Val()
-			case "severity":
-				if !d.NextArg() {
-					return d.ArgErr()
-				}
-				severityLevel := strings.ToLower(d.Val())
-				if !d.NextArg() {
-					return d.ArgErr()
-				}
-				action := strings.ToLower(d.Val())
-				switch severityLevel {
-				case "critical":
-					m.Severity.Critical = action
-				case "high":
-					m.Severity.High = action
-				case "medium":
-					m.Severity.Medium = action
-				case "low":
-					m.Severity.Low = action
-				default:
-					return d.Errf("invalid severity level: %s", severityLevel)
-				}
 			case "anomaly_threshold":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -556,12 +525,6 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		rule.Mode = "block"
 	}
 
-	// Determine the action based on the rule mode and severity configuration
-	action := rule.Mode
-	if action == "log" {
-		action = m.getSeverityAction(rule.Severity)
-	}
-
 	// Add the rule's score to the total score for all rules
 	state.TotalScore += rule.Score
 
@@ -575,7 +538,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.Int("total_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		zap.String("mode", rule.Mode),
-		zap.String("severity_action", action),
+		zap.String("severity", rule.Severity), // Log the severity level
 		zap.String("source_ip", r.RemoteAddr),
 		zap.String("user_agent", r.UserAgent()),
 		zap.String("request_method", r.Method),
@@ -588,8 +551,8 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	// Log the rule match with detailed request information
 	m.logRequest(zapcore.InfoLevel, "Rule matched", requestInfo...)
 
-	// Handle the rule action
-	switch action {
+	// Handle the rule action based on the mode
+	switch rule.Mode {
 	case "block":
 		m.logRequest(zapcore.WarnLevel, "Request blocked by rule", requestInfo...)
 		state.Blocked = true
@@ -604,7 +567,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 
 	default:
 		// Handle unknown actions by blocking the request (security-first approach)
-		m.logRequest(zapcore.WarnLevel, "Unknown rule action - Blocking request", zap.String("action", action))
+		m.logRequest(zapcore.WarnLevel, "Unknown rule action - Blocking request", zap.String("action", rule.Mode))
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
 		w.WriteHeader(state.StatusCode)
@@ -662,33 +625,6 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 		default:
 			m.logger.Info(msg, fields...)
 		}
-	}
-}
-
-func (m *Middleware) getSeverityAction(severity string) string {
-	switch strings.ToLower(severity) {
-	case "critical":
-		if m.Severity.Critical == "" {
-			return "log"
-		}
-		return m.Severity.Critical
-	case "high":
-		if m.Severity.High == "" {
-			return "log"
-		}
-		return m.Severity.High
-	case "medium":
-		if m.Severity.Medium == "" {
-			return "log"
-		}
-		return m.Severity.Medium
-	case "low":
-		if m.Severity.Low == "" {
-			return "log"
-		}
-		return m.Severity.Low
-	default:
-		return "log"
 	}
 }
 
@@ -753,20 +689,6 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		)
 	}
 
-	// Set default severity actions
-	if m.Severity.Critical == "" {
-		m.Severity.Critical = "block" // Default to block for critical severity
-	}
-	if m.Severity.High == "" {
-		m.Severity.High = "block" // Default to block for high severity
-	}
-	if m.Severity.Medium == "" {
-		m.Severity.Medium = "log" // Default to log for medium severity
-	}
-	if m.Severity.Low == "" {
-		m.Severity.Low = "log" // Default to log for low severity
-	}
-
 	// Load rules from rule files
 	m.Rules = make(map[int][]Rule)
 	for _, file := range m.RuleFiles {
@@ -819,7 +741,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 				continue
 			}
 			if rule.Mode == "" {
-				rule.Mode = "block" // Default to block if mode is empty
+				rule.Mode = "log" // Default to log if mode is empty
 			}
 
 			totalRules++ // Increment the total rule count
