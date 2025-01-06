@@ -162,7 +162,7 @@ type Middleware struct {
 	CountryBlock     CountryAccessFilter `json:"country_block"`
 	CountryWhitelist CountryAccessFilter `json:"country_whitelist"`
 	Rules            map[int][]Rule      `json:"-"`
-	ipBlacklist      map[string]bool     `json:"-"`
+	ipBlacklist      map[string]bool     `json:"-"` // Changed type here
 	dnsBlacklist     []string            `json:"-"`
 	rateLimiter      *RateLimiter        `json:"-"`
 	logger           *zap.Logger
@@ -1098,17 +1098,17 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 		}
 
 		// Check if the line is a valid IP or CIDR range
-		if ip := net.ParseIP(line); ip != nil {
-			// It's a valid IP address
-			m.ipBlacklist[line] = true
-			m.logger.Debug("Added IP to blacklist",
-				zap.String("ip", line),
-			)
-		} else if _, _, err := net.ParseCIDR(line); err == nil {
+		if _, _, err := net.ParseCIDR(line); err == nil {
 			// It's a valid CIDR range
 			m.ipBlacklist[line] = true
 			m.logger.Debug("Added CIDR range to blacklist",
 				zap.String("cidr", line),
+			)
+		} else if ip := net.ParseIP(line); ip != nil {
+			// It's a valid IP address
+			m.ipBlacklist[line] = true
+			m.logger.Debug("Added IP to blacklist",
+				zap.String("ip", line),
 			)
 		} else {
 			// Log invalid entries for debugging
