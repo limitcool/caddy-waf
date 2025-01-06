@@ -195,6 +195,30 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 	return &m, nil
 }
 
+func (m *Middleware) Shutdown(ctx context.Context) error {
+	m.logger.Info("Shutting down WAF middleware")
+
+	// Signal the rate limiter cleanup goroutine to stop
+	if m.rateLimiter != nil {
+		m.rateLimiter.signalStopCleanup()
+	}
+
+	// Close the GeoIP database if it is open
+	if m.CountryBlock.geoIP != nil {
+		if err := m.CountryBlock.geoIP.Close(); err != nil {
+			m.logger.Error("error closing country block geoip database", zap.Error(err))
+		}
+	}
+	if m.CountryWhitelist.geoIP != nil {
+		if err := m.CountryWhitelist.geoIP.Close(); err != nil {
+			m.logger.Error("error closing country whitelist geoip database", zap.Error(err))
+		}
+	}
+
+	m.logger.Info("WAF middleware shutdown complete")
+	return nil
+}
+
 func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	// Initialize a temporary logger if it's nil
 	if m.logger == nil {
@@ -327,7 +351,6 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 	return false, nil
 }
 
-// ServeHTTP implements caddyhttp.MiddlewareHandler.
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 
@@ -771,6 +794,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			m.logger.Error("Failed to load GeoIP database", zap.String("path", geoIPPath), zap.Error(err))
 			return fmt.Errorf("failed to load GeoIP database: %w", err) // Wrap the error
 		}
+
 		// REMOVE defer reader.Close() HERE
 
 		// Share the GeoIP database between CountryBlock and CountryWhitelist
@@ -1000,11 +1024,12 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 			return "", nil
 		}
 
+		// Read the body once and store it
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
-			return "", fmt.Errorf("failed to read request body: %v", err)
+			return "", fmt.Errorf("failed to read request body: %w", err)
 		}
-		// Restore the io.ReadCloser to its original state
+		// Restore the original body to the request for further reads
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 
 		return string(bodyBytes), nil
@@ -1048,14 +1073,14 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
-			return "", fmt.Errorf("failed to read request body: %v", err)
+			return "", fmt.Errorf("failed to read request body: %w", err)
 		}
-		// Restore the io.ReadCloser to its original state
+		// Restore the original body to the request for further reads
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 
 		var jsonData map[string]interface{}
 		if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
-			return "", fmt.Errorf("failed to unmarshal JSON: %v", err)
+			return "", fmt.Errorf("failed to unmarshal JSON: %w", err)
 		}
 		if value, ok := jsonData[fieldName]; ok {
 			return fmt.Sprintf("%v", value), nil
