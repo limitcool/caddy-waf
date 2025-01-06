@@ -155,6 +155,9 @@ type Rule struct {
 }
 
 type Middleware struct {
+	// Add a RWMutex to protect shared state
+	mu sync.RWMutex
+
 	RuleFiles        []string            `json:"rule_files"`
 	IPBlacklistFile  string              `json:"ip_blacklist_file"`
 	DNSBlacklistFile string              `json:"dns_blacklist_file"`
@@ -983,6 +986,10 @@ func fileExists(path string) bool {
 }
 
 func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
+	// Acquire a read lock to protect shared state
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	// Early return if the blacklist is empty
 	if len(m.ipBlacklist) == 0 {
 		return false
@@ -1038,6 +1045,10 @@ func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 }
 
 func (m *Middleware) isDNSBlacklisted(host string) bool {
+	// Acquire a read lock to protect shared state
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	// Early return if the blacklist is empty or nil
 	if len(m.dnsBlacklist) == 0 {
 		return false
@@ -1270,16 +1281,33 @@ func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
 }
 
 func (m *Middleware) ReloadConfig() error {
-	m.Rules = make(map[int][]Rule)
-	if err := m.loadRulesFromFiles(); err != nil { // Correct function name
+	// Acquire a write lock to protect shared state during reload
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Reload rules
+	rules := make(map[int][]Rule)
+	if err := m.loadRulesFromFiles(); err != nil {
 		return fmt.Errorf("failed to reload rules: %v", err)
 	}
+
+	// Reload IP blacklist
+	ipBlacklist := make(map[string]bool)
 	if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
 		return fmt.Errorf("failed to reload IP blacklist: %v", err)
 	}
+
+	// Reload DNS blacklist
+	var dnsBlacklist []string
 	if err := m.loadDNSBlacklistFromFile(m.DNSBlacklistFile); err != nil {
 		return fmt.Errorf("failed to reload DNS blacklist: %v", err)
 	}
+
+	// Update shared state atomically
+	m.Rules = rules
+	m.ipBlacklist = ipBlacklist
+	m.dnsBlacklist = dnsBlacklist
+
 	return nil
 }
 
