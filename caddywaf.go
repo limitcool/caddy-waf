@@ -329,8 +329,8 @@ func (t *CIDRTrie) Insert(entry string) error {
 		}
 	}
 
-	// Convert the IP to a byte slice
-	ipBytes := ipNet.IP.To16() // Ensure IPv6 compatibility
+	// Convert the IP to a byte slice (ensures IPv6 compatibility)
+	ipBytes := ipNet.IP.To16()
 	maskSize, _ := ipNet.Mask.Size()
 
 	current := t
@@ -351,7 +351,8 @@ func (t *CIDRTrie) Contains(ipStr string) bool {
 		return false
 	}
 
-	ipBytes := ip.To16() // Ensure IPv6 compatibility
+	// Convert the IP to a byte slice (ensures IPv6 compatibility)
+	ipBytes := ip.To16()
 	current := t
 
 	for i := 0; i < len(ipBytes)*8; i++ {
