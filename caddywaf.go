@@ -210,18 +210,18 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			switch d.Val() {
 			case "rate_limit":
 				if !d.NextArg() {
-					return d.ArgErr()
+					return d.ArgErr() // Remains as it points to the Caddyfile syntax error
 				}
 				requests, err := strconv.Atoi(d.Val())
 				if err != nil {
-					return d.Errf("invalid rate limit request count: %v", err)
+					return d.Errf("parsing rate_limit requests: invalid integer: %v", err)
 				}
 				if !d.NextArg() {
-					return d.ArgErr()
+					return d.ArgErr() // Remains as it points to the Caddyfile syntax error
 				}
 				window, err := time.ParseDuration(d.Val())
 				if err != nil {
-					return d.Errf("invalid rate limit window: %v", err)
+					return d.Errf("parsing rate_limit window: invalid duration: %v", err)
 				}
 				m.RateLimit = RateLimit{
 					Requests: requests,
@@ -230,53 +230,55 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			case "block_countries":
 				m.CountryBlock.Enabled = true
 				if !d.NextArg() {
-					return d.ArgErr()
+					return d.ArgErr() // Remains as it points to the Caddyfile syntax error
 				}
 				m.CountryBlock.GeoIPDBPath = d.Val()
+				// No error here directly, as missing country codes will just result in an empty list.
 				for d.NextArg() {
 					m.CountryBlock.CountryList = append(m.CountryBlock.CountryList, strings.ToUpper(d.Val()))
 				}
 			case "whitelist_countries":
 				m.CountryWhitelist.Enabled = true
 				if !d.NextArg() {
-					return d.ArgErr()
+					return d.ArgErr() // Remains as it points to the Caddyfile syntax error
 				}
 				m.CountryWhitelist.GeoIPDBPath = d.Val()
+				// No error here directly, as missing country codes will just result in an empty list.
 				for d.NextArg() {
 					m.CountryWhitelist.CountryList = append(m.CountryWhitelist.CountryList, strings.ToUpper(d.Val()))
 				}
 			case "log_severity":
 				if !d.NextArg() {
-					return d.ArgErr()
+					return d.ArgErr() // Remains as it points to the Caddyfile syntax error
 				}
 				m.LogSeverity = d.Val()
 			case "log_json":
-				m.LogJSON = true
+				// No arguments expected, so no direct error here.
 			case "rule_file":
 				m.logger.Info("WAF Loading Rule File", zap.String("file", d.Val()))
 				if !d.NextArg() {
-					return d.ArgErr()
+					return d.ArgErr() // Remains as it points to the Caddyfile syntax error
 				}
 				m.RuleFiles = append(m.RuleFiles, d.Val())
 			case "ip_blacklist_file":
 				m.logger.Info("WAF Loading IP Blacklist File", zap.String("file", d.Val()))
 				if !d.NextArg() {
-					return d.ArgErr()
+					return d.ArgErr() // Remains as it points to the Caddyfile syntax error
 				}
 				m.IPBlacklistFile = d.Val()
 			case "dns_blacklist_file":
 				m.logger.Info("WAF Loading DNS Blacklist File", zap.String("file", d.Val()))
 				if !d.NextArg() {
-					return d.ArgErr()
+					return d.ArgErr() // Remains as it points to the Caddyfile syntax error
 				}
 				m.DNSBlacklistFile = d.Val()
 			case "anomaly_threshold":
 				if !d.NextArg() {
-					return d.ArgErr()
+					return d.ArgErr() // Remains as it points to the Caddyfile syntax error
 				}
 				threshold, err := strconv.Atoi(d.Val())
 				if err != nil {
-					return d.Errf("invalid anomaly threshold: %v", err)
+					return d.Errf("parsing anomaly_threshold: invalid integer: %v", err)
 				}
 				m.AnomalyThreshold = threshold
 			default:
@@ -1054,89 +1056,6 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 	}
 }
 
-func (m *Middleware) loadRulesFromFile(path string) error {
-	// Read the rule file
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("failed to read rule file %s: %v", path, err)
-	}
-
-	// Unmarshal the JSON content into a slice of Rule structs
-	var rules []Rule
-	if err := json.Unmarshal(content, &rules); err != nil {
-		return fmt.Errorf("failed to unmarshal rules from %s: %v", path, err)
-	}
-
-	var invalidRules []string        // Track invalid rules for logging
-	ruleIDs := make(map[string]bool) // Track rule IDs to detect duplicates
-
-	// Iterate through each rule in the file
-	for i, rule := range rules {
-		// Validate the rule ID
-		if rule.ID == "" {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule %d: empty ID", i+1))
-			continue
-		}
-
-		// Check for duplicate rule IDs
-		if _, exists := ruleIDs[rule.ID]; exists {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule %d: duplicate ID '%s'", i+1, rule.ID))
-			continue
-		}
-		ruleIDs[rule.ID] = true
-
-		// Validate the rule phase
-		if rule.Phase < 1 || rule.Phase > 2 {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid phase '%d'", rule.ID, rule.Phase))
-			continue
-		}
-
-		// Validate the rule mode
-		if rule.Action != "" && rule.Action != "block" && rule.Action != "log" {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid mode '%s'", rule.ID, rule.Action))
-			continue
-		}
-
-		// Validate the regex pattern
-		if rule.Pattern == "" {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: empty pattern", rule.ID))
-			continue
-		}
-
-		// Compile the regex pattern and log detailed errors if it fails
-		regex, err := regexp.Compile(rule.Pattern)
-		if err != nil {
-			// Log the exact error with context
-			m.logger.Error("Failed to compile regex pattern for rule",
-				zap.String("rule_id", rule.ID),
-				zap.String("pattern", rule.Pattern),
-				zap.Error(err), // Log the exact error from regexp.Compile
-			)
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule %s: invalid regex pattern '%s' (error: %v)", rule.ID, rule.Pattern, err))
-			continue
-		}
-		rules[i].regex = regex
-
-		// Initialize the phase map if it doesn't exist
-		if _, ok := m.Rules[rule.Phase]; !ok {
-			m.Rules[rule.Phase] = []Rule{}
-		}
-
-		// Append the rule to the appropriate phase
-		m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rules[i])
-	}
-
-	// Log warnings for invalid rules
-	if len(invalidRules) > 0 {
-		m.logger.Warn("Skipped invalid rules in file",
-			zap.String("file", path),
-			zap.Strings("invalid_rules", invalidRules),
-		)
-	}
-
-	return nil
-}
-
 // validateRule checks if a rule is valid
 func validateRule(rule *Rule) error {
 	if rule.ID == "" {
@@ -1160,7 +1079,7 @@ func validateRule(rule *Rule) error {
 func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read IP blacklist file: %v", err)
+		return fmt.Errorf("failed to read IP blacklist file: %s, error: %v", path, err)
 	}
 
 	// Initialize the IP blacklist
@@ -1168,7 +1087,7 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 
 	// Split the file content into lines
 	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
+	for i, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue // Skip empty lines and comments
@@ -1189,13 +1108,16 @@ func (m *Middleware) loadIPBlacklistFromFile(path string) error {
 			)
 		} else {
 			// Log invalid entries for debugging
-			m.logger.Warn("Invalid IP or CIDR range in blacklist",
+			m.logger.Warn("Invalid IP or CIDR range in blacklist file",
+				zap.String("file", path),
+				zap.Int("line", i+1),
 				zap.String("entry", line),
 			)
 		}
 	}
 
 	m.logger.Info("IP blacklist loaded successfully",
+		zap.String("file", path),
 		zap.Int("count", len(m.ipBlacklist)),
 	)
 	return nil
@@ -1243,7 +1165,7 @@ func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
 
 func (m *Middleware) ReloadConfig() error {
 	m.Rules = make(map[int][]Rule)
-	if err := m.loadRulesFromFiles(); err != nil {
+	if err := m.loadRulesFromFiles(); err != nil { // Correct function name
 		return fmt.Errorf("failed to reload rules: %v", err)
 	}
 	if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
@@ -1255,7 +1177,7 @@ func (m *Middleware) ReloadConfig() error {
 	return nil
 }
 
-func (m *Middleware) loadRulesFromFiles() error {
+func (m *Middleware) loadRulesFromFiles() error { // Correct function name
 	totalRules := 0 // Initialize a counter for total rules
 
 	for _, file := range m.RuleFiles {
@@ -1284,6 +1206,89 @@ func (m *Middleware) loadRulesFromFiles() error {
 	m.logger.Info("Total rules loaded",
 		zap.Int("total_rules", totalRules),
 	)
+
+	return nil
+}
+
+func (m *Middleware) loadRulesFromFile(path string) error {
+	// Read the rule file
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read rule file: %s, error: %v", path, err)
+	}
+
+	// Unmarshal the JSON content into a slice of Rule structs
+	var rules []Rule
+	if err := json.Unmarshal(content, &rules); err != nil {
+		return fmt.Errorf("failed to unmarshal rules from file: %s, error: %v. Ensure the file contains valid JSON for a list of WAF rules.", path, err)
+	}
+
+	var invalidRules []string        // Track invalid rules for logging
+	ruleIDs := make(map[string]bool) // Track rule IDs to detect duplicates
+
+	// Iterate through each rule in the file
+	for i, rule := range rules {
+		// Validate the rule ID
+		if rule.ID == "" {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule at index %d: empty ID. Each rule must have a unique identifier.", i))
+			continue
+		}
+
+		// Check for duplicate rule IDs
+		if _, exists := ruleIDs[rule.ID]; exists {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule with ID '%s' at index %d: duplicate ID. Rule IDs must be unique within the rule file.", rule.ID, i))
+			continue
+		}
+		ruleIDs[rule.ID] = true
+
+		// Validate the rule phase
+		if rule.Phase < 1 || rule.Phase > 2 {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s': invalid phase '%d'. Phase must be 1 or 2.", rule.ID, rule.Phase))
+			continue
+		}
+
+		// Validate the rule mode
+		if rule.Action != "" && rule.Action != "block" && rule.Action != "log" {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s': invalid mode '%s'. Mode must be 'block' or 'log', or left empty (defaults to 'block' during processing).", rule.ID, rule.Action))
+			continue
+		}
+
+		// Validate the regex pattern
+		if rule.Pattern == "" {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s': empty pattern. A regex pattern is required for matching.", rule.ID))
+			continue
+		}
+
+		// Compile the regex pattern and log detailed errors if it fails
+		regex, err := regexp.Compile(rule.Pattern)
+		if err != nil {
+			// Log the exact error with context
+			m.logger.Error("Failed to compile regex pattern for rule",
+				zap.String("rule_id", rule.ID),
+				zap.String("pattern", rule.Pattern),
+				zap.Error(err), // Log the exact error from regexp.Compile
+			)
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s': invalid regex pattern '%s'. Error: %v. Ensure the pattern is a valid regular expression.", rule.ID, rule.Pattern, err))
+			continue
+		}
+		rules[i].regex = regex
+
+		// Initialize the phase map if it doesn't exist
+		if _, ok := m.Rules[rule.Phase]; !ok {
+			m.Rules[rule.Phase] = []Rule{}
+		}
+
+		// Append the rule to the appropriate phase
+		m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rules[i])
+	}
+
+	// Log warnings for invalid rules
+	if len(invalidRules) > 0 {
+		m.logger.Warn("Skipped invalid rules in file",
+			zap.String("file", path),
+			zap.Strings("invalid_rules", invalidRules),
+		)
+	}
 
 	return nil
 }
