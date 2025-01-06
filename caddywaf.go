@@ -199,26 +199,41 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 }
 
 func (m *Middleware) Shutdown(ctx context.Context) error {
+	// Log the start of the shutdown process
 	m.logger.Info("Shutting down WAF middleware")
 
 	// Signal the rate limiter cleanup goroutine to stop
 	if m.rateLimiter != nil {
+		m.logger.Debug("Stopping rate limiter cleanup goroutine")
 		m.rateLimiter.signalStopCleanup()
 	}
 
 	// Close the GeoIP database if it is open
 	if m.CountryBlock.geoIP != nil {
+		m.logger.Debug("Closing country block GeoIP database")
 		if err := m.CountryBlock.geoIP.Close(); err != nil {
-			m.logger.Error("error closing country block geoip database", zap.Error(err))
+			m.logger.Error("Failed to close country block GeoIP database",
+				zap.Error(err),
+			)
+			return fmt.Errorf("failed to close country block GeoIP database: %w", err)
 		}
-	}
-	if m.CountryWhitelist.geoIP != nil {
-		if err := m.CountryWhitelist.geoIP.Close(); err != nil {
-			m.logger.Error("error closing country whitelist geoip database", zap.Error(err))
-		}
+		m.CountryBlock.geoIP = nil // Ensure the reference is cleared
 	}
 
+	if m.CountryWhitelist.geoIP != nil {
+		m.logger.Debug("Closing country whitelist GeoIP database")
+		if err := m.CountryWhitelist.geoIP.Close(); err != nil {
+			m.logger.Error("Failed to close country whitelist GeoIP database",
+				zap.Error(err),
+			)
+			return fmt.Errorf("failed to close country whitelist GeoIP database: %w", err)
+		}
+		m.CountryWhitelist.geoIP = nil // Ensure the reference is cleared
+	}
+
+	// Log the successful completion of the shutdown process
 	m.logger.Info("WAF middleware shutdown complete")
+
 	return nil
 }
 
