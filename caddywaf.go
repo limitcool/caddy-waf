@@ -761,8 +761,10 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		)
 		reader, err := maxminddb.Open(geoIPPath)
 		if err != nil {
-			return fmt.Errorf("failed to load GeoIP database: %v", err)
+			m.logger.Error("Failed to load GeoIP database", zap.String("path", geoIPPath), zap.Error(err))
+			return fmt.Errorf("failed to load GeoIP database: %w", err) // Wrap the error
 		}
+		// REMOVE defer reader.Close() HERE
 
 		// Share the GeoIP database between CountryBlock and CountryWhitelist
 		if m.CountryBlock.Enabled {
@@ -784,7 +786,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			zap.String("file", file),
 		)
 		if err := m.loadRulesFromFile(file); err != nil {
-			return fmt.Errorf("failed to load rules from %s: %v", file, err)
+			return fmt.Errorf("failed to load rules from %s: %w", file, err) // Wrap the error
 		}
 	}
 
@@ -864,7 +866,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			zap.String("file", m.IPBlacklistFile),
 		)
 		if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
-			return fmt.Errorf("failed to load IP blacklist from %s: %v", m.IPBlacklistFile, err)
+			return fmt.Errorf("failed to load IP blacklist from %s: %w", m.IPBlacklistFile, err) // Wrap the error
 		}
 	} else {
 		m.ipBlacklist = make(map[string]bool)
@@ -877,7 +879,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			zap.String("file", m.DNSBlacklistFile),
 		)
 		if err := m.loadDNSBlacklistFromFile(m.DNSBlacklistFile); err != nil {
-			return fmt.Errorf("failed to load DNS blacklist from %s: %v", m.DNSBlacklistFile, err)
+			return fmt.Errorf("failed to load DNS blacklist from %s: %w", m.DNSBlacklistFile, err) // Wrap the error
 		}
 	} else {
 		m.dnsBlacklist = []string{}
