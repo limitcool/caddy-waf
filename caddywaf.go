@@ -702,6 +702,11 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 
 	// Load GeoIP database for country blocking
 	if m.CountryBlock.Enabled {
+		// Validate GeoIP database path
+		if !fileExists(m.CountryBlock.GeoIPDBPath) {
+			return fmt.Errorf("GeoIP database for country blocking does not exist or is not readable: %s", m.CountryBlock.GeoIPDBPath)
+		}
+
 		m.logger.Debug("Loading GeoIP database for country blocking",
 			zap.String("path", m.CountryBlock.GeoIPDBPath),
 		)
@@ -717,6 +722,11 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 
 	// Load GeoIP database for country whitelisting
 	if m.CountryWhitelist.Enabled {
+		// Validate GeoIP database path
+		if !fileExists(m.CountryWhitelist.GeoIPDBPath) {
+			return fmt.Errorf("GeoIP database for country whitelisting does not exist or is not readable: %s", m.CountryWhitelist.GeoIPDBPath)
+		}
+
 		m.logger.Debug("Loading GeoIP database for country whitelisting",
 			zap.String("path", m.CountryWhitelist.GeoIPDBPath),
 		)
@@ -859,6 +869,18 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 
 	m.logger.Info("WAF middleware provisioned successfully")
 	return nil
+}
+
+// fileExists checks if a file exists and is readable.
+func fileExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }
 
 func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
