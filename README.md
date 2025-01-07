@@ -95,7 +95,6 @@ xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
 {
     auto_https off
     admin off
-    debug
 }
 
 :8080 {
