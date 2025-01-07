@@ -192,7 +192,7 @@ Rules are defined in a JSON file. Each rule specifies a pattern to match, target
 | `pattern` | Regular expression pattern | `(?i)(?:select|insert)` |
 | `targets` | Areas to inspect | `["ARGS", "BODY"]` |
 | `severity` | Rule severity (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`) | `CRITICAL` |
-| `action` | Action to take (`block`, `log`) | `block` |
+| `action` | Action to take (`block`, `log`) | default: `block` |
 | `score` | Score for anomaly detection | `10` |
 | `description` | Rule description | `Block SQL injection attempts.` |
 
