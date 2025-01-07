@@ -591,6 +591,10 @@ func (m *Middleware) getCountryCode(remoteAddr string, geoIP *maxminddb.Reader) 
 func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, fields ...zap.Field) {
 	// Atomically update the state and write response if not already written
 	if !state.ResponseWritten {
+		state.Blocked = true
+		state.StatusCode = statusCode
+		state.ResponseWritten = true
+
 		// Write the buffered response body if using responseRecorder
 		if recorder, ok := w.(*responseRecorder); ok && recorder.body.Len() > 0 {
 			// Attempt to write the buffered body to the client
@@ -599,10 +603,6 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 				return // Return immediately if writing the body fails
 			}
 		}
-
-		state.Blocked = true
-		state.StatusCode = statusCode
-		state.ResponseWritten = true
 
 		// Extract or generate log ID from request context
 		logID, _ := r.Context().Value("logID").(string)
