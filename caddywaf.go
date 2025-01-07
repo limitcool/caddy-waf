@@ -919,7 +919,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Validate and log each rule
-	m.logger.Info("Validating loaded rules")
+	m.logger.Debug("Validating loaded rules")
 	var invalidRules []string
 	totalRules := 0 // Track the total number of rules
 
@@ -972,7 +972,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			zap.Strings("invalid_rules", invalidRules),
 		)
 	} else {
-		m.logger.Info("All rules validated successfully")
+		m.logger.Debug("All rules validated successfully")
 	}
 
 	// Log the total number of rules loaded
