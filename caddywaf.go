@@ -60,45 +60,64 @@ type RateLimiter struct {
 
 // isRateLimited checks if a given IP is rate limited.
 func (rl *RateLimiter) isRateLimited(ip string) bool {
-	rl.Lock()
-	defer rl.Unlock()
-
 	now := time.Now()
 
-	// Check if the IP already exists in the map
-	if counter, exists := rl.requests[ip]; exists {
-		// If the window has expired, reset the counter
+	// First, attempt a read to check if the IP exists and its current state
+	rl.RLock()
+	counter, exists := rl.requests[ip]
+	rl.RUnlock()
+
+	if exists {
+		// Check if the window has expired (outside the write lock if possible)
 		if now.Sub(counter.window) > rl.config.Window {
-			counter.count = 1
-			counter.window = now
+			// Window expired, reset the counter (requires write lock)
+			rl.Lock()
+			defer rl.Unlock()
+			rl.requests[ip] = &requestCounter{
+				count:  1,
+				window: now,
+			}
 			return false
 		}
 
-		// Increment the counter and check if it exceeds the limit
+		// Window not expired, increment the counter (requires write lock)
+		rl.Lock()
+		defer rl.Unlock()
 		counter.count++
 		return counter.count > rl.config.Requests
 	}
 
-	// If the IP is not in the map, add it with a count of 1
+	// IP doesn't exist, add it (requires write lock)
+	rl.Lock()
+	defer rl.Unlock()
 	rl.requests[ip] = &requestCounter{
 		count:  1,
 		window: now,
 	}
-
 	return false
 }
 
 // cleanupExpiredEntries removes expired entries from the rate limiter.
 func (rl *RateLimiter) cleanupExpiredEntries() {
-	rl.Lock()
-	defer rl.Unlock()
-
 	now := time.Now()
+	var expiredIPs []string
 
+	// Collect expired IPs to delete (read lock)
+	rl.RLock()
 	for ip, counter := range rl.requests {
 		if now.Sub(counter.window) > rl.config.Window {
+			expiredIPs = append(expiredIPs, ip)
+		}
+	}
+	rl.RUnlock()
+
+	// Delete expired IPs (write lock)
+	if len(expiredIPs) > 0 {
+		rl.Lock()
+		for _, ip := range expiredIPs {
 			delete(rl.requests, ip)
 		}
+		rl.Unlock()
 	}
 }
 
@@ -416,17 +435,15 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 			zap.String("log_id", logID),
 		)
 		m.handlePhase(w, r, 1, state)
-	}
-
-	if state.Blocked {
-		m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 1",
-			zap.String("log_id", logID),
-			zap.Int("status_code", state.StatusCode),
-			zap.String("reason", "phase_1_block"),
-		)
-		w.WriteHeader(state.StatusCode)
-		state.ResponseWritten = true
-		return nil
+		if state.Blocked {
+			m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 1",
+				zap.String("log_id", logID),
+				zap.Int("status_code", state.StatusCode),
+				zap.String("reason", "phase_1_block"),
+			)
+			w.WriteHeader(state.StatusCode)
+			return nil
+		}
 	}
 
 	// Phase 2 - Request Body
@@ -435,17 +452,15 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 			zap.String("log_id", logID),
 		)
 		m.handlePhase(w, r, 2, state)
-	}
-
-	if state.Blocked {
-		m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 2",
-			zap.String("log_id", logID),
-			zap.Int("status_code", state.StatusCode),
-			zap.String("reason", "phase_2_block"),
-		)
-		w.WriteHeader(state.StatusCode)
-		state.ResponseWritten = true
-		return nil
+		if state.Blocked {
+			m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 2",
+				zap.String("log_id", logID),
+				zap.Int("status_code", state.StatusCode),
+				zap.String("reason", "phase_2_block"),
+			)
+			w.WriteHeader(state.StatusCode)
+			return nil
+		}
 	}
 
 	// Response Recorder for Phase 3 and 4
@@ -461,62 +476,58 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 			zap.String("log_id", logID),
 		)
 		m.handlePhase(recorder, r, 3, state)
-	}
-
-	if state.Blocked {
-		m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 3",
-			zap.String("log_id", logID),
-			zap.Int("status_code", state.StatusCode),
-			zap.String("reason", "phase_3_block"),
-		)
-		// Since we have already called `next.ServeHTTP`, we need to explicitly
-		// write the header here if the request is blocked in Phase 3.
-		if !state.ResponseWritten {
-			w.WriteHeader(state.StatusCode)
+		if state.Blocked {
+			m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 3",
+				zap.String("log_id", logID),
+				zap.Int("status_code", state.StatusCode),
+				zap.String("reason", "phase_3_block"),
+			)
+			if !state.ResponseWritten {
+				w.WriteHeader(state.StatusCode)
+			}
+			return nil
 		}
-		return nil
 	}
 
 	// Phase 4 - Response Body (after response is written)
 	if !state.Blocked && !state.ResponseWritten {
-		body := recorder.body.String()
-
 		m.logger.Debug("Executing Phase 4 (Response Body)",
 			zap.String("log_id", logID),
-			zap.Int("response_length", len(body)),
-			zap.String("response_body", body), // Log the response body
+			zap.Int("response_length", recorder.body.Len()), // Use recorder.body.Len()
 		)
 
-		for _, rule := range m.Rules[4] {
-			m.logger.Debug("Checking rule",
-				zap.String("rule_id", rule.ID),
-				zap.String("pattern", rule.Pattern),
-				zap.String("description", rule.Description),
-			)
-			if rule.regex.MatchString(body) {
-				m.processRuleMatch(recorder, r, &rule, body, state)
-				m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 4 (Response Body)",
-					zap.String("log_id", logID),
-					zap.String("rule_id", rule.ID),
-					zap.String("description", rule.Description),
-					zap.Int("status_code", state.StatusCode),
-					zap.String("reason", "phase_4_block"),
-				)
-				if state.Blocked {
-					if !state.ResponseWritten {
+		// Check if recorder.body is nil before accessing it
+		if recorder.body != nil {
+			body := recorder.body.String()
+			m.logger.Debug("Phase 4 Response Body", zap.String("response_body", body))
+
+			for _, rule := range m.Rules[4] {
+				m.logger.Debug("Checking rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.String("description", rule.Description))
+				if rule.regex.MatchString(body) {
+					m.processRuleMatch(recorder, r, &rule, body, state)
+					if state.Blocked && !state.ResponseWritten { // Check ResponseWritten before logging and writing
+						m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 4 (Response Body)",
+							zap.String("log_id", logID),
+							zap.String("rule_id", rule.ID),
+							zap.String("description", rule.Description),
+							zap.Int("status_code", state.StatusCode),
+							zap.String("reason", "phase_4_block"),
+						)
 						w.WriteHeader(state.StatusCode)
+						return nil // Return immediately after writing header
 					}
-					return nil
 				}
 			}
-		}
 
-		// If not blocked, flush the recorded body to the client
-		if !state.Blocked {
-			_, err = w.Write(recorder.body.Bytes())
-			if err != nil {
-				m.logger.Error("Failed to flush response body", zap.Error(err))
+			// If not blocked, flush the recorded body to the client
+			if !state.Blocked && !state.ResponseWritten {
+				_, err = w.Write(recorder.body.Bytes())
+				if err != nil {
+					m.logger.Error("Failed to flush response body", zap.Error(err))
+				}
 			}
+		} else {
+			m.logger.Debug("Phase 4: Response body is nil, skipping rule evaluation")
 		}
 	}
 
@@ -530,33 +541,47 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 }
 
 func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, fields ...zap.Field) {
-	state.Blocked = true
-	state.StatusCode = statusCode
-	state.ResponseWritten = true
-
-	// Extract or generate log ID from request context
-	logID, _ := r.Context().Value("logID").(string)
-	if logID == "" {
-		logID = uuid.New().String()
+	// Atomically update the state
+	stateUpdate := func() {
+		state.Blocked = true
+		state.StatusCode = statusCode
+		state.ResponseWritten = true
 	}
 
-	// Prepare standard fields for logging
-	blockFields := append(fields,
-		zap.String("log_id", logID),
-		zap.String("source_ip", r.RemoteAddr),
-		zap.String("user_agent", r.UserAgent()),
-		zap.String("request_method", r.Method),
-		zap.String("request_path", r.URL.Path),
-		zap.String("query_params", r.URL.RawQuery),
-		zap.Int("status_code", statusCode),
-		zap.Time("timestamp", time.Now()),
-	)
+	// Execute the state update only if the response hasn't been written yet
+	if !state.ResponseWritten {
+		stateUpdate()
 
-	// Log the blocked request at WARN level
-	m.logRequest(zapcore.WarnLevel, "Request blocked", blockFields...)
+		// Extract or generate log ID from request context
+		logID, _ := r.Context().Value("logID").(string)
+		if logID == "" {
+			logID = uuid.New().String()
+		}
 
-	// Respond with status code
-	w.WriteHeader(statusCode)
+		// Prepare standard fields for logging
+		blockFields := append(fields,
+			zap.String("log_id", logID),
+			zap.String("source_ip", r.RemoteAddr),
+			zap.String("user_agent", r.UserAgent()),
+			zap.String("request_method", r.Method),
+			zap.String("request_path", r.URL.Path),
+			zap.String("query_params", r.URL.RawQuery),
+			zap.Int("status_code", statusCode),
+			zap.Time("timestamp", time.Now()),
+		)
+
+		// Log the blocked request at WARN level
+		m.logRequest(zapcore.WarnLevel, "Request blocked", blockFields...)
+
+		// Respond with status code
+		w.WriteHeader(statusCode)
+	} else {
+		m.logger.Debug("blockRequest called but response already written",
+			zap.Int("intended_status_code", statusCode),
+			zap.String("path", r.URL.Path),
+			zap.String("log_id", r.Context().Value("logID").(string)), // Assuming logID is in context
+		)
+	}
 }
 
 // extractIP extracts the IP address from a remote address string.
@@ -671,7 +696,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	m.logRequest(zapcore.InfoLevel, "Rule matched during evaluation", requestInfo...)
 
 	// Block if anomaly threshold is exceeded
-	if state.TotalScore >= m.AnomalyThreshold {
+	if state.TotalScore >= m.AnomalyThreshold && !state.ResponseWritten {
 		m.logRequest(zapcore.WarnLevel, "Request blocked - Anomaly threshold exceeded",
 			zap.String("log_id", logID),
 			zap.Int("total_score", state.TotalScore),
@@ -689,16 +714,18 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	// Handle the rule's defined action (block or log)
 	switch rule.Action {
 	case "block":
-		m.logRequest(zapcore.WarnLevel, "Request blocked by rule match",
-			zap.String("log_id", logID),
-			zap.String("rule_id", rule.ID),
-			zap.Int("status_code", http.StatusForbidden),
-		)
-		state.Blocked = true
-		state.StatusCode = http.StatusForbidden
-		w.WriteHeader(state.StatusCode)
-		state.ResponseWritten = true
-		return
+		if !state.ResponseWritten {
+			m.logRequest(zapcore.WarnLevel, "Request blocked by rule match",
+				zap.String("log_id", logID),
+				zap.String("rule_id", rule.ID),
+				zap.Int("status_code", http.StatusForbidden),
+			)
+			state.Blocked = true
+			state.StatusCode = http.StatusForbidden
+			w.WriteHeader(state.StatusCode)
+			state.ResponseWritten = true
+			return
+		}
 
 	case "log":
 		m.logRequest(zapcore.InfoLevel, "Rule matched - Request allowed but logged",
@@ -708,17 +735,19 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		return
 
 	default:
-		m.logRequest(zapcore.ErrorLevel, "Unknown rule action - Blocking request",
-			zap.String("log_id", logID),
-			zap.String("rule_id", rule.ID),
-			zap.String("action", rule.Action),
-			zap.Int("status_code", http.StatusForbidden),
-		)
-		state.Blocked = true
-		state.StatusCode = http.StatusForbidden
-		w.WriteHeader(state.StatusCode)
-		state.ResponseWritten = true
-		return
+		if !state.ResponseWritten {
+			m.logRequest(zapcore.ErrorLevel, "Unknown rule action - Blocking request",
+				zap.String("log_id", logID),
+				zap.String("rule_id", rule.ID),
+				zap.String("action", rule.Action),
+				zap.Int("status_code", http.StatusForbidden),
+			)
+			state.Blocked = true
+			state.StatusCode = http.StatusForbidden
+			w.WriteHeader(state.StatusCode)
+			state.ResponseWritten = true
+			return
+		}
 	}
 }
 
