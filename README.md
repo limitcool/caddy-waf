@@ -277,17 +277,130 @@ Rules and blacklists can be updated without server restart:
 
 ### Basic Testing
 ```bash
-# Test rate limiting
-for i in {1..10}; do curl -i http://localhost:8080/; done
+caddy-waf % ./test.sh
+WAF Security Test Suite
+Target: http://localhost:8080
+Date: Mar  7 Gen 2025 01:12:22 CET
+----------------------------------------
+[✗] SQL Injection - SQL Server Version                           [200]
+[✗] SQL Injection - SQL Server Time Delay                        [200]
+[✓] SQL Injection - Oracle Time Delay                            [403]
+[✗] SQL Injection - Error Based 1                                [200]
+[✗] SQL Injection - Error Based 2                                [200]
+[✗] SQL Injection - Error Based 3                                [200]
+[✗] SQL Injection - MySQL user                                   [200]
+[✗] SQL Injection - PostgreSQL user                              [200]
+[✗] SQL Injection - Case Variation                               [200]
+[✗] SQL Injection - Whitespace Variation                         [200]
+[✗] SQL Injection - Obfuscation Variation                        [200]
+[✗] SQL Injection - Unicode Variation                            [200]
+[✗] SQL Injection - Triple URL Encoded Variation                 [200]
+[✗] SQL Injection - OOB DNS Lookup                               [200]
+[✗] SQL Injection - Oracle OOB DNS Lookup                        [200]
+[✓] SQL Injection - Header - Basic Select                        [403]
+[✓] SQL Injection - Cookie - Basic Select                        [403]
+[✗] SQL Injection - Header - Basic Select                        [200]
+[✗] SQL Injection - JSON body                                    [200]
+[✓] XSS - Basic Script Tag                                       [403]
 
-# Test country blocking
-curl -H "X-Real-IP: 1.2.3.4" http://localhost:8080/
+[✓] XSS - IMG Onerror                                            [403]
+[✓] XSS - JavaScript Protocol                                    [403]
+[✓] XSS - SVG Onload                                             [403]
+[✓] XSS - Anchor Tag JavaScript                                  [403]
+[✓] XSS - URL Encoded Script                                     [403]
+[✓] XSS - Double URL Encoded                                     [403]
+[✓] XSS - URL Encoded IMG                                        [403]
+[✓] XSS - Body Onload                                            [403]
+[✓] XSS - Input Onfocus Autofocus                                [403]
+[✓] XSS - Breaking Out of Attribute                              [403]
+[✓] XSS - HTML Encoded                                           [403]
+[✓] XSS - IFRAME srcdoc                                          [403]
+[✓] XSS - Details Tag                                            [403]
+[✓] XSS - HTML Comment Breakout                                  [403]
+[✓] Path Traversal - Basic                                       [403]
 
-# Test SQL injection protection
-curl "http://localhost:8080/?id=1+UNION+SELECT+*+FROM+users"
+[✓] Path Traversal - Double Dot                                  [403]
+[✓] Path Traversal - Triple Dot                                  [403]
+[✓] Path Traversal - URL Encoded                                 [403]
+[✗] Path Traversal - Double URL Encoded                          [200]
+[✓] Path Traversal - Mixed Slashes                               [403]
+[✗] Path Traversal - UTF-8 Encoded                               [200]
+[✓] Path Traversal - Encoded and Literal                         [403]
+[✓] Path Traversal - Mixed Encoding                              [403]
+[✗] Path Traversal - Multiple Slashes                            [200]
+[✓] RCE - Basic Command                                          [403]
 
-# Test XSS protection
-curl "http://localhost:8080/?input=<script>alert(1)</script>"
+[✓] RCE - Base64 Command                                         [403]
+[✗] RCE - Backticks                                              [200]
+[✗] RCE - List Files                                             [200]
+[✗] RCE - Uname                                                  [200]
+[✗] RCE - ID                                                     [200]
+[✓] RCE - whoami Command                                         [403]
+[✓] RCE - Echo Test                                              [403]
+[✗] RCE - Hex Encoded Command                                    [200]
+[✓] RCE - Curl Request                                           [403]
+[✓] RCE - Wget Request                                           [403]
+[✗] RCE - Ping                                                   [200]
+[✗] RCE - PowerShell Command                                     [200]
+[✗] Log4j - JNDI LDAP                                            [200]
+
+[✗] Log4j - Environment                                          [200]
+[✗] Log4j - JNDI RMI                                             [200]
+[✗] Log4j - System Property                                      [200]
+[✗] Log4j - Lowercase                                            [200]
+[✗] Log4j - Uppercase                                            [200]
+[✗] Log4j - Date                                                 [200]
+[✓] Log4j - Base64                                               [403]
+[✗] Log4j - Partial Lookup                                       [200]
+[✗] Log4j - URL Encoded                                          [200]
+[✓] Header - SQL Injection                                       [403]
+
+[✓] Header - XSS Cookie                                          [403]
+[✓] Header - Path Traversal                                      [403]
+[✓] Header - Custom X-Attack                                     [403]
+[✗] Header -  X-Forwarded-Host                                   [200]
+[✓] Header - User-Agent SQL                                      [403]
+[✗] Header -  Host Spoof                                         [200]
+[✓] Header -  Accept-Language                                    [403]
+[✓] Protocol - Git Access                                        [403]
+
+[✓] Protocol - Env File                                          [403]
+[✓] Protocol - htaccess                                          [403]
+[✗] Protocol - Web.config Access                                 [200]
+[✓] Protocol - Java Web Descriptor                               [403]
+[✓] Protocol - SVN Access                                        [403]
+[✗] Protocol - Robots.txt                                        [200]
+[✗] Protocol - VS Code Settings                                  [200]
+[✗] Protocol - config.php Access                                 [200]
+[✗] Protocol - Apache Server Status                              [200]
+[✓] Valid - Homepage                                             [200]
+
+[✓] Valid - API Endpoint                                         [200]
+[✓] Scanner - SQLMap                                             [403]
+
+[✓] Scanner - Acunetix                                           [403]
+[✓] Scanner - Nikto                                              [403]
+[✓] Scanner - Nmap                                               [403]
+[✓] Scanner - Dirbuster                                          [403]
+[✓] Valid - Health Check                                         [200]
+
+[✓] Valid - Chrome Browser                                       [200]
+[✗] Scanner -  Burp Suite                                        [200]
+
+[✓] Scanner - OWASP ZAP                                          [403]
+[✓] Scanner - Nessus                                             [403]
+[✓] Scanner - Qualys                                             [403]
+[✓] Scanner -  Wfuzz                                             [403]
+[✓] Scanner -  OpenVAS                                           [403]
+----------------------------------------
+Results Summary
+Total Tests: 100
+Passed: 57
+Failed: 43
+Pass Percentage: 57%
+Warning:  Test pass percentage is below 90%. Review the failures!
+
+Detailed results saved to: waf_test_results.log
 ```
 
 ### Load Testing
