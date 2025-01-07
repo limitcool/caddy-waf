@@ -45,8 +45,8 @@ type requestCounter struct {
 
 // RateLimit struct
 type RateLimit struct {
-	Requests int           `json:"requests"`
-	Window   time.Duration `json:"window"`
+	Requests        int           `json:"requests"`
+	Window          time.Duration `json:"window"`
 	CleanupInterval time.Duration `json:"cleanup_interval"`
 }
 
@@ -835,6 +835,17 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		zap.Bool("log_json", m.LogJSON),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
+
+	// Log rate limit configuration if enabled
+	if m.RateLimit.Requests > 0 {
+		m.logger.Info("Rate limit configuration",
+			zap.Int("requests", m.RateLimit.Requests),
+			zap.Duration("window", m.RateLimit.Window),
+			zap.Duration("cleanup_interval", m.RateLimit.CleanupInterval),
+		)
+	} else {
+		m.logger.Info("Rate limiting is disabled")
+	}
 
 	// Initialize rate limiter if configured
 	if m.RateLimit.Requests > 0 {
