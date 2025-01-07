@@ -1,47 +1,94 @@
 {
+    # Disable automatic HTTPS to prevent Caddy from managing TLS certificates
     auto_https off
+
+    # Define the admin API endpoint for managing Caddy (accessible only from localhost)
     admin localhost:2019
 }
 
-
+# Define a server block listening on port 8080
 :8080 {
+    # Configure logging
     log {
+        # Send logs to standard output (stdout)
         output stdout
+
+        # Format logs as JSON for easier parsing and analysis
         format json
+
+        # Set the log level to INFO to capture informational messages
         level INFO
     }
 
+    # Add HTTP headers for enhanced security
     header {
-        # security headers
+        # Enforce HTTPS for the next year and include subdomains
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+        # Prevent the page from being embedded in frames or iframes
         X-Frame-Options "DENY"
+
+        # Prevent MIME type sniffing
         X-Content-Type-Options "nosniff"
+
+        # Disable referrer information in requests
         Referrer-Policy "no-referrer"
+
+        # Restrict access to geolocation, microphone, and camera APIs
         Permissions-Policy "geolocation=(), microphone=(), camera=()"
+
+        # Define a Content Security Policy to restrict resource loading
         Content-Security-Policy "default-src 'self'; script-src 'self'; object-src 'none'"
+
+        # Disallow cross-domain policies
         X-Permitted-Cross-Domain-Policies "none"
+
+        # Clear cached data, cookies, and storage when the response is sent
         Clear-Site-Data "\"cache\", \"cookies\", \"storage\""
+
+        # Require cross-origin isolation for embedded resources
         Cross-Origin-Embedder-Policy "require-corp"
+
+        # Restrict cross-origin window interactions to the same origin
         Cross-Origin-Opener-Policy "same-origin"
+
+        # Restrict cross-origin resource access to the same origin
         Cross-Origin-Resource-Policy "same-origin"
     }
 
+    # Define routing rules for incoming requests
     route {
+        # Enable Web Application Firewall (WAF) for additional security
         waf {
+            # Set a threshold for detecting anomalies
             anomaly_threshold 10
+
+            # Block requests originating from specific countries (Russia, China, North Korea)
             block_countries GeoLite2-Country.mmdb RU CN KP
-            # or whitelist
+
+            # Alternatively, use a whitelist to allow only specific countries
             # whitelist_countries GeoLite2-Country.mmdb US
+
+            # Rate limit requests to 1000 requests per minute, with a 5-minute ban for violators
             rate_limit 1000 1m 5m
+
+            # Load WAF rules from a JSON file
             rule_file rules.json
+
+            # Load a list of blacklisted IPs from a file
             ip_blacklist_file ip_blacklist.txt
+
+            # Load a list of blacklisted DNS entries from a file
             dns_blacklist_file dns_blacklist.txt
 
+            # Set the log severity level for WAF events
             log_severity info
+
+            # Log WAF events in JSON format
             log_json
         }
 
+        # Respond to all requests with "Hello, world!" and a 200 status code
         respond "Hello, world!" 200
     }
 }
-
