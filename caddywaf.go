@@ -591,23 +591,18 @@ func (m *Middleware) getCountryCode(remoteAddr string, geoIP *maxminddb.Reader) 
 func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, fields ...zap.Field) {
 	// Atomically update the state and write response if not already written
 	if !state.ResponseWritten {
-		stateUpdate := func() {
-			state.Blocked = true
-			state.StatusCode = statusCode
-			state.ResponseWritten = true
-		}
-
 		// Write the buffered response body if using responseRecorder
 		if recorder, ok := w.(*responseRecorder); ok && recorder.body.Len() > 0 {
 			// Attempt to write the buffered body to the client
 			if _, err := w.Write(recorder.body.Bytes()); err != nil {
 				m.logger.Error("Failed to write recorded body on block", zap.Error(err), zap.String("log_id", r.Context().Value("logID").(string)))
-				// If writing the buffered body fails, we might still want to proceed with blocking
-				// and setting the appropriate status code.
+				return // Return immediately if writing the body fails
 			}
 		}
 
-		stateUpdate()
+		state.Blocked = true
+		state.StatusCode = statusCode
+		state.ResponseWritten = true
 
 		// Extract or generate log ID from request context
 		logID, _ := r.Context().Value("logID").(string)
@@ -1115,10 +1110,11 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Load GeoIP database if either country blocking or whitelisting is enabled
+	var geoIPReader *maxminddb.Reader
 	if m.CountryBlock.Enabled || m.CountryWhitelist.Enabled {
 		// Determine the GeoIP database path
 		geoIPPath := m.CountryBlock.GeoIPDBPath
-		if m.CountryWhitelist.Enabled {
+		if m.CountryWhitelist.Enabled && m.CountryWhitelist.GeoIPDBPath != "" {
 			geoIPPath = m.CountryWhitelist.GeoIPDBPath
 		}
 
@@ -1142,18 +1138,18 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			)
 			return fmt.Errorf("failed to load GeoIP database: %w", err)
 		}
-
-		// Share the GeoIP database between CountryBlock and CountryWhitelist
-		if m.CountryBlock.Enabled {
-			m.CountryBlock.geoIP = reader
-		}
-		if m.CountryWhitelist.Enabled {
-			m.CountryWhitelist.geoIP = reader
-		}
-
+		geoIPReader = reader
 		m.logger.Info("GeoIP database loaded successfully",
 			zap.String("path", geoIPPath),
 		)
+	}
+
+	// Share the GeoIP database between CountryBlock and CountryWhitelist
+	if m.CountryBlock.Enabled {
+		m.CountryBlock.geoIP = geoIPReader
+	}
+	if m.CountryWhitelist.Enabled {
+		m.CountryWhitelist.geoIP = geoIPReader
 	}
 
 	// Load rules from rule files
