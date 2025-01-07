@@ -1,4 +1,4 @@
-name: Caddy WAF Build and Test
+name: Caddy WAF CI Pipeline
 
 on:
   push:
@@ -10,7 +10,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test:
+  build:
+    name: Build Caddy with WAF
     runs-on: ubuntu-latest
 
     steps:
@@ -80,14 +81,31 @@ jobs:
             exit 1
           fi
 
-      - name: Format Caddyfile
-        run: |
-          cd caddy-waf
-          ./caddy fmt --overwrite
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: caddy-waf-binary
+          path: caddy-waf/caddy
+
+  test:
+    name: Test WAF Provisioning
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Download Built Caddy Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: caddy-waf-binary
+          path: caddy-waf
 
       - name: Test Caddy Run and Validate WAF Provisioning
         run: |
           cd caddy-waf
+          chmod +x caddy
           ./caddy run > caddy_output.log 2>&1 &
           sleep 5
           
