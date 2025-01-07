@@ -5,7 +5,7 @@ GREEN="\033[1;32m"
 RED="\033[1;31m"
 NC="\033[0m" # No Color
 
-# Helper function to print success or error messages
+# Helper functions
 print_success() {
     echo -e "${GREEN}✅ $1${NC}"
 }
@@ -41,9 +41,9 @@ install_go_macos() {
 
 check_go_version() {
     local version
-    version=$(go version | grep -oP '\d+\.\d+\.\d+')
+    version=$(go version | awk '{print $3}' | sed 's/go//')
     if [[ $(printf '%s\n' "$GO_VERSION_REQUIRED" "$version" | sort -V | head -n1) != "$GO_VERSION_REQUIRED" ]]; then
-        print_error "Go version must be $GO_VERSION_REQUIRED or newer."
+        print_error "Go version must be $GO_VERSION_REQUIRED or newer. Current version: $version"
     else
         print_success "Go version $version meets requirements."
     fi
