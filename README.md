@@ -269,13 +269,15 @@ Configure rate limits using requests count and time window:
 
 ```caddyfile
 # 100 requests per minute
-rate_limit 100 1m
+rate_limit 100 1m 5m
 
 # 10 requests per second
-rate_limit 10 1s
+rate_limit 10 1s 5m
 
 # 1000 requests per hour
-rate_limit 1000 1h
+rate_limit 1000 1h 5m
+
+# note the last 5m is the cleanup routine cycle to remove stale address from memory
 ```
 
 ---
