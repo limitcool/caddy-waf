@@ -173,6 +173,7 @@ type Middleware struct {
 	logger           *zap.Logger
 	LogSeverity      string `json:"log_severity,omitempty"`
 	LogJSON          bool   `json:"log_json,omitempty"`
+	logLevel         zapcore.Level
 }
 
 // WAFState struct: Used to maintain state between phases
@@ -387,13 +388,9 @@ func (m *Middleware) extractIPFromRemoteAddr(remoteAddr string) (string, error) 
 	return ip, nil
 }
 
-// ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-
 	// Generate a unique log ID for this request
 	logID := uuid.New().String()
-
-	// Store the log ID in the request context
 	ctx := context.WithValue(r.Context(), "logID", logID)
 	r = r.WithContext(ctx)
 
@@ -404,21 +401,27 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		ResponseWritten: false,
 	}
 
-	// Handle Phase 1
+	m.logger.Info("WAF evaluation started",
+		zap.String("log_id", logID),
+		zap.String("method", r.Method),
+		zap.String("path", r.URL.Path),
+		zap.String("source_ip", r.RemoteAddr),
+		zap.String("user_agent", r.UserAgent()),
+		zap.String("query_params", r.URL.RawQuery),
+	)
+
+	// Phase 1 - Request Headers
 	if !state.ResponseWritten {
+		m.logger.Debug("Executing Phase 1 (Request Headers)",
+			zap.String("log_id", logID),
+		)
 		m.handlePhase(w, r, 1, state)
 	}
 
-	// If the request is blocked after Phase 1, return early
 	if state.Blocked {
-		m.logRequest(zapcore.InfoLevel, "Request blocked in Phase 1",
+		m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 1",
 			zap.String("log_id", logID),
 			zap.Int("status_code", state.StatusCode),
-			zap.String("source_ip", r.RemoteAddr),
-			zap.String("user_agent", r.UserAgent()),
-			zap.String("request_method", r.Method),
-			zap.String("request_path", r.URL.Path),
-			zap.String("query_params", r.URL.RawQuery),
 			zap.String("reason", "phase_1_block"),
 		)
 		w.WriteHeader(state.StatusCode)
@@ -426,21 +429,18 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		return nil
 	}
 
-	// Handle Phase 2
-	if !state.Blocked && !state.ResponseWritten {
+	// Phase 2 - Request Body
+	if !state.ResponseWritten {
+		m.logger.Debug("Executing Phase 2 (Request Body)",
+			zap.String("log_id", logID),
+		)
 		m.handlePhase(w, r, 2, state)
 	}
 
-	// If the request is blocked after Phase 2, return early
 	if state.Blocked {
-		m.logRequest(zapcore.InfoLevel, "Request blocked in Phase 2",
+		m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 2",
 			zap.String("log_id", logID),
 			zap.Int("status_code", state.StatusCode),
-			zap.String("source_ip", r.RemoteAddr),
-			zap.String("user_agent", r.UserAgent()),
-			zap.String("request_method", r.Method),
-			zap.String("request_path", r.URL.Path),
-			zap.String("query_params", r.URL.RawQuery),
 			zap.String("reason", "phase_2_block"),
 		)
 		w.WriteHeader(state.StatusCode)
@@ -448,42 +448,94 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		return nil
 	}
 
-	// Proceed to the next handler only if the request is not blocked
-	return next.ServeHTTP(w, r)
+	// Response Recorder for Phase 3 and 4
+	recorder := &responseRecorder{ResponseWriter: w, body: new(bytes.Buffer)}
+	w = recorder
+
+	// Pass request to upstream handler
+	err := next.ServeHTTP(w, r)
+
+	// Phase 3 - Response Headers
+	if !state.Blocked && !state.ResponseWritten {
+		m.logger.Debug("Executing Phase 3 (Response Headers)",
+			zap.String("log_id", logID),
+		)
+		m.handlePhase(w, r, 3, state)
+	}
+
+	if state.Blocked {
+		m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 3",
+			zap.String("log_id", logID),
+			zap.Int("status_code", state.StatusCode),
+			zap.String("reason", "phase_3_block"),
+		)
+		w.WriteHeader(state.StatusCode)
+		return nil
+	}
+
+	// Phase 4 - Response Body (after response is written)
+	if !state.Blocked && !state.ResponseWritten {
+		body := recorder.body.String()
+
+		m.logger.Debug("Executing Phase 4 (Response Body)",
+			zap.String("log_id", logID),
+			zap.Int("response_length", len(body)),
+		)
+
+		for _, rule := range m.Rules[4] {
+			if rule.regex.MatchString(body) {
+				m.processRuleMatch(w, r, &rule, body, state)
+				m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 4 (Response Body)",
+					zap.String("log_id", logID),
+					zap.String("rule_id", rule.ID),
+					zap.String("description", rule.Description),
+					zap.Int("status_code", state.StatusCode),
+					zap.String("reason", "phase_4_block"),
+				)
+				if state.Blocked {
+					w.WriteHeader(state.StatusCode)
+					return nil
+				}
+			}
+		}
+	}
+
+	m.logger.Info("WAF evaluation complete",
+		zap.String("log_id", logID),
+		zap.Int("total_score", state.TotalScore),
+		zap.Bool("blocked", state.Blocked),
+	)
+
+	return err
 }
 
-func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, reason string, fields ...zap.Field) {
+func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, fields ...zap.Field) {
 	state.Blocked = true
 	state.StatusCode = statusCode
 	state.ResponseWritten = true
 
-	// Extract the log ID from the context
-	var logID string
-	if ctxValue := r.Context().Value("logID"); ctxValue != nil {
-		if id, ok := ctxValue.(string); ok {
-			logID = id
-		}
-	}
-
-	// If logID is not found in the context, generate a new one (fallback)
+	// Extract or generate log ID from request context
+	logID, _ := r.Context().Value("logID").(string)
 	if logID == "" {
 		logID = uuid.New().String()
 	}
 
-	// Log the blocked request with the log ID
-	m.logRequest(zapcore.WarnLevel, "Request blocked",
-		append(fields,
-			zap.String("log_id", logID),
-			zap.String("source_ip", r.RemoteAddr),
-			zap.String("user_agent", r.UserAgent()),
-			zap.String("request_method", r.Method),
-			zap.String("request_path", r.URL.Path),
-			zap.String("query_params", r.URL.RawQuery),
-			zap.Int("status_code", statusCode),
-			zap.String("reason", reason),
-		)...,
+	// Prepare standard fields for logging
+	blockFields := append(fields,
+		zap.String("log_id", logID),
+		zap.String("source_ip", r.RemoteAddr),
+		zap.String("user_agent", r.UserAgent()),
+		zap.String("request_method", r.Method),
+		zap.String("request_path", r.URL.Path),
+		zap.String("query_params", r.URL.RawQuery),
+		zap.Int("status_code", statusCode),
+		zap.Time("timestamp", time.Now()),
 	)
 
+	// Log the blocked request at WARN level
+	m.logRequest(zapcore.WarnLevel, "Request blocked", blockFields...)
+
+	// Respond with status code
 	w.WriteHeader(statusCode)
 }
 
@@ -512,6 +564,57 @@ func extractIP(remoteAddr string) string {
 	return ""
 }
 
+// responseRecorder - Captures response body for Phase 4 inspection
+type responseRecorder struct {
+	http.ResponseWriter
+	body       *bytes.Buffer
+	statusCode int
+}
+
+// NewResponseRecorder initializes a new recorder with a buffer
+func NewResponseRecorder(w http.ResponseWriter) *responseRecorder {
+	return &responseRecorder{
+		ResponseWriter: w,
+		body:           new(bytes.Buffer),
+		statusCode:     0, // Zero means not explicitly set
+	}
+}
+
+// WriteHeader captures the response status code
+func (r *responseRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+	r.ResponseWriter.WriteHeader(statusCode)
+}
+
+// Header returns the response headers
+func (r *responseRecorder) Header() http.Header {
+	return r.ResponseWriter.Header()
+}
+
+// BodyString returns the captured response body as a string
+func (r *responseRecorder) BodyString() string {
+	return r.body.String()
+}
+
+// StatusCode returns the captured status code
+func (r *responseRecorder) StatusCode() int {
+	if r.statusCode == 0 {
+		return http.StatusOK // Default to 200 if not explicitly set
+	}
+	return r.statusCode
+}
+
+// Write captures the response body and writes to the underlying writer
+func (r *responseRecorder) Write(b []byte) (int, error) {
+	if r.statusCode == 0 {
+		// Ensure status code is set if WriteHeader wasn't called
+		r.WriteHeader(http.StatusOK)
+	}
+	r.body.Write(b)
+	n, err := r.ResponseWriter.Write(b)
+	return n, err
+}
+
 func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase int, state *WAFState) {
 	m.logger.Debug("Starting phase evaluation",
 		zap.Int("phase", phase),
@@ -519,7 +622,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		zap.String("user_agent", r.UserAgent()),
 	)
 
-	// Check country blocking
+	// Phase 1 - Country Blocking
 	if phase == 1 && m.CountryBlock.Enabled {
 		blocked, err := m.isCountryInList(r.RemoteAddr, m.CountryBlock.CountryList, m.CountryBlock.geoIP)
 		if err != nil {
@@ -527,67 +630,52 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				zap.String("ip", r.RemoteAddr),
 				zap.Error(err),
 			)
-			m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked due to internal error",
+			m.blockRequest(w, r, state, http.StatusForbidden,
+				zap.String("message", "Request blocked due to internal error"),
 				zap.String("reason", "internal_error"),
 			)
 			return
 		} else if blocked {
-			m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked by country",
+			m.blockRequest(w, r, state, http.StatusForbidden,
+				zap.String("message", "Request blocked by country"),
 				zap.String("reason", "country_block"),
 			)
 			return
 		}
 	}
 
-	// Check country whitelisting
-	if phase == 1 && m.CountryWhitelist.Enabled {
-		whitelisted, err := m.isCountryInList(r.RemoteAddr, m.CountryWhitelist.CountryList, m.CountryWhitelist.geoIP)
-		if err != nil {
-			m.logRequest(zapcore.ErrorLevel, "Failed to check country whitelist",
-				zap.String("ip", r.RemoteAddr),
-				zap.Error(err),
-			)
-			m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked due to internal error",
-				zap.String("reason", "internal_error"),
-			)
-			return
-		} else if !whitelisted {
-			m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked by country whitelist",
-				zap.String("reason", "country_whitelist"),
-			)
-			return
-		}
-	}
-
-	// Check rate limiting
+	// Phase 1 - Rate Limiting
 	if phase == 1 && m.rateLimiter != nil {
 		ip := extractIP(r.RemoteAddr)
 		if m.rateLimiter.isRateLimited(ip) {
-			m.blockRequest(w, r, state, http.StatusTooManyRequests, "Request blocked by rate limit",
+			m.blockRequest(w, r, state, http.StatusTooManyRequests,
+				zap.String("message", "Request blocked by rate limit"),
 				zap.String("reason", "rate_limit"),
 			)
 			return
 		}
 	}
 
-	// Check IP blacklist
+	// Phase 1 - IP Blacklist
 	if phase == 1 && m.isIPBlacklisted(r.RemoteAddr) {
-		m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked by IP blacklist",
+		m.blockRequest(w, r, state, http.StatusForbidden,
+			zap.String("message", "Request blocked by IP blacklist"),
 			zap.String("reason", "ip_blacklist"),
 		)
 		return
 	}
 
-	// Check DNS blacklist
+	// Phase 1 - DNS Blacklist
 	if phase == 1 && m.isDNSBlacklisted(r.Host) {
-		m.blockRequest(w, r, state, http.StatusForbidden, "Request blocked by DNS blacklist",
+		m.blockRequest(w, r, state, http.StatusForbidden,
+			zap.String("message", "Request blocked by DNS blacklist"),
 			zap.String("reason", "dns_blacklist"),
 			zap.String("host", r.Host),
 		)
 		return
 	}
 
-	// Check if there are rules for the current phase
+	// Phase 1 to 4 - Rule Evaluation
 	rules, ok := m.Rules[phase]
 	if !ok {
 		m.logger.Debug("No rules found for phase",
@@ -596,10 +684,19 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		return
 	}
 
-	// Evaluate rules for the current phase
 	for _, rule := range rules {
 		for _, target := range rule.Targets {
-			value, err := m.extractValue(target, r)
+			var value string
+			var err error
+
+			// Pass the response writer (w) only for Phase 3 to extract response headers
+			if phase == 3 {
+				value, err = m.extractValue(target, r, w)
+			} else {
+				// Pass nil for other phases (1, 2, 4)
+				value, err = m.extractValue(target, r, nil)
+			}
+
 			if err != nil {
 				m.logger.Debug("Failed to extract value for target",
 					zap.String("target", target),
@@ -623,6 +720,46 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		}
 	}
 
+	// Phase 3 - Response Headers
+	if phase == 3 {
+		headers := w.Header()
+		for _, rule := range m.Rules[3] {
+			for _, target := range rule.Targets {
+				value := headers.Get(target)
+				if value != "" && rule.regex.MatchString(value) {
+					m.processRuleMatch(w, r, &rule, value, state)
+					if state.Blocked || state.ResponseWritten {
+						return
+					}
+				}
+			}
+		}
+	}
+
+	// Phase 4 - Response Body (using response recorder)
+	if phase == 4 {
+		recorder := &responseRecorder{ResponseWriter: w, body: new(bytes.Buffer)}
+		w = recorder // Replace writer with recorder for capturing response body
+
+		defer func() {
+			body := recorder.BodyString()
+			for _, rule := range m.Rules[4] {
+				if rule.regex.MatchString(body) {
+					m.processRuleMatch(w, r, &rule, body, state)
+					if state.Blocked {
+						return
+					}
+				}
+			}
+
+			// Flush recorded body to client
+			_, err := w.Write(recorder.body.Bytes())
+			if err != nil {
+				m.logger.Error("Failed to flush response body", zap.Error(err))
+			}
+		}()
+	}
+
 	m.logger.Debug("Completed phase evaluation",
 		zap.Int("phase", phase),
 		zap.Int("total_score", state.TotalScore),
@@ -631,16 +768,23 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 }
 
 func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) {
-	// If rule.Action is empty, default to "block"
+	// Default action to "block" if empty
 	if rule.Action == "" {
 		rule.Action = "block"
 	}
 
-	// Add the rule's score to the total score for all rules
+	// Increase the total anomaly score
 	state.TotalScore += rule.Score
 
-	// Prepare detailed request information for logging
+	// Extract log ID from request context
+	logID, _ := r.Context().Value("logID").(string)
+	if logID == "" {
+		logID = uuid.New().String() // Fallback to new UUID if missing
+	}
+
+	// Capture detailed request and rule information
 	requestInfo := []zap.Field{
+		zap.String("log_id", logID),
 		zap.String("rule_id", rule.ID),
 		zap.String("target", strings.Join(rule.Targets, ",")),
 		zap.String("value", value),
@@ -649,7 +793,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.Int("total_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		zap.String("mode", rule.Action),
-		zap.String("severity", rule.Severity), // Log the severity level
+		zap.String("severity", rule.Severity),
 		zap.String("source_ip", r.RemoteAddr),
 		zap.String("user_agent", r.UserAgent()),
 		zap.String("request_method", r.Method),
@@ -659,20 +803,17 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.Time("timestamp", time.Now()),
 	}
 
-	// Log the rule match with detailed request information
-	m.logRequest(zapcore.InfoLevel, "Rule matched", requestInfo...)
+	// Log the rule match in detail
+	m.logRequest(zapcore.InfoLevel, "Rule matched during evaluation", requestInfo...)
 
-	// Check if the total score exceeds the anomaly threshold
+	// Block if anomaly threshold is exceeded
 	if state.TotalScore >= m.AnomalyThreshold {
-		m.logRequest(zapcore.WarnLevel, "Request blocked by Anomaly Threshold",
+		m.logRequest(zapcore.WarnLevel, "Request blocked - Anomaly threshold exceeded",
+			zap.String("log_id", logID),
 			zap.Int("total_score", state.TotalScore),
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
 			zap.Int("status_code", http.StatusForbidden),
-			zap.String("source_ip", r.RemoteAddr),
-			zap.String("user_agent", r.UserAgent()),
-			zap.String("request_method", r.Method),
-			zap.String("request_path", r.URL.Path),
-			zap.String("query_params", r.URL.RawQuery),
+			zap.String("rule_id", rule.ID),
 		)
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
@@ -681,10 +822,14 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		return
 	}
 
-	// Handle the rule action based on the mode
+	// Handle the rule's defined action (block or log)
 	switch rule.Action {
 	case "block":
-		m.logRequest(zapcore.WarnLevel, "Request blocked by rule", requestInfo...)
+		m.logRequest(zapcore.WarnLevel, "Request blocked by rule match",
+			zap.String("log_id", logID),
+			zap.String("rule_id", rule.ID),
+			zap.Int("status_code", http.StatusForbidden),
+		)
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
 		w.WriteHeader(state.StatusCode)
@@ -692,12 +837,19 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		return
 
 	case "log":
-		// No further action needed; logging is already done above
+		m.logRequest(zapcore.InfoLevel, "Rule matched - Request allowed but logged",
+			zap.String("log_id", logID),
+			zap.String("rule_id", rule.ID),
+		)
 		return
 
 	default:
-		// Handle unknown actions by blocking the request (security-first approach)
-		m.logRequest(zapcore.WarnLevel, "Unknown rule action - Blocking request", zap.String("action", rule.Action))
+		m.logRequest(zapcore.ErrorLevel, "Unknown rule action - Blocking request",
+			zap.String("log_id", logID),
+			zap.String("rule_id", rule.ID),
+			zap.String("action", rule.Action),
+			zap.Int("status_code", http.StatusForbidden),
+		)
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
 		w.WriteHeader(state.StatusCode)
@@ -711,75 +863,56 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 		return
 	}
 
-	// Extract the log ID from the fields (if it exists)
+	// Extract log ID from fields or request context
 	var logID string
 	for i, field := range fields {
 		if field.Key == "log_id" {
 			logID = field.String
-			fields = append(fields[:i], fields[i+1:]...) // Remove the log_id field
+			fields = append(fields[:i], fields[i+1:]...) // Remove log_id from fields
 			break
 		}
 	}
 
-	// If logID is not found in the fields, generate a new one (fallback)
+	// Fallback to generating a new log ID if missing
 	if logID == "" {
 		logID = uuid.New().String()
 	}
-
-	// Include the log ID in the log entry
 	fields = append(fields, zap.String("log_id", logID))
 
-	// Get common log fields and merge them
+	// Attach common request metadata (IP, User-Agent, etc.)
 	commonFields := m.getCommonLogFields(fields)
 	fields = append(fields, commonFields...)
 
+	// Set logging threshold if unset
 	if m.LogSeverity == "" {
 		m.LogSeverity = "info"
 	}
 
-	logLevel := zapcore.InfoLevel
-	switch strings.ToLower(m.LogSeverity) {
-	case "debug":
-		logLevel = zapcore.DebugLevel
-	case "info":
-		logLevel = zapcore.InfoLevel
-	case "warn":
-		logLevel = zapcore.WarnLevel
-	case "error":
-		logLevel = zapcore.ErrorLevel
+	// Cache log level for efficiency
+	if m.logLevel == 0 {
+		switch strings.ToLower(m.LogSeverity) {
+		case "debug":
+			m.logLevel = zapcore.DebugLevel
+		case "warn":
+			m.logLevel = zapcore.WarnLevel
+		case "error":
+			m.logLevel = zapcore.ErrorLevel
+		default:
+			m.logLevel = zapcore.InfoLevel
+		}
 	}
 
-	if level < logLevel {
+	// Skip logging if level is below threshold
+	if level < m.logLevel {
 		return
 	}
 
+	// Perform JSON or plaintext logging
 	if m.LogJSON {
 		fields = append(fields, zap.String("message", msg))
-		switch level {
-		case zapcore.DebugLevel:
-			m.logger.Debug("", fields...)
-		case zapcore.InfoLevel:
-			m.logger.Info("", fields...)
-		case zapcore.WarnLevel:
-			m.logger.Warn("", fields...)
-		case zapcore.ErrorLevel:
-			m.logger.Error("", fields...)
-		default:
-			m.logger.Info("", fields...)
-		}
+		m.logger.Log(level, "", fields...)
 	} else {
-		switch level {
-		case zapcore.DebugLevel:
-			m.logger.Debug(msg, fields...)
-		case zapcore.InfoLevel:
-			m.logger.Info(msg, fields...)
-		case zapcore.WarnLevel:
-			m.logger.Warn(msg, fields...)
-		case zapcore.ErrorLevel:
-			m.logger.Error(msg, fields...)
-		default:
-			m.logger.Info(msg, fields...)
-		}
+		m.logger.Log(level, msg, fields...)
 	}
 }
 
@@ -827,6 +960,18 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	m.logger = ctx.Logger(m)
 	if m.LogSeverity == "" {
 		m.LogSeverity = "info"
+	}
+
+	// Initialize logLevel based on LogSeverity
+	switch strings.ToLower(m.LogSeverity) {
+	case "debug":
+		m.logLevel = zapcore.DebugLevel
+	case "warn":
+		m.logLevel = zapcore.WarnLevel
+	case "error":
+		m.logLevel = zapcore.ErrorLevel
+	default:
+		m.logLevel = zapcore.InfoLevel
 	}
 
 	// Log that the middleware is being provisioned
@@ -1143,7 +1288,7 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 	return false
 }
 
-func (m *Middleware) extractValue(target string, r *http.Request) (string, error) {
+func (m *Middleware) extractValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
 	target = strings.ToUpper(strings.TrimSpace(target))
 
 	switch {
@@ -1164,7 +1309,7 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
 		return string(bodyBytes), nil
 
-	// Full Header Dump
+	// Full Header Dump (Request)
 	case target == "HEADERS", target == "REQUEST_HEADERS":
 		headers := make([]string, 0)
 		for name, values := range r.Header {
@@ -1172,10 +1317,29 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 		}
 		return strings.Join(headers, "; "), nil
 
-	// Dynamic Header Extraction
+	// Response Headers (Phase 3)
+	case target == "RESPONSE_HEADERS":
+		if w != nil {
+			headers := make([]string, 0)
+			for name, values := range w.Header() {
+				headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
+			}
+			return strings.Join(headers, "; "), nil
+		}
+		return "", fmt.Errorf("response headers not available during this phase")
+
+	// Dynamic Header Extraction (Request)
 	case strings.HasPrefix(target, "HEADERS:"):
 		headerName := strings.TrimPrefix(target, "HEADERS:")
 		return r.Header.Get(headerName), nil
+
+	// Dynamic Response Header Extraction (Phase 3)
+	case strings.HasPrefix(target, "RESPONSE_HEADERS:"):
+		if w != nil {
+			headerName := strings.TrimPrefix(target, "RESPONSE_HEADERS:")
+			return w.Header().Get(headerName), nil
+		}
+		return "", fmt.Errorf("response header not available during this phase")
 
 	// URL or Path
 	case target == "URL", target == "PATH":
@@ -1258,9 +1422,10 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 	case target == "HOST":
 		return r.Host, nil
 
-	// Referer Header
 	case target == "REFERER":
-		return r.Referer(), nil
+		referer := r.Header.Get("Referer")
+		m.logger.Debug("Extracting Referer", zap.String("referer", referer))
+		return referer, nil
 
 	// Forwarded Headers
 	case target == "FORWARDED":
@@ -1283,45 +1448,6 @@ func (m *Middleware) extractValue(target string, r *http.Request) (string, error
 			return fmt.Sprintf("%x", r.TLS.Version), nil
 		}
 		return "", nil
-
-	// TLS Cipher Suite
-	case target == "TLS_CIPHER":
-		if r.TLS != nil {
-			return fmt.Sprintf("%x", r.TLS.CipherSuite), nil
-		}
-		return "", nil
-
-	// Request Timestamp
-	case target == "REQUEST_TIME":
-		return time.Now().Format(time.RFC3339), nil
-
-	// Accept Header
-	case target == "ACCEPT":
-		return r.Header.Get("Accept"), nil
-
-	// Origin Header
-	case target == "ORIGIN":
-		return r.Header.Get("Origin"), nil
-
-	// Connection Header
-	case target == "CONNECTION":
-		return r.Header.Get("Connection"), nil
-
-	// Accept-Encoding Header
-	case target == "ACCEPT_ENCODING":
-		return r.Header.Get("Accept-Encoding"), nil
-
-	// Accept-Language Header
-	case target == "ACCEPT_LANGUAGE":
-		return r.Header.Get("Accept-Language"), nil
-
-	// Authorization Header
-	case target == "AUTHORIZATION":
-		return r.Header.Get("Authorization"), nil
-
-	// Content-Length Header
-	case target == "CONTENT_LENGTH":
-		return r.Header.Get("Content-Length"), nil
 
 	// Raw Query String (similar to ARGS)
 	case target == "QUERY_STRING":
@@ -1391,11 +1517,14 @@ func validateRule(rule *Rule) error {
 	if len(rule.Targets) == 0 {
 		return fmt.Errorf("rule '%s' has no targets", rule.ID)
 	}
-	if rule.Phase < 1 || rule.Phase > 2 {
-		return fmt.Errorf("rule '%s' has an invalid phase: %d", rule.ID, rule.Phase)
+	if rule.Phase < 1 || rule.Phase > 4 {
+		return fmt.Errorf("rule '%s' has an invalid phase: %d. Valid phases are 1 to 4", rule.ID, rule.Phase)
 	}
 	if rule.Score < 0 {
 		return fmt.Errorf("rule '%s' has a negative score", rule.ID)
+	}
+	if rule.Action != "" && rule.Action != "block" && rule.Action != "log" {
+		return fmt.Errorf("rule '%s' has an invalid action: '%s'. Valid actions are 'block' or 'log'", rule.ID, rule.Action)
 	}
 	return nil
 }
@@ -1618,16 +1747,13 @@ func (m *Middleware) loadRulesFromFiles() error {
 }
 
 func (m *Middleware) loadRulesFromFile(path string) error {
-	// Acquire a write lock to protect shared state
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Log the attempt to load the rule file
 	m.logger.Debug("Loading rules from file",
 		zap.String("file", path),
 	)
 
-	// Read the rule file
 	content, err := os.ReadFile(path)
 	if err != nil {
 		m.logger.Error("Failed to read rule file",
@@ -1637,84 +1763,62 @@ func (m *Middleware) loadRulesFromFile(path string) error {
 		return fmt.Errorf("failed to read rule file: %s, error: %v", path, err)
 	}
 
-	// Unmarshal the JSON content into a slice of Rule structs
 	var rules []Rule
 	if err := json.Unmarshal(content, &rules); err != nil {
 		m.logger.Error("Failed to unmarshal rules from file",
 			zap.String("file", path),
 			zap.Error(err),
 		)
-		return fmt.Errorf("failed to unmarshal rules from file: %s, error: %v. Ensure the file contains valid JSON for a list of WAF rules", path, err)
+		return fmt.Errorf("failed to unmarshal rules from file: %s, error: %v. Ensure valid JSON.", path, err)
 	}
 
-	var invalidRules []string        // Track invalid rules for logging
-	ruleIDs := make(map[string]bool) // Track rule IDs to detect duplicates
+	var invalidRules []string
+	ruleIDs := make(map[string]bool)
 
-	// Iterate through each rule in the file
 	for i, rule := range rules {
-		// Validate the rule ID
-		if rule.ID == "" {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule at index %d: empty ID. Each rule must have a unique identifier.", i))
+		// Validate rule structure
+		if err := validateRule(&rule); err != nil {
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule at index %d: %v", i, err))
 			continue
 		}
 
-		// Check for duplicate rule IDs
+		// Check for duplicate IDs
 		if _, exists := ruleIDs[rule.ID]; exists {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule with ID '%s' at index %d: duplicate ID. Rule IDs must be unique within the rule file.", rule.ID, i))
+			invalidRules = append(invalidRules, fmt.Sprintf("Duplicate rule ID '%s' at index %d", rule.ID, i))
 			continue
 		}
 		ruleIDs[rule.ID] = true
 
-		// Validate the rule phase
-		if rule.Phase < 1 || rule.Phase > 2 {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s': invalid phase '%d'. Phase must be 1 or 2.", rule.ID, rule.Phase))
-			continue
-		}
-
-		// Validate the rule mode
-		if rule.Action != "" && rule.Action != "block" && rule.Action != "log" {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s': invalid mode '%s'. Mode must be 'block' or 'log', or left empty (defaults to 'block' during processing).", rule.ID, rule.Action))
-			continue
-		}
-
-		// Validate the regex pattern
-		if rule.Pattern == "" {
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s': empty pattern. A regex pattern is required for matching.", rule.ID))
-			continue
-		}
-
-		// Compile the regex pattern and log detailed errors if it fails
+		// Compile regex pattern
 		regex, err := regexp.Compile(rule.Pattern)
 		if err != nil {
-			m.logger.Error("Failed to compile regex pattern for rule",
+			m.logger.Error("Failed to compile regex for rule",
 				zap.String("rule_id", rule.ID),
 				zap.String("pattern", rule.Pattern),
 				zap.Error(err),
 			)
-			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s': invalid regex pattern '%s'. Error: %v. Ensure the pattern is a valid regular expression.", rule.ID, rule.Pattern, err))
+			invalidRules = append(invalidRules, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
 			continue
 		}
-		rules[i].regex = regex
+		rule.regex = regex
 
-		// Initialize the phase map if it doesn't exist
+		// Initialize phase if missing
 		if _, ok := m.Rules[rule.Phase]; !ok {
 			m.Rules[rule.Phase] = []Rule{}
 		}
 
-		// Append the rule to the appropriate phase
-		m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rules[i])
+		// Add rule to appropriate phase
+		m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rule)
 	}
 
-	// Log warnings for invalid rules
 	if len(invalidRules) > 0 {
-		m.logger.Warn("Skipped invalid rules in file",
+		m.logger.Warn("Some rules failed validation",
 			zap.String("file", path),
 			zap.Strings("invalid_rules", invalidRules),
 		)
 	}
 
-	// Log the successful loading of the rule file
-	m.logger.Info("Rules loaded successfully",
+	m.logger.Info("Rules loaded",
 		zap.String("file", path),
 		zap.Int("total_rules", len(rules)),
 		zap.Int("invalid_rules", len(invalidRules)),
