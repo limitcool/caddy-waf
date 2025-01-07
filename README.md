@@ -16,6 +16,13 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
 -   **Detailed logging and monitoring** for security analysis.
 -   **Dynamic rule reloading** without server restart.
 
+## 🚀 Quick start
+```
+curl -fsSL -H "Pragma: no-cache" https://raw.githubusercontent.com/fabriziosalmi/caddy-waf/refs/heads/main/install.sh | bash
+```
+
+**Example output**
+
 ```
 INFO	http.handlers.waf	Provisioning WAF middleware	{"log_level": "info", "log_json": false, "anomaly_threshold": 10}
 INFO	http.handlers.waf	Rate limit configuration	{"requests": 1000, "window": 60, "cleanup_interval": 300}
