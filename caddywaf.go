@@ -1122,116 +1122,190 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 }
 
 func (m *Middleware) extractValue(target string, r *http.Request) (string, error) {
-	// Normalize the target to handle case insensitivity
 	target = strings.ToUpper(strings.TrimSpace(target))
 
 	switch {
+	// Query Parameters
 	case target == "ARGS":
-		// Return the raw query string
 		return r.URL.RawQuery, nil
 
+	// Request Body
 	case target == "BODY":
-		// Handle empty or nil body
 		if r.Body == nil || r.ContentLength == 0 {
 			return "", nil
 		}
-
-		// Read the body and rewind it for future use
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			m.logger.Error("Failed to read request body", zap.Error(err))
 			return "", fmt.Errorf("failed to read request body: %w", err)
 		}
-		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Rewind the body
-
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
 		return string(bodyBytes), nil
 
-	case target == "HEADERS":
-		// Return all headers as a string
-		return fmt.Sprintf("%v", r.Header), nil
+	// Full Header Dump
+	case target == "HEADERS", target == "REQUEST_HEADERS":
+		headers := make([]string, 0)
+		for name, values := range r.Header {
+			headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
+		}
+		return strings.Join(headers, "; "), nil
 
-	case target == "URL":
-		// Return the URL path
-		return r.URL.Path, nil
-
-	case target == "USER_AGENT":
-		// Return the User-Agent header
-		return r.UserAgent(), nil
-
-	case target == "COOKIES":
-		// Return all cookies as a string
-		return fmt.Sprintf("%v", r.Cookies()), nil
-
-	case target == "PATH":
-		// Return the URL path (same as "URL")
-		return r.URL.Path, nil
-
-	case target == "URI":
-		// Return the full request URI
-		return r.RequestURI, nil
-
+	// Dynamic Header Extraction
 	case strings.HasPrefix(target, "HEADERS:"):
-		// Extract a specific header
 		headerName := strings.TrimPrefix(target, "HEADERS:")
 		return r.Header.Get(headerName), nil
 
-	case strings.HasPrefix(target, "ARGS:"):
-		// Extract a specific query parameter
-		argName := strings.TrimPrefix(target, "ARGS:")
-		return r.URL.Query().Get(argName), nil
+	// URL or Path
+	case target == "URL", target == "PATH":
+		return r.URL.Path, nil
 
+	// Full URI (Path + Query String)
+	case target == "URI":
+		return r.RequestURI, nil
+
+	// User-Agent
+	case target == "USER_AGENT":
+		return r.UserAgent(), nil
+
+	// Cookies
+	case target == "COOKIES":
+		cookies := make([]string, 0)
+		for _, c := range r.Cookies() {
+			cookies = append(cookies, fmt.Sprintf("%s=%s", c.Name, c.Value))
+		}
+		return strings.Join(cookies, "; "), nil
+
+	// Specific Cookie Extraction
 	case strings.HasPrefix(target, "COOKIES:"):
-		// Extract a specific cookie
 		cookieName := strings.TrimPrefix(target, "COOKIES:")
 		cookie, err := r.Cookie(cookieName)
 		if err != nil {
-			m.logger.Warn("Missing or invalid cookie", zap.String("cookie", cookieName), zap.Error(err))
-			return "", fmt.Errorf("missing or invalid cookie: %s, error: %w", cookieName, err)
+			m.logger.Warn("Missing or invalid cookie", zap.String("cookie", cookieName))
+			return "", fmt.Errorf("cookie not found: %s", cookieName)
 		}
 		return cookie.Value, nil
 
-	case strings.HasPrefix(target, "FORM:"):
-		// Extract a specific form field
-		fieldName := strings.TrimPrefix(target, "FORM:")
-		if err := r.ParseForm(); err != nil {
-			m.logger.Error("Failed to parse form data", zap.Error(err))
-			return "", fmt.Errorf("failed to parse form data: %w", err)
-		}
-		return r.Form.Get(fieldName), nil
+	// Query Parameter Extraction
+	case strings.HasPrefix(target, "ARGS:"):
+		argName := strings.TrimPrefix(target, "ARGS:")
+		return r.URL.Query().Get(argName), nil
 
-	case strings.HasPrefix(target, "JSON:"):
-		// Extract a specific JSON field (supports nested fields)
-		fieldPath := strings.TrimPrefix(target, "JSON:")
-		if r.Body == nil || r.ContentLength == 0 {
+	// Content-Type Header
+	case target == "CONTENT_TYPE":
+		return r.Header.Get("Content-Type"), nil
+
+	// TLS Information (Client Hello / Server Name)
+	case target == "TLS_CLIENT_HELLO":
+		if r.TLS != nil && len(r.TLS.ServerName) > 0 {
+			return r.TLS.ServerName, nil
+		}
+		return "", nil
+
+	// IP Address (Remote Client)
+	case target == "REMOTE_ADDR":
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			return r.RemoteAddr, nil
+		}
+		return host, nil
+
+	// Remote Port
+	case target == "REMOTE_PORT":
+		_, port, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
 			return "", nil
 		}
+		return port, nil
 
-		// Read and rewind the body
-		bodyBytes, err := io.ReadAll(r.Body)
-		if err != nil {
-			m.logger.Error("Failed to read request body", zap.Error(err))
-			return "", fmt.Errorf("failed to read request body: %w", err)
+	// Server Address
+	case target == "SERVER_ADDR":
+		if addr, ok := r.Context().Value(http.LocalAddrContextKey).(net.Addr); ok {
+			return addr.String(), nil
 		}
-		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Rewind the body
+		return "", nil
 
-		// Parse JSON
-		var jsonData interface{}
-		if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
-			m.logger.Error("Invalid JSON in request body", zap.Error(err))
-			return "", fmt.Errorf("invalid JSON in request body: %w", err)
+	// HTTP Method (GET, POST, etc.)
+	case target == "METHOD":
+		return r.Method, nil
+
+	// HTTP Protocol (HTTP/1.1, HTTP/2)
+	case target == "PROTOCOL":
+		return r.Proto, nil
+
+	// Hostname (from Host header)
+	case target == "HOST":
+		return r.Host, nil
+
+	// Referer Header
+	case target == "REFERER":
+		return r.Referer(), nil
+
+	// Forwarded Headers
+	case target == "FORWARDED":
+		return r.Header.Get("Forwarded"), nil
+
+	// Specific Header Extraction (X-Forwarded-For, etc.)
+	case target == "X_FORWARDED_FOR":
+		return r.Header.Get("X-Forwarded-For"), nil
+
+	// Scheme (http or https)
+	case target == "SCHEME":
+		if r.TLS != nil {
+			return "https", nil
 		}
+		return "http", nil
 
-		// Extract the nested field
-		value, err := extractNestedJSONField(jsonData, fieldPath)
-		if err != nil {
-			m.logger.Warn("Failed to extract JSON field", zap.String("field", fieldPath), zap.Error(err))
-			return "", fmt.Errorf("failed to extract JSON field '%s': %w", fieldPath, err)
+	// TLS Version
+	case target == "TLS_VERSION":
+		if r.TLS != nil {
+			return fmt.Sprintf("%x", r.TLS.Version), nil
 		}
+		return "", nil
 
-		return fmt.Sprintf("%v", value), nil
+	// TLS Cipher Suite
+	case target == "TLS_CIPHER":
+		if r.TLS != nil {
+			return fmt.Sprintf("%x", r.TLS.CipherSuite), nil
+		}
+		return "", nil
+
+	// Request Timestamp
+	case target == "REQUEST_TIME":
+		return time.Now().Format(time.RFC3339), nil
+
+	// Accept Header
+	case target == "ACCEPT":
+		return r.Header.Get("Accept"), nil
+
+	// Origin Header
+	case target == "ORIGIN":
+		return r.Header.Get("Origin"), nil
+
+	// Connection Header
+	case target == "CONNECTION":
+		return r.Header.Get("Connection"), nil
+
+	// Accept-Encoding Header
+	case target == "ACCEPT_ENCODING":
+		return r.Header.Get("Accept-Encoding"), nil
+
+	// Accept-Language Header
+	case target == "ACCEPT_LANGUAGE":
+		return r.Header.Get("Accept-Language"), nil
+
+	// Authorization Header
+	case target == "AUTHORIZATION":
+		return r.Header.Get("Authorization"), nil
+
+	// Content-Length Header
+	case target == "CONTENT_LENGTH":
+		return r.Header.Get("Content-Length"), nil
+
+	// Raw Query String (similar to ARGS)
+	case target == "QUERY_STRING":
+		return r.URL.RawQuery, nil
 
 	default:
-		// Handle unknown targets
 		m.logger.Warn("Unknown target", zap.String("target", target))
 		return "", fmt.Errorf("unknown target: %s", target)
 	}
