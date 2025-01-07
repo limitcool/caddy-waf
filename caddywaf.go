@@ -62,38 +62,24 @@ type RateLimiter struct {
 func (rl *RateLimiter) isRateLimited(ip string) bool {
 	now := time.Now()
 
-	// First, attempt a read to check if the IP exists and its current state
-	rl.RLock()
-	counter, exists := rl.requests[ip]
-	rl.RUnlock()
+	rl.Lock()
+	defer rl.Unlock()
 
+	counter, exists := rl.requests[ip]
 	if exists {
-		// Check if the window has expired (outside the write lock if possible)
 		if now.Sub(counter.window) > rl.config.Window {
-			// Window expired, reset the counter (requires write lock)
-			rl.Lock()
-			defer rl.Unlock()
-			rl.requests[ip] = &requestCounter{
-				count:  1,
-				window: now,
-			}
+			// Window expired, reset the counter
+			rl.requests[ip] = &requestCounter{count: 1, window: now}
 			return false
 		}
 
-		// Window not expired, increment the counter (requires write lock)
-		rl.Lock()
-		defer rl.Unlock()
+		// Window not expired, increment the counter
 		counter.count++
 		return counter.count > rl.config.Requests
 	}
 
-	// IP doesn't exist, add it (requires write lock)
-	rl.Lock()
-	defer rl.Unlock()
-	rl.requests[ip] = &requestCounter{
-		count:  1,
-		window: now,
-	}
+	// IP doesn't exist, add it
+	rl.requests[ip] = &requestCounter{count: 1, window: now}
 	return false
 }
 
@@ -429,6 +415,55 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		zap.String("query_params", r.URL.RawQuery),
 	)
 
+	// **Start: Adjusted Logic Flow**
+
+	// Whitelist Check
+	if m.CountryWhitelist.Enabled {
+		whitelisted, err := m.isCountryInList(r.RemoteAddr, m.CountryWhitelist.CountryList, m.CountryWhitelist.geoIP)
+		if err != nil {
+			m.logRequest(zapcore.ErrorLevel, "Failed to check whitelist",
+				zap.String("log_id", logID),
+				zap.String("ip", r.RemoteAddr),
+				zap.Error(err),
+			)
+			// Consider blocking or allowing based on your policy if whitelist check fails
+			// For now, proceeding to blacklist as if not whitelisted
+		} else if whitelisted {
+			m.logRequest(zapcore.InfoLevel, "Request allowed - country whitelisted",
+				zap.String("log_id", logID),
+				zap.String("country", m.getCountryCode(r.RemoteAddr, m.CountryWhitelist.geoIP)),
+			)
+			return next.ServeHTTP(w, r) // Allow immediately
+		}
+	}
+
+	// Blacklist Check (only if not whitelisted or whitelist disabled)
+	if m.CountryBlock.Enabled {
+		blacklisted, err := m.isCountryInList(r.RemoteAddr, m.CountryBlock.CountryList, m.CountryBlock.geoIP)
+		if err != nil {
+			m.logRequest(zapcore.ErrorLevel, "Failed to check blacklist",
+				zap.String("log_id", logID),
+				zap.String("ip", r.RemoteAddr),
+				zap.Error(err),
+			)
+			m.blockRequest(w, r, state, http.StatusInternalServerError, // Or another appropriate error
+				zap.String("message", "Internal error during blacklist check"),
+				zap.String("reason", "blacklist_check_error"),
+			)
+			return nil
+		} else if blacklisted {
+			m.logRequest(zapcore.WarnLevel, "Request blocked - country blacklisted",
+				zap.String("log_id", logID),
+				zap.String("country", m.getCountryCode(r.RemoteAddr, m.CountryBlock.geoIP)),
+			)
+			m.blockRequest(w, r, state, http.StatusForbidden,
+				zap.String("message", "Request blocked by country blacklist"),
+				zap.String("reason", "country_blacklist"),
+			)
+			return nil
+		}
+	}
+
 	// Phase 1 - Request Headers
 	if !state.ResponseWritten {
 		m.logger.Debug("Executing Phase 1 (Request Headers)",
@@ -538,6 +573,27 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	)
 
 	return err
+}
+
+// getCountryCode extracts the country code for logging purposes
+func (m *Middleware) getCountryCode(remoteAddr string, geoIP *maxminddb.Reader) string {
+	if geoIP == nil {
+		return "N/A"
+	}
+	ip, err := m.extractIPFromRemoteAddr(remoteAddr)
+	if err != nil {
+		return "N/A"
+	}
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return "N/A"
+	}
+	var record GeoIPRecord
+	err = geoIP.Lookup(parsedIP, &record)
+	if err != nil {
+		return "N/A"
+	}
+	return record.Country.ISOCode
 }
 
 func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, fields ...zap.Field) {
