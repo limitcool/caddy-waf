@@ -15,17 +15,57 @@ print_error() {
     exit 1
 }
 
-# Install Go if not present or if the version is outdated
-if ! command -v go &> /dev/null || [[ $(go version | grep -oP '\d+\.\d+\.\d+') != "1.23.4" ]]; then
-    echo -e "⚙️  Go not found or outdated. Installing Go 1.23.4..."
-    wget https://go.dev/dl/go1.23.4.linux-amd64.tar.gz && \
+# Detect OS
+OS=$(uname -s)
+GO_VERSION_REQUIRED="1.22.3"
+GO_VERSION_TARGET="1.23.4"
+
+install_go_linux() {
+    echo -e "⚙️  Installing Go $GO_VERSION_TARGET for Linux..."
+    wget https://go.dev/dl/go${GO_VERSION_TARGET}.linux-amd64.tar.gz && \
     sudo rm -rf /usr/local/go && \
-    sudo tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz && \
-    rm go1.23.4.linux-amd64.tar.gz && \
+    sudo tar -C /usr/local -xzf go${GO_VERSION_TARGET}.linux-amd64.tar.gz && \
+    rm go${GO_VERSION_TARGET}.linux-amd64.tar.gz && \
     export PATH=$PATH:/usr/local/go/bin && \
-    print_success "Go 1.23.4 installed successfully." || print_error "Failed to install Go."
+    print_success "Go $GO_VERSION_TARGET installed successfully." || print_error "Failed to install Go."
+}
+
+install_go_macos() {
+    echo -e "⚙️  Installing Go $GO_VERSION_TARGET for macOS..."
+    curl -LO https://go.dev/dl/go${GO_VERSION_TARGET}.darwin-amd64.pkg && \
+    sudo installer -pkg go${GO_VERSION_TARGET}.darwin-amd64.pkg -target / && \
+    rm go${GO_VERSION_TARGET}.darwin-amd64.pkg && \
+    export PATH=$PATH:/usr/local/go/bin && \
+    print_success "Go $GO_VERSION_TARGET installed successfully." || print_error "Failed to install Go."
+}
+
+check_go_version() {
+    local version
+    version=$(go version | grep -oP '\d+\.\d+\.\d+')
+    if [[ $(printf '%s\n' "$GO_VERSION_REQUIRED" "$version" | sort -V | head -n1) != "$GO_VERSION_REQUIRED" ]]; then
+        print_error "Go version must be $GO_VERSION_REQUIRED or newer."
+    else
+        print_success "Go version $version meets requirements."
+    fi
+}
+
+install_go() {
+    if [ "$OS" == "Linux" ]; then
+        install_go_linux
+    elif [ "$OS" == "Darwin" ]; then
+        install_go_macos
+    else
+        print_error "Unsupported OS: $OS"
+    fi
+}
+
+# Install Go if not present or outdated
+if ! command -v go &> /dev/null; then
+    echo -e "⚙️  Go not found. Installing Go $GO_VERSION_TARGET..."
+    install_go
 else
-    print_success "Go 1.23.4 is already installed."
+    echo -e "🔍 Checking Go version..."
+    check_go_version
 fi
 
 # Install xcaddy if not present
