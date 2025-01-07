@@ -10,8 +10,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build Caddy with WAF
+  build-and-test:
+    name: Build and Test Caddy WAF
     runs-on: ubuntu-latest
 
     steps:
@@ -80,28 +80,7 @@ jobs:
             echo "Caddy build failed"
             exit 1
           fi
-
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: caddy-waf-binary
-          path: caddy-waf/caddy
-
-  test:
-    name: Test WAF Provisioning
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Download Built Caddy Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: caddy-waf-binary
-          path: caddy-waf
-
+          
       - name: Test Caddy Run and Validate WAF Provisioning
         run: |
           cd caddy-waf
