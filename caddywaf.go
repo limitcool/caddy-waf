@@ -47,6 +47,7 @@ type requestCounter struct {
 type RateLimit struct {
 	Requests int           `json:"requests"`
 	Window   time.Duration `json:"window"`
+	CleanupInterval time.Duration `json:"cleanup_interval"`
 }
 
 // RateLimiter struct
@@ -105,7 +106,7 @@ func (rl *RateLimiter) cleanupExpiredEntries() {
 func (rl *RateLimiter) startCleanup() {
 	rl.stopCleanup = make(chan struct{})
 	go func() {
-		ticker := time.NewTicker(time.Minute) // Adjust cleanup interval as needed
+		ticker := time.NewTicker(rl.config.CleanupInterval) // Use the specified cleanup interval
 		defer ticker.Stop()
 		for {
 			select {
@@ -265,9 +266,18 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				if err != nil {
 					return d.Errf("parsing rate_limit window: invalid duration: %v", err)
 				}
+				// Default cleanup interval to 1 minute if not specified
+				cleanupInterval := time.Minute
+				if d.NextArg() {
+					cleanupInterval, err = time.ParseDuration(d.Val())
+					if err != nil {
+						return d.Errf("parsing rate_limit cleanup_interval: invalid duration: %v", err)
+					}
+				}
 				m.RateLimit = RateLimit{
-					Requests: requests,
-					Window:   window,
+					Requests:        requests,
+					Window:          window,
+					CleanupInterval: cleanupInterval,
 				}
 			case "block_countries":
 				m.CountryBlock.Enabled = true
@@ -831,6 +841,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		m.logger.Debug("Initializing rate limiter",
 			zap.Int("requests", m.RateLimit.Requests),
 			zap.Duration("window", m.RateLimit.Window),
+			zap.Duration("cleanup_interval", m.RateLimit.CleanupInterval),
 		)
 		m.rateLimiter = &RateLimiter{
 			requests: make(map[string]*requestCounter),
