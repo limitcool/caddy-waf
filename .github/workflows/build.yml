@@ -1,4 +1,4 @@
-name: Caddy WAF CI Pipeline
+name: Build and test Caddy with WAF
 
 on:
   push:
