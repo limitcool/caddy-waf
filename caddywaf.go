@@ -173,7 +173,7 @@ type Middleware struct {
 	CountryWhitelist CountryAccessFilter `json:"country_whitelist"`
 	Rules            map[int][]Rule      `json:"-"`
 	ipBlacklist      map[string]bool     `json:"-"` // Changed type here
-	dnsBlacklist     []string            `json:"-"`
+	dnsBlacklist     map[string]bool     `json:"-"`
 	rateLimiter      *RateLimiter        `json:"-"`
 	logger           *zap.Logger
 	LogSeverity      string `json:"log_severity,omitempty"`
@@ -415,7 +415,15 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		zap.String("query_params", r.URL.RawQuery),
 	)
 
-	// **Start: Adjusted Logic Flow**
+	// Helper function to handle blocking actions
+	block := func(statusCode int, reason string, fields ...zap.Field) error {
+		if !state.ResponseWritten {
+			m.blockRequest(w, r, state, statusCode, append(fields, zap.String("reason", reason))...)
+			return nil
+		}
+		m.logger.Debug("Blocking action skipped, response already written", zap.String("log_id", logID), zap.String("reason", reason))
+		return nil
+	}
 
 	// Whitelist Check
 	if m.CountryWhitelist.Enabled {
@@ -446,39 +454,29 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 				zap.String("ip", r.RemoteAddr),
 				zap.Error(err),
 			)
-			m.blockRequest(w, r, state, http.StatusInternalServerError, // Or another appropriate error
-				zap.String("message", "Internal error during blacklist check"),
-				zap.String("reason", "blacklist_check_error"),
-			)
-			return nil
+			return block(http.StatusInternalServerError, "blacklist_check_error", zap.String("message", "Internal error during blacklist check"))
 		} else if blacklisted {
 			m.logRequest(zapcore.WarnLevel, "Request blocked - country blacklisted",
 				zap.String("log_id", logID),
 				zap.String("country", m.getCountryCode(r.RemoteAddr, m.CountryBlock.geoIP)),
 			)
-			m.blockRequest(w, r, state, http.StatusForbidden,
-				zap.String("message", "Request blocked by country blacklist"),
-				zap.String("reason", "country_blacklist"),
-			)
-			return nil
+			return block(http.StatusForbidden, "country_blacklist", zap.String("message", "Request blocked by country blacklist"))
 		}
 	}
 
 	// Phase 1 - Request Headers
-	if !state.ResponseWritten {
-		m.logger.Debug("Executing Phase 1 (Request Headers)",
+	m.logger.Debug("Executing Phase 1 (Request Headers)",
+		zap.String("log_id", logID),
+	)
+	m.handlePhase(w, r, 1, state)
+	if state.Blocked && !state.ResponseWritten {
+		m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 1",
 			zap.String("log_id", logID),
+			zap.Int("status_code", state.StatusCode),
+			zap.String("reason", "phase_1_block"),
 		)
-		m.handlePhase(w, r, 1, state)
-		if state.Blocked {
-			m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 1",
-				zap.String("log_id", logID),
-				zap.Int("status_code", state.StatusCode),
-				zap.String("reason", "phase_1_block"),
-			)
-			w.WriteHeader(state.StatusCode)
-			return nil
-		}
+		w.WriteHeader(state.StatusCode)
+		return nil
 	}
 
 	// Phase 2 - Request Body
@@ -487,7 +485,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 			zap.String("log_id", logID),
 		)
 		m.handlePhase(w, r, 2, state)
-		if state.Blocked {
+		if state.Blocked && !state.ResponseWritten {
 			m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 2",
 				zap.String("log_id", logID),
 				zap.Int("status_code", state.StatusCode),
@@ -506,64 +504,58 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	err := next.ServeHTTP(w, r)
 
 	// Phase 3 - Response Headers
-	if !state.Blocked && !state.ResponseWritten {
-		m.logger.Debug("Executing Phase 3 (Response Headers)",
+	m.logger.Debug("Executing Phase 3 (Response Headers)",
+		zap.String("log_id", logID),
+	)
+	m.handlePhase(recorder, r, 3, state)
+	if state.Blocked && !state.ResponseWritten {
+		m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 3",
 			zap.String("log_id", logID),
+			zap.Int("status_code", state.StatusCode),
+			zap.String("reason", "phase_3_block"),
 		)
-		m.handlePhase(recorder, r, 3, state)
-		if state.Blocked {
-			m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 3",
-				zap.String("log_id", logID),
-				zap.Int("status_code", state.StatusCode),
-				zap.String("reason", "phase_3_block"),
-			)
-			if !state.ResponseWritten {
-				w.WriteHeader(state.StatusCode)
-			}
-			return nil
-		}
+		w.WriteHeader(state.StatusCode)
+		return nil
 	}
 
 	// Phase 4 - Response Body (after response is written)
-	if !state.Blocked && !state.ResponseWritten {
-		m.logger.Debug("Executing Phase 4 (Response Body)",
-			zap.String("log_id", logID),
-			zap.Int("response_length", recorder.body.Len()), // Use recorder.body.Len()
-		)
+	m.logger.Debug("Executing Phase 4 (Response Body)",
+		zap.String("log_id", logID),
+		zap.Int("response_length", recorder.body.Len()), // Use recorder.body.Len()
+	)
 
-		// Check if recorder.body is nil before accessing it
-		if recorder.body != nil {
-			body := recorder.body.String()
-			m.logger.Debug("Phase 4 Response Body", zap.String("response_body", body))
+	// Check if recorder.body is nil before accessing it
+	if recorder.body != nil {
+		body := recorder.body.String()
+		m.logger.Debug("Phase 4 Response Body", zap.String("response_body", body))
 
-			for _, rule := range m.Rules[4] {
-				m.logger.Debug("Checking rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.String("description", rule.Description))
-				if rule.regex.MatchString(body) {
-					m.processRuleMatch(recorder, r, &rule, body, state)
-					if state.Blocked && !state.ResponseWritten { // Check ResponseWritten before logging and writing
-						m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 4 (Response Body)",
-							zap.String("log_id", logID),
-							zap.String("rule_id", rule.ID),
-							zap.String("description", rule.Description),
-							zap.Int("status_code", state.StatusCode),
-							zap.String("reason", "phase_4_block"),
-						)
-						w.WriteHeader(state.StatusCode)
-						return nil // Return immediately after writing header
-					}
+		for _, rule := range m.Rules[4] {
+			m.logger.Debug("Checking rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.String("description", rule.Description))
+			if rule.regex.MatchString(body) {
+				m.processRuleMatch(recorder, r, &rule, body, state)
+				if state.Blocked && !state.ResponseWritten {
+					m.logRequest(zapcore.WarnLevel, "Request blocked in Phase 4 (Response Body)",
+						zap.String("log_id", logID),
+						zap.String("rule_id", rule.ID),
+						zap.String("description", rule.Description),
+						zap.Int("status_code", state.StatusCode),
+						zap.String("reason", "phase_4_block"),
+					)
+					recorder.WriteHeader(state.StatusCode) // Use recorder to ensureWriteHeader is called only once
+					return nil
 				}
 			}
-
-			// If not blocked, flush the recorded body to the client
-			if !state.Blocked && !state.ResponseWritten {
-				_, err = w.Write(recorder.body.Bytes())
-				if err != nil {
-					m.logger.Error("Failed to flush response body", zap.Error(err))
-				}
-			}
-		} else {
-			m.logger.Debug("Phase 4: Response body is nil, skipping rule evaluation")
 		}
+
+		// If not blocked, flush the recorded body to the client
+		if !state.Blocked && !state.ResponseWritten {
+			_, err = w.Write(recorder.body.Bytes())
+			if err != nil {
+				m.logger.Error("Failed to flush response body", zap.Error(err))
+			}
+		}
+	} else {
+		m.logger.Debug("Phase 4: Response body is nil, skipping rule evaluation")
 	}
 
 	m.logger.Info("WAF evaluation complete",
@@ -1275,7 +1267,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			return fmt.Errorf("failed to load DNS blacklist from %s: %w", m.DNSBlacklistFile, err)
 		}
 	} else {
-		m.dnsBlacklist = []string{}
+		m.dnsBlacklist = make(map[string]bool) // Initialize as an empty map here
 		m.logger.Debug("No DNS blacklist file specified, initializing empty blacklist")
 	}
 
@@ -1328,33 +1320,21 @@ func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 }
 
 func (m *Middleware) isDNSBlacklisted(host string) bool {
-	// Acquire a read lock to protect shared state
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	// Early return if the blacklist is empty or nil
-	if len(m.dnsBlacklist) == 0 {
-		m.logger.Debug("DNS blacklist is empty, skipping check")
-		return false
-	}
-
-	// Normalize the host to lowercase and trim whitespace
-	host = strings.ToLower(strings.TrimSpace(host))
-	if host == "" {
+	normalizedHost := strings.ToLower(strings.TrimSpace(host))
+	if normalizedHost == "" {
 		m.logger.Warn("Empty host provided for DNS blacklist check")
 		return false
 	}
 
-	// Check if the host is an exact match to any blacklisted domain
-	for _, blacklistedDomain := range m.dnsBlacklist {
-		blacklistedDomain = strings.ToLower(strings.TrimSpace(blacklistedDomain)) // Normalize blacklisted domain as well
-		if host == blacklistedDomain {
-			m.logger.Info("Host is blacklisted",
-				zap.String("host", host),
-				zap.String("blacklisted_domain", blacklistedDomain),
-			)
-			return true
-		}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if _, exists := m.dnsBlacklist[normalizedHost]; exists {
+		m.logger.Info("Host is blacklisted",
+			zap.String("host", host),
+			zap.String("blacklisted_domain", normalizedHost),
+		)
+		return true
 	}
 
 	m.logger.Debug("Host is not blacklisted",
@@ -1655,8 +1635,8 @@ func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Initialize an empty DNS blacklist
-	m.dnsBlacklist = []string{}
+	// Initialize an empty DNS blacklist map
+	m.dnsBlacklist = make(map[string]bool)
 
 	// Log the attempt to load the DNS blacklist file
 	m.logger.Debug("Loading DNS blacklist from file",
@@ -1673,26 +1653,23 @@ func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
 		return nil // Continue with an empty blacklist
 	}
 
-	// Convert all entries to lowercase and trim whitespace
+	// Convert all entries to lowercase and trim whitespace and add to the map
 	lines := strings.Split(string(content), "\n")
-	validEntries := make([]string, 0, len(lines))
+	validEntriesCount := 0
 
 	for _, line := range lines {
 		line = strings.ToLower(strings.TrimSpace(line))
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue // Skip empty lines and comments
 		}
-
-		validEntries = append(validEntries, line)
+		m.dnsBlacklist[line] = true
+		validEntriesCount++
 	}
-
-	// Update the DNS blacklist
-	m.dnsBlacklist = validEntries
 
 	// Log the successful loading of the DNS blacklist
 	m.logger.Info("DNS blacklist loaded successfully",
 		zap.String("file", path),
-		zap.Int("valid_entries", len(validEntries)),
+		zap.Int("valid_entries", validEntriesCount),
 		zap.Int("total_lines", len(lines)),
 	)
 
