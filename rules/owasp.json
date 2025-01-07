@@ -1,0 +1,4850 @@
+[
+  {
+    "id": "unknown_318661438151991744749458832357658280929",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_316462319397992478683347396597962133973",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_251418655320094456756250685785027222963",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_281968792179697218127546138191090706283",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_262587260966556946003164549858882687861",
+    "phase": 2,
+    "pattern": "@unconditionalMatch",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_286240326412678865643891923271797078076",
+    "phase": 2,
+    "pattern": "!@rx (?:URLENCODED|MULTIPART|XML|JSON)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_194318926600956794760365427309383236086",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_144090877681401719641942772437544745426",
+    "phase": 2,
+    "pattern": "@eq 100",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_105155807922757724197320907345083142603",
+    "phase": 2,
+    "pattern": "@rx ^[a-f]*([0-9])[a-f]*([0-9])",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_73962080203979919902965364785956737050",
+    "phase": 2,
+    "pattern": "!@lt %{tx.sampling_percentage}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_222559497995623652083276256454555140219",
+    "phase": 2,
+    "pattern": "@lt %{tx.blocking_paranoia_level}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_70225534434299103290912606711507485704",
+    "phase": 2,
+    "pattern": "@streq GET /",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_218223648747748448268021202180336720277",
+    "phase": 2,
+    "pattern": "@ipMatch 127.0.0.1,::1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_335544305948189930085168605085897282394",
+    "phase": 2,
+    "pattern": "@endsWith (internal dummy connection)",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_315106939639725781837524038452169912434",
+    "phase": 2,
+    "pattern": "@rx ^(?:GET /|OPTIONS \\*) HTTP/[12]\\.[01]$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "911011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "911012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_84967600344091286617692100955218944583",
+    "phase": 2,
+    "pattern": "!@within %{tx.allowed_methods}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "911013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "911014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "911015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "911016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "911017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "911018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "913011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "913012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_100650693892744009684047772339656241192",
+    "phase": 2,
+    "pattern": "@pmFromFile scanners-user-agents.data",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "913013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "913014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "913015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "913016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "913017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "913018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "920011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "920012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_119620195544575918482727535563119111006",
+    "phase": 2,
+    "pattern": "!@rx ^\\d+$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_238704823342967715949680134441654892189",
+    "phase": 2,
+    "pattern": "@rx ^(?:GET|HEAD)$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_37899356744787804285952233350502393012",
+    "phase": 2,
+    "pattern": "!@rx ^0?$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_53639563764308975971458561378099420197",
+    "phase": 2,
+    "pattern": "!@eq 0",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_134422690010803586087329094722312409203",
+    "phase": 2,
+    "pattern": "!@within HTTP/2 HTTP/2.0 HTTP/3 HTTP/3.0",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_108112435167861649392922708010236783983",
+    "phase": 2,
+    "pattern": "@streq POST",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_148399770258389594174488799673123608776",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_160102426631794922437857450080027425551",
+    "phase": 2,
+    "pattern": "@rx (\\d+)-(\\d+)",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_39141179009904236248930585866781763559",
+    "phase": 2,
+    "pattern": "@lt %{tx.1}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_14494369220508884507602408398499956058",
+    "phase": 2,
+    "pattern": "@rx \\b(?:keep-alive|close),\\s?(?:keep-alive|close)\\b",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_218761213605986031299975022947391845393",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_186993797485309663944023290219041801311",
+    "phase": 2,
+    "pattern": "@validateUtf8Encoding",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_22527585047827364658627082470642974206",
+    "phase": 2,
+    "pattern": "@validateByteRange 1-255",
+    "targets": [
+      "ARGS",
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_112370848309161171248538547079134703317",
+    "phase": 2,
+    "pattern": "@rx ^$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_22636583874635891441546295247591900342",
+    "phase": 2,
+    "pattern": "!@rx ^OPTIONS$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_8933717208729373727587400155851245357",
+    "phase": 2,
+    "pattern": "!@pm AppleWebKit Android Business Enterprise Entreprise",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_228429578840078503832778778697833212698",
+    "phase": 2,
+    "pattern": "!@rx ^0$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_81119227744696107228138488564618555679",
+    "phase": 2,
+    "pattern": "@rx (?:^([\\d.]+|\\[[\\da-f:]+\\]|[\\da-f:]+)(:[\\d]+)?$)",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_108727846958310719812782704908127743707",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_252324495250948750341093590567392252378",
+    "phase": 2,
+    "pattern": "@gt %{tx.max_num_args}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_7542214376181762665290836236881537240",
+    "phase": 2,
+    "pattern": "@gt %{tx.arg_name_length}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_9338425847112158375263359176370082103",
+    "phase": 2,
+    "pattern": "@gt %{tx.arg_length}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_154307286640163735486670685652237153206",
+    "phase": 2,
+    "pattern": "@gt %{tx.total_arg_length}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_34257701280632579200189159806541634525",
+    "phase": 2,
+    "pattern": "@gt %{tx.max_file_size}",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_278630978950996796525267180449817132713",
+    "phase": 2,
+    "pattern": "@gt %{tx.combined_file_sizes}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_208252564759174807176202798977141524831",
+    "phase": 2,
+    "pattern": "@rx ^[^;\\s]+",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_12277270456550065580579557604284826440",
+    "phase": 2,
+    "pattern": "!@within %{tx.allowed_request_content_type}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_204626700533939838194034153590521677551",
+    "phase": 2,
+    "pattern": "!@within %{tx.allowed_request_content_type_charset}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_283297070254805652229283848828288295688",
+    "phase": 2,
+    "pattern": "@rx charset.*?charset",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_64184622440141750908498469987341138147",
+    "phase": 2,
+    "pattern": "!@within %{tx.allowed_http_versions}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_314099588076917497394627100827802690461",
+    "phase": 2,
+    "pattern": "@rx \\.([^.]+)$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_222490977111630626430452578785596702652",
+    "phase": 2,
+    "pattern": "@within %{tx.restricted_extensions}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_4893970677028852225127059907626825186",
+    "phase": 2,
+    "pattern": "@rx \\.[^.~]+~(?:/.*|)$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_144927912113591894342396246381905808373",
+    "phase": 2,
+    "pattern": "@rx ^.*$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_3986231803399431113652325695505707927",
+    "phase": 2,
+    "pattern": "@within %{tx.restricted_headers_basic}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_333773420725766899401680890054883143987",
+    "phase": 2,
+    "pattern": "@gt 100",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_265660596626305607189069635449679667250",
+    "phase": 2,
+    "pattern": "!@streq JSON",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_277121149216609803257734224506801766043",
+    "phase": 2,
+    "pattern": "@contains #",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_289625708253736567291480352291658083571",
+    "phase": 2,
+    "pattern": "@gt 1",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "920013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "920014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_165619484654043259855166641943788182982",
+    "phase": 2,
+    "pattern": "@rx ^bytes=(?:(?:\\d+)?-(?:\\d+)?\\s*,?\\s*){6}",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_33608809342439801783369841741506903912",
+    "phase": 2,
+    "pattern": "!@endsWith .pdf",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_218608264991966300938453918683743157830",
+    "phase": 2,
+    "pattern": "@endsWith .pdf",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_230688104579776295824846329224070714141",
+    "phase": 2,
+    "pattern": "@rx ^bytes=(?:(?:\\d+)?-(?:\\d+)?\\s*,?\\s*){63}",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_339628536643535700917599254745543884749",
+    "phase": 2,
+    "pattern": "@rx %[0-9a-fA-F]{2}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_296209999451443812456432255364743206592",
+    "phase": 2,
+    "pattern": "@validateByteRange 9,10,13,32-126,128-255",
+    "targets": [
+      "ARGS",
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_239262983219324096710234784020949645861",
+    "phase": 2,
+    "pattern": "@within %{tx.restricted_headers_extended}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_319548767248696094582359708833635481469",
+    "phase": 2,
+    "pattern": "@rx \\x25",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_276631765390034623458018019045307807206",
+    "phase": 2,
+    "pattern": "@validateUrlEncoding",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "920015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "920016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_168255851883164263643794479535018696413",
+    "phase": 2,
+    "pattern": "@validateByteRange 32-36,38-126",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_298051404081631967849810834085620052868",
+    "phase": 2,
+    "pattern": "!@rx ^(?:OPTIONS|CONNECT)$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_188716625595472417659575844386123780004",
+    "phase": 2,
+    "pattern": "!@pm AppleWebKit Android",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_52703437197119430238063482270505322959",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_96941467290735945752531892401703955569",
+    "phase": 2,
+    "pattern": "@gt 0",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_188883363242775792766665958705366963616",
+    "phase": 2,
+    "pattern": "!@rx ^(?:(?:max-age=[0-9]+|min-fresh=[0-9]+|no-cache|no-store|no-transform|only-if-cached|max-stale(?:=[0-9]+)?)(?:\\s*\\,\\s*|$)){1,7}$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "920017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "920018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_272509802130536159716793916035653946308",
+    "phase": 2,
+    "pattern": "@validateByteRange 38,44-46,48-58,61,65-90,95,97-122",
+    "targets": [
+      "ARGS",
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_36860299899402732403067938762341026854",
+    "phase": 2,
+    "pattern": "@validateByteRange 32,34,38,42-59,61,65-90,95,97-122",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_46973838001290613996465504535224446139",
+    "phase": 2,
+    "pattern": "!@rx ^(?:\\?[01])?$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_100614083827224558196859339314485930214",
+    "phase": 2,
+    "pattern": "@rx (?:^|[^\\x5c])\\x5c[cdeghijklmpqwxyz123456789]",
+    "targets": [
+      "ARGS",
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "921011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "921012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_83700185365813110482131797524089523165",
+    "phase": 2,
+    "pattern": "@rx (?:get|post|head|options|connect|put|delete|trace|track|patch|propfind|propatch|mkcol|copy|move|lock|unlock)\\s+[^\\s]+\\s+http/\\d",
+    "targets": [
+      "ARGS",
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_59813791749412497600800783645492887191",
+    "phase": 2,
+    "pattern": "@rx [\\r\\n]\\W*?(?:content-(?:type|length)|set-cookie|location):\\s*\\w",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_22580280002602056113929681559865318934",
+    "phase": 2,
+    "pattern": "@rx (?:\\bhttp/\\d|<(?:html|meta)\\b)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_2817114743349820473923351077556207701",
+    "phase": 2,
+    "pattern": "@rx [\\n\\r]",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_61254991692160913842896095372588027859",
+    "phase": 2,
+    "pattern": "@rx [\\n\\r]",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_111671698692827638279497429278281654828",
+    "phase": 2,
+    "pattern": "@rx [\\n\\r]+(?:\\s|location|refresh|(?:set-)?cookie|(?:x-)?(?:forwarded-(?:for|host|server)|host|via|remote-ip|remote-addr|originating-IP))\\s*:",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_49080767654288588192053351481320066989",
+    "phase": 2,
+    "pattern": "@rx [\\n\\r]",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_178894810131611868522142546234288564081",
+    "phase": 2,
+    "pattern": "@rx ^[^:\\(\\)\\&\\|\\!\\<\\>\\~]*\\)\\s*(?:\\((?:[^,\\(\\)\\=\\&\\|\\!\\<\\>\\~]+[><~]?=|\\s*[&!|]\\s*(?:\\)|\\()?\\s*)|\\)\\s*\\(\\s*[\\&\\|\\!]\\s*|[&!|]\\s*\\([^\\(\\)\\=\\&\\|\\!\\<\\>\\~]+[><~]?=[^:\\(\\)\\&\\|\\!\\<\\>\\~]*)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_140552972094567894563175378207004828210",
+    "phase": 2,
+    "pattern": "@rx ^[^\\s\\x0b,;]+[\\s\\x0b,;].*?(?:application/(?:.+\\+)?json|(?:application/(?:soap\\+)?|text/)xml)",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_128697908969914051879458742569967692872",
+    "phase": 2,
+    "pattern": "@rx unix:[^|]*\\|",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "921013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "921014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_91100702156302540331079744448354889226",
+    "phase": 2,
+    "pattern": "@rx ^[^\\s\\x0b,;]+[\\s\\x0b,;].*?\\b(?:((?:tex|multipar)t|application)|((?:audi|vide)o|image|cs[sv]|(?:vn|relate)d|p(?:df|lain)|json|(?:soa|cs)p|x(?:ml|-www-form-urlencoded)|form-data|x-amf|(?:octe|repor)t|stream)|([\\+/]))\\b",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "921015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "921016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_3073855113207554194602538743050275559",
+    "phase": 2,
+    "pattern": "@gt 0",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_259196413711843032993746507418823784448",
+    "phase": 2,
+    "pattern": "@rx .",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_94650888999310511786226475960950850216",
+    "phase": 2,
+    "pattern": "@gt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_97022012321440166746164460399376464017",
+    "phase": 2,
+    "pattern": "@rx (][^\\]]+$|][^\\]]+\\[)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "921017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "921018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_55918477778108068398878690260749224238",
+    "phase": 2,
+    "pattern": "@rx \\[",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_129990461840649354233562851562880603603",
+    "phase": 2,
+    "pattern": "!@eq 0",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_305557947198467813880249875706720896890",
+    "phase": 2,
+    "pattern": "!@within %{tx.allowed_request_content_type_charset}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_140768396994316223676608465162097164954",
+    "phase": 2,
+    "pattern": "@rx ^content-type\\s*:\\s*(.*)$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_24881238780263246936018842423032875389",
+    "phase": 2,
+    "pattern": "@rx content-transfer-encoding:(.*)",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_144103316251988235047457578621859180350",
+    "phase": 2,
+    "pattern": "@rx [^\\x21-\\x7E][\\x21-\\x39\\x3B-\\x7E]*:",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "930011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "930012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_100815838377238611859253745750980038286",
+    "phase": 2,
+    "pattern": "@rx (?:(?:^|[\\x5c/;])\\.{2,3}[\\x5c/;]|[\\x5c/;]\\.{2,3}(?:[\\x5c/;]|$))",
+    "targets": [
+      "ARGS",
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_214398986276458664785973072435374299299",
+    "phase": 2,
+    "pattern": "@pmFromFile lfi-os-files.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_73672532680639458772694153590822658244",
+    "phase": 2,
+    "pattern": "@pmFromFile restricted-files.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "930013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "930014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_118101015209754606363634128138079872026",
+    "phase": 2,
+    "pattern": "@pmFromFile lfi-os-files.data",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "930015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "930016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "930017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "930018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "931011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "931012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_332342272710269689112516107638201185387",
+    "phase": 2,
+    "pattern": "@rx ^(?i:file|ftps?|https?)://(?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_119357973188536251185395172288571075766",
+    "phase": 2,
+    "pattern": "@rx ^(?i:file|ftps?|https?).*?\\?+$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "931013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "931014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_235094207640953130108022747502211486532",
+    "phase": 2,
+    "pattern": "!@endsWith .%{request_headers.host}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "931015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "931016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "931017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "931018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "932011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "932012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_144694653687004130435144610033230286509",
+    "phase": 2,
+    "pattern": "@pmFromFile windows-powershell-commands.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_126864440485730035317244938859067313799",
+    "phase": 2,
+    "pattern": "@rx \\$(?:\\((?:.*|\\(.*\\))\\)|\\{.*\\}|\\[.*\\])|[<>]\\(.*\\)|/[0-9A-Z_a-z]*\\[!?.+\\]",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_126458345544313049977585045009980136023",
+    "phase": 2,
+    "pattern": "@rx \\b(?:for(?:/[dflr].*)? %+[^ ]+ in\\(.*\\)[\\s\\x0b]?do|if(?:/i)?(?: not)?(?: (?:e(?:xist|rrorlevel)|defined|cmdextversion)\\b|[ \\(].*(?:\\b(?:g(?:eq|tr)|equ|neq|l(?:eq|ss))\\b|==)))",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_177317523779326420157282557204984929459",
+    "phase": 2,
+    "pattern": "@rx ~(?:[\\+\\-](?:$|[\\s\\x0b0-9]+)|[0-9]+)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_117690353940183070037888446646201382893",
+    "phase": 2,
+    "pattern": "@rx !-\\d",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_90316864047481509356551011099445418105",
+    "phase": 2,
+    "pattern": "@pmFromFile unix-shell.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_296737555052497031150612468169493658140",
+    "phase": 2,
+    "pattern": "@rx ^\\(\\s*\\)\\s+{",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_251305867197272035217886543936028240053",
+    "phase": 2,
+    "pattern": "@rx ^\\(\\s*\\)\\s+{",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_302272746571179392762749257084512471868",
+    "phase": 2,
+    "pattern": "@pmFromFile restricted-upload.data",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "932013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "932014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_325217717500987450269622145018313990846",
+    "phase": 2,
+    "pattern": "@rx \\$(?:\\((?:.*|\\(.*\\))\\)|\\{.*\\}|\\[.*\\])|[<>]\\(.*\\)|/[0-9A-Z_a-z]*\\[!?.+\\]",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_54221991775912228004514351126195936295",
+    "phase": 2,
+    "pattern": "@rx ['\\*\\?\\x5c`][^\\n/]+/|/[^/]+?['\\*\\?\\x5c`]|\\$[!#\\$\\(\\*\\-0-9\\?-\\[_a-\\{]",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_329915190815234037075519468922562891782",
+    "phase": 2,
+    "pattern": "@rx /",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_25683191186052358595168940295026854035",
+    "phase": 2,
+    "pattern": "@rx \\s",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_79406064229372375358509470383322645485",
+    "phase": 2,
+    "pattern": "@rx ^[^#]+",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_64574464806440347315408154833211351270",
+    "phase": 2,
+    "pattern": "@rx ^[^\\.]+\\.[^;\\?]+[;\\?](.*(['\\*\\?\\x5c`][^\\n/]+/|/[^/]+?['\\*\\?\\x5c`]|\\$[!#\\$\\(\\*\\-0-9\\?-\\[_a-\\{]))",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_4538212806222669226076221710072285180",
+    "phase": 2,
+    "pattern": "@rx ^[^\\.]*?(?:['\\*\\?\\x5c`][^\\n/]+/|/[^/]+?['\\*\\?\\x5c`]|\\$[!#\\$\\(\\*\\-0-9\\?-\\[_a-\\{])",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_167423086757833345528578988021075357113",
+    "phase": 2,
+    "pattern": "!@rx [0-9]\\s*\\'\\s*[0-9]",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_330981347408156401470522900785505656704",
+    "phase": 2,
+    "pattern": "@rx \\r\\n.*?\\b(?:E(?:HLO [\\-\\.A-Za-z\\x17f\\x212a]{1,255}|XPN .{1,64})|HELO [\\-\\.A-Za-z\\x17f\\x212a]{1,255}|MAIL FROM:<.{1,64}@.{1,255}>|R(?:CPT TO:(?:<.{1,64}@.{1,255}>| )?<.{1,64}>|SET\\b)|VRFY .{1,64}(?: <.{1,64}@.{1,255}>|@.{1,255})|AUTH [\\-0-9A-Z_a-z\\x17f\\x212a]{1,20} (?:(?:[\\+/-9A-Z_a-z\\x17f\\x212a]{4})*(?:[\\+/-9A-Z_a-z\\x17f\\x212a]{2}=|[\\+/-9A-Z_a-z\\x17f\\x212a]{3}))?=|STARTTLS\\b|NOOP\\b(?: .{1,255})?)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_240600102234830632008469747091994633957",
+    "phase": 2,
+    "pattern": "@pmFromFile unix-shell.data",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "932015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "932016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_191779568224455534782367470969353511957",
+    "phase": 2,
+    "pattern": "@rx /(?:[?*]+[a-z/]+|[a-z/]+[?*]+)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_105231417395985083075916218245347900634",
+    "phase": 2,
+    "pattern": "@rx \\r\\n.*?\\b(?:DATA|QUIT|HELP(?: .{1,255})?)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_223351044182882721489639820943241891569",
+    "phase": 2,
+    "pattern": "@rx \\r\\n.*?\\b(?:(?:QUI|STA|RSE)T|NOOP|CAPA)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_72065615706338618337108744061852049756",
+    "phase": 2,
+    "pattern": "@rx !(?:\\d|!)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "932017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "932018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "933011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "933012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_165411553419062839887021170740192555195",
+    "phase": 2,
+    "pattern": "@rx .*\\.ph(?:p\\d*|tml|ar|ps|t|pt)\\.*$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_162686345704487157476030690325463456615",
+    "phase": 2,
+    "pattern": "@pmFromFile php-config-directives.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_61724673253778827625795077411930100613",
+    "phase": 2,
+    "pattern": "@rx \\b([^\\s]+)\\s*=[^=]",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_21655033629996902961839176878009680547",
+    "phase": 2,
+    "pattern": "@pmFromFile php-config-directives.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_311295013438094854403249975608117237724",
+    "phase": 2,
+    "pattern": "@pmFromFile php-variables.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_135185397994478132160358493761771630998",
+    "phase": 2,
+    "pattern": "@rx \\$\\s*\\{\\s*\\S[^\\{\\}]*\\}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_200235958294979029015712997008489336840",
+    "phase": 2,
+    "pattern": "@rx (?:bzip2|expect|glob|ogg|(?:ph|r)ar|ssh2(?:.(?:s(?:hell|(?:ft|c)p)|exec|tunnel))?|z(?:ip|lib))://",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_122153483466047503157775232288338910236",
+    "phase": 2,
+    "pattern": "@pmFromFile php-function-names-933150.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_137335249047799341055376752579549175748",
+    "phase": 2,
+    "pattern": "@rx \\$+(?:[a-zA-Z_\\x7f-\\xff][a-zA-Z0-9_\\x7f-\\xff]*|\\s*{.+})(?:\\s|\\[.+\\]|{.+}|/\\*.*\\*/|//.*|#.*)*\\(.*\\)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "933013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "933014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_255350197629752395717328640705205998203",
+    "phase": 2,
+    "pattern": "@pmFromFile php-function-names-933151.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_129279823432905765520025919358178076122",
+    "phase": 2,
+    "pattern": "@rx \\b([^\\s]+)\\s*[(]",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_335674969345506994088643881908393058605",
+    "phase": 2,
+    "pattern": "@pmFromFile php-function-names-933151.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "933015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "933016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_114158284183122971389136448917081200609",
+    "phase": 2,
+    "pattern": "@rx AUTH_TYPE|HTTP_(?:ACCEPT(?:_(?:CHARSET|ENCODING|LANGUAGE))?|CONNECTION|(?:HOS|USER_AGEN)T|KEEP_ALIVE|(?:REFERE|X_FORWARDED_FO)R)|ORIG_PATH_INFO|PATH_(?:INFO|TRANSLATED)|QUERY_STRING|REQUEST_URI",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_181668344942832971639999934953001349661",
+    "phase": 2,
+    "pattern": "@rx .*\\.(?:php\\d*|phtml)\\..*$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_122328571488150671431165262132120923666",
+    "phase": 2,
+    "pattern": "@pm ?>",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "933017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "933018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "934011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "934012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_93829216347916662902873094444844148832",
+    "phase": 2,
+    "pattern": "@pmFromFile ssrf.data",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_157673125424064822270660002461564911326",
+    "phase": 2,
+    "pattern": "@rx (?:__proto__|constructor\\s*(?:\\.|\\[)\\s*prototype)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_50382409835875610238902301985901660103",
+    "phase": 2,
+    "pattern": "@rx Process[\\s\\x0b]*\\.[\\s\\x0b]*spawn[\\s\\x0b]*\\(",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "934013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "934014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_269624736268369303005724658732434569526",
+    "phase": 2,
+    "pattern": "@rx (?:close|exists|fork|(?:ope|spaw)n|re(?:ad|quire)|w(?:atch|rite))[\\s\\x0b]*\\(",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_163258710740305307283243559068471822273",
+    "phase": 2,
+    "pattern": "@rx ^(?:[^@]|@[^\\{])*@+\\{.*\\}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "934015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "934016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "934017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "934018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "941011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "941012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_258772197427818958456309890680143962688",
+    "phase": 2,
+    "pattern": "!@validateByteRange 20, 45-47, 48-57, 65-90, 95, 97-122",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_305727137369185221410630198527720037794",
+    "phase": 2,
+    "pattern": "@detectXSS",
+    "targets": [
+      "ARGS",
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_193688190960026221239528701999760695964",
+    "phase": 2,
+    "pattern": "@rx (?i:<style.*?>.*?(?:@[i\\x5c]|(?:[:=]|&#x?0*(?:58|3A|61|3D);?).*?(?:[(\\x5c]|&#x?0*(?:40|28|92|5C);?)))",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_135334656026500880980315463357477292924",
+    "phase": 2,
+    "pattern": "@rx (?i:<.*[:]?vmlframe.*?[\\s/+]*?src[\\s/+]*=)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_161564987281846912116087493396872006550",
+    "phase": 2,
+    "pattern": "@rx <[?]?import[\\s/+\\S]*?implementation[\\s/+]*?=",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_300617675485523093548281822571982981435",
+    "phase": 2,
+    "pattern": "@rx (?i:<META[\\s/+].*?charset[\\s/+]*=)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_75716604685649870244548645025596665339",
+    "phase": 2,
+    "pattern": "@rx \\xbc[^\\xbe>]*[\\xbe>]|<[^\\xbe]*\\xbe",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_2563691861806462686226898256980324618",
+    "phase": 2,
+    "pattern": "@rx (?:\\xbc\\s*/\\s*[^\\xbe>]*[\\xbe>])|(?:<\\s*/\\s*[^\\xbe]*\\xbe)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_321099737431699206070163545318632319660",
+    "phase": 2,
+    "pattern": "@rx \\+ADw-.*(?:\\+AD4-|>)|<.*\\+AD4-",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_33869901925705752958313147107999935856",
+    "phase": 2,
+    "pattern": "@rx ![!+ ]\\[\\]",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_62245839338363967044111969351317222876",
+    "phase": 2,
+    "pattern": "@rx (?:self|document|this|top|window)\\s*(?:/\\*|[\\[)]).+?(?:\\]|\\*/)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_296723851941678256848315407926936959526",
+    "phase": 2,
+    "pattern": "@rx ((?:\\[[^\\]]*\\][^.]*\\.)|Reflect[^.]*\\.).*(?:map|sort|apply)[^.]*\\..*call[^`]*`.*`",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "941013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "941014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_215172245311181297021656817278281437353",
+    "phase": 2,
+    "pattern": "@detectXSS",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_84296651706507746230596299593068960396",
+    "phase": 2,
+    "pattern": "@contains -->",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_255310321388260002758069039766208260762",
+    "phase": 2,
+    "pattern": "@rx <(?:a|abbr|acronym|address|applet|area|audioscope|b|base|basefront|bdo|bgsound|big|blackface|blink|blockquote|body|bq|br|button|caption|center|cite|code|col|colgroup|comment|dd|del|dfn|dir|div|dl|dt|em|embed|fieldset|fn|font|form|frame|frameset|h1|head|hr|html|i|iframe|ilayer|img|input|ins|isindex|kdb|keygen|label|layer|legend|li|limittext|link|listing|map|marquee|menu|meta|multicol|nobr|noembed|noframes|noscript|nosmartquotes|object|ol|optgroup|option|p|param|plaintext|pre|q|rt|ruby|s|samp|script|select|server|shadow|sidebar|small|spacer|span|strike|strong|style|sub|sup|table|tbody|td|textarea|tfoot|th|thead|title|tr|tt|u|ul|var|wbr|xml|xmp)\\W",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_246718278525787343063022071545143001273",
+    "phase": 2,
+    "pattern": "@rx {{.*?}}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "941015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "941016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "941017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "941018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "942011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "942012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_90373112230800742437171344316875541901",
+    "phase": 2,
+    "pattern": "@detectSQLi",
+    "targets": [
+      "ARGS",
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_208390042211962284738934257033724791774",
+    "phase": 2,
+    "pattern": "@rx (?i:sleep\\(\\s*?\\d*?\\s*?\\)|benchmark\\(.*?\\,.*?\\))",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_150215648674398417166640765948412690068",
+    "phase": 2,
+    "pattern": "@rx ^(?i:-0000023456|4294967295|4294967296|2147483648|2147483647|0000012345|-2147483648|-2147483649|0000023456|2.2250738585072007e-308|2.2250738585072011e-308|1e309)$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "942013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "942014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_62450572371401725637185863638761262522",
+    "phase": 2,
+    "pattern": "@streq %{TX.2}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_230522467639995839241742426251417325503",
+    "phase": 2,
+    "pattern": "!@streq %{TX.2}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_323380090500500233334033793435338562611",
+    "phase": 2,
+    "pattern": "@rx (?i:^[\\W\\d]+\\s*?(?:alter|union)\\b)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_22230652919748492359991698797087725329",
+    "phase": 2,
+    "pattern": "@rx [a-zA-Z0-9_-]{61,61}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_121385644118550309166891609883727159218",
+    "phase": 2,
+    "pattern": "@rx [a-zA-Z0-9_-]{91,91}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_299713251330453765425271681049655262900",
+    "phase": 2,
+    "pattern": "@rx /\\*!?|\\*/|[';]--|--(?:[\\s\\x0b]|[^\\-]*?-)|[^&\\-]#.*?[\\s\\x0b]|;?\\x00",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_164906691477985578947907004323374405943",
+    "phase": 2,
+    "pattern": "!@rx ^ey[\\-0-9A-Z_a-z]+\\.ey[\\-0-9A-Z_a-z]+\\.[\\-0-9A-Z_a-z]+$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_168181368643678147157693640027589067144",
+    "phase": 2,
+    "pattern": "@rx (?i:\\b0x[a-f\\d]{3,})",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_302686533312502570837285098787202081019",
+    "phase": 2,
+    "pattern": "@rx (?:`(?:(?:[\\w\\s=_\\-+{}()<@]){2,29}|(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)`)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_216949768010758285647002489341820940821",
+    "phase": 2,
+    "pattern": "@rx ^(?:and|or)$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_183263554621446394218176575912376192504",
+    "phase": 2,
+    "pattern": "@detectSQLi",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "942015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "942016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_229806251568714293698193460473751644877",
+    "phase": 2,
+    "pattern": "@rx \\W{4}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_238149218051757413609542361805699376478",
+    "phase": 2,
+    "pattern": "@rx (?:'(?:(?:[\\w\\s=_\\-+{}()<@]){2,29}|(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)')",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_113786422986471368334812127047028678701",
+    "phase": 2,
+    "pattern": "@rx ';",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "942017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "942018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "943011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "943012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_114173469284015576743372542825078740783",
+    "phase": 2,
+    "pattern": "@rx (?i:\\.cookie\\b.*?;\\W*?(?:expires|domain)\\W*?=|\\bhttp-equiv\\W+set-cookie\\b)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_82189365786084558938742564411835498070",
+    "phase": 2,
+    "pattern": "@rx ^(?:jsessionid|aspsessionid|asp\\.net_sessionid|phpsession|phpsessid|weblogicsession|session_id|session-id|cfid|cftoken|cfsid|jservsession|jwsession)$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_163288986237616175433841442366690205415",
+    "phase": 2,
+    "pattern": "@rx ^(?:ht|f)tps?://(.*?)/",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_155576773396123816175798402159727433290",
+    "phase": 2,
+    "pattern": "!@endsWith %{request_headers.host}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_117910210396978816463555736676695199444",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "943013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "943014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "943015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "943016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "943017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "943018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "944011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "944012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_36498493989431903338125043975504538573",
+    "phase": 2,
+    "pattern": "@rx (?:runtime|processbuilder)",
+    "targets": [
+      "ARGS",
+      "BODY",
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_79041635488844243535427613593298425357",
+    "phase": 2,
+    "pattern": "@rx (?:runtime|processbuilder)",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_15957328303783359570532097058236492417",
+    "phase": 2,
+    "pattern": "@rx .*\\.(?:jsp|jspx)\\.*$",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "944013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "944014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "944015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "944016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "944017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "944018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_35034757955382438581517613242038715361",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_64954032797094726999640370485501185448",
+    "phase": 2,
+    "pattern": "@ge 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_136284466176355699680053494640152007838",
+    "phase": 2,
+    "pattern": "@ge 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_154263452218753551486122470222894209702",
+    "phase": 2,
+    "pattern": "@ge 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_70166857589526140641094479565559837072",
+    "phase": 2,
+    "pattern": "@ge %{tx.inbound_anomaly_score_threshold}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_84881851495696435651258916960331284091",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "949011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "949012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "949013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "949014",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "949015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "949016",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "949017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "949018",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_83561651779132078737631863141302589326",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_331555561991412948236271105924783768706",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "950011",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_13213342957881055228237494701425556422",
+    "phase": 2,
+    "pattern": "@rx (?:<(?:TITLE>Index of.*?<H|title>Index of.*?<h)1>Index of|>\\[To Parent Directory\\]</[Aa]><br>)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_283328572821718577525808800861722545585",
+    "phase": 2,
+    "pattern": "@rx ^#\\!\\s?/",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "950013",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_274678219310606399384907275045581804846",
+    "phase": 2,
+    "pattern": "@rx ^5\\d{2}$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "950015",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "950017",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_271460458579780045093228651152813401424",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "951011",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_39321814324820337754133333190311022836",
+    "phase": 2,
+    "pattern": "!@pmFromFile sql-errors.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_99558164276735802420297691182657669337",
+    "phase": 2,
+    "pattern": "@rx (?i:JET Database Engine|Access Database Engine|\\[Microsoft\\]\\[ODBC Microsoft Access Driver\\])",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_221901854265772353027406729424321720858",
+    "phase": 2,
+    "pattern": "@rx (?i:DB2 SQL error:|\\[IBM\\]\\[CLI Driver\\]\\[DB2/6000\\]|CLI Driver.*DB2|DB2 SQL error|db2_\\w+\\()",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_53092787966514287579611268772820902128",
+    "phase": 2,
+    "pattern": "@rx (?i:\\[DM_QUERY_E_SYNTAX\\]|has occurred in the vicinity of:)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_84507391070846749069025340388085596232",
+    "phase": 2,
+    "pattern": "@rx (?i:An illegal character has been found in the statement|com\\.informix\\.jdbc|Exception.*Informix)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_165899595163782914431138679291310789389",
+    "phase": 2,
+    "pattern": "@rx (?i:Warning.*ingres_|Ingres SQLSTATE|Ingres\\W.*Driver)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_267887040770373319030530735950963278458",
+    "phase": 2,
+    "pattern": "@rx (?i:<b>Warning</b>: ibase_|Unexpected end of command in statement)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_156238502641276955138941258641259263330",
+    "phase": 2,
+    "pattern": "@rx (?i:SQL error.*POS[0-9]+.*|Warning.*maxdb.*)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "951013",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "951015",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "951017",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_129563090670915407231346101642234380405",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "952011",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_316591041147582725327915623068050617569",
+    "phase": 2,
+    "pattern": "@pmFromFile java-code-leakages.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_104280668027092442996523614017621539228",
+    "phase": 2,
+    "pattern": "@pmFromFile java-errors.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "952013",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "952015",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "952017",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_115656033212133961588303356138276840988",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "953011",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_31082949159407434258328677043543007866",
+    "phase": 2,
+    "pattern": "@pmFromFile php-errors.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_225077114850038849062693206685092798694",
+    "phase": 2,
+    "pattern": "@rx (?:\\b(?:f(?:tp_(?:nb_)?f?(?:ge|pu)t|get(?:s?s|c)|scanf|write|open|read)|gz(?:(?:encod|writ)e|compress|open|read)|s(?:ession_start|candir)|read(?:(?:gz)?file|dir)|move_uploaded_file|(?:proc_|bz)open|call_user_func)|\\$_(?:(?:pos|ge)t|session))\\b",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "953013",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_20928364897861372166530580436742193045",
+    "phase": 2,
+    "pattern": "@pmFromFile php-errors-pl2.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "953015",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "953017",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_208467103770864474625501235742327546973",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "954011",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_212951460633999062313374013219183186968",
+    "phase": 2,
+    "pattern": "@rx [a-z]:\\x5cinetpub\\b",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_54899677342278212680193901184930566423",
+    "phase": 2,
+    "pattern": "@rx (?:Microsoft OLE DB Provider for SQL Server(?:</font>.{1,20}?error '800(?:04005|40e31)'.{1,40}?Timeout expired| \\(0x80040e31\\)<br>Timeout expired<br>)|<h1>internal server error</h1>.*?<h2>part of the server has crashed or it has a configuration error\\.</h2>|cannot connect to the server: timed out)",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_291947690630687955209947242468528138672",
+    "phase": 2,
+    "pattern": "@pmFromFile iis-errors.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_236728679200425664435077822361915424664",
+    "phase": 2,
+    "pattern": "!@rx ^404$",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_247145148594726918115246360828818300271",
+    "phase": 2,
+    "pattern": "@rx \\bServer Error in.{0,50}?\\bApplication\\b",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "954013",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "954015",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "954017",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_3484676592613523649901885221281121020",
+    "phase": 2,
+    "pattern": "@pm gzip compress deflate br zstd",
+    "targets": [
+      "HEADERS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "955011",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_317017572924699792022572148255807419456",
+    "phase": 2,
+    "pattern": "@pmFromFile web-shells-php.data",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_209004181560433095938170633058879876808",
+    "phase": 2,
+    "pattern": "@rx <title>r57 Shell Version [0-9.]+</title>|<title>r57 shell</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_50568884675764493818573528216520135216",
+    "phase": 2,
+    "pattern": "@rx ^<html><head><meta http-equiv='Content-Type' content='text/html; charset=(?:Windows-1251|UTF-8)?'><title>.*?(?: -)? W[Ss][Oo] [0-9.]+</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_274846326766282634062904680109719241879",
+    "phase": 2,
+    "pattern": "@rx B4TM4N SH3LL</title>.*<meta name='author' content='k4mpr3t'/>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_12025252069468182133352786628516801763",
+    "phase": 2,
+    "pattern": "@rx <title>Mini Shell</title>.*Developed By LameHacker",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_123521549965682073275956996683751106930",
+    "phase": 2,
+    "pattern": "@rx <title>\\.:: .* ~ Ashiyane V [0-9.]+ ::\\.</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_123883282465639289400748006082894313598",
+    "phase": 2,
+    "pattern": "@rx <title>Symlink_Sa [0-9.]+</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_147432900384247376452439100192078102624",
+    "phase": 2,
+    "pattern": "@rx <title>CasuS [0-9.]+ by MafiABoY</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_179187179852411519569022352941342237648",
+    "phase": 2,
+    "pattern": "@rx ^<html>\\r\\n<head>\\r\\n<title>GRP WebShell [0-9.]+ ",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_219345742728062194543596941988627682760",
+    "phase": 2,
+    "pattern": "@rx <small>NGHshell [0-9.]+ by Cr4sh</body></html>\\n$",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_24056346799106836816803141092117691393",
+    "phase": 2,
+    "pattern": "@rx <title>SimAttacker - (?:Version|Vrsion) : [0-9.]+ - ",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_52430040003621387576666793776179908553",
+    "phase": 2,
+    "pattern": "@rx ^<!DOCTYPE html>\\n<html>\\n<!-- By Artyum .*<title>Web Shell</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_187952530763630079303635872175440856708",
+    "phase": 2,
+    "pattern": "@rx <title>lama's'hell v. [0-9.]+</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_146732975961108374431528261047895853145",
+    "phase": 2,
+    "pattern": "@rx ^ *<html>\\n[ ]+<head>\\n[ ]+<title>lostDC - ",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_189204465139291726149720338186577880319",
+    "phase": 2,
+    "pattern": "@rx ^<title>PHP Web Shell</title>\\r\\n<html>\\r\\n<body>\\r\\n    <!-- Replaces command with Base64-encoded Data -->",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_91615220981170071393278309344105950497",
+    "phase": 2,
+    "pattern": "@rx ^<html>\\n<head>\\n<title>Ru24PostWebShell ",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_72233844058557266251473997574695211776",
+    "phase": 2,
+    "pattern": "@rx <title>s72 Shell v[0-9.]+ Codinf by Cr@zy_King</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_283453286244251021134946781508304966408",
+    "phase": 2,
+    "pattern": "@rx ^ <html>\\n\\n<head>\\n\\n<title>g00nshell v[0-9.]+ ",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_285508021608619927442066146520663424817",
+    "phase": 2,
+    "pattern": "@contains <title>punkholicshell</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_71491058455251572949943174051136847461",
+    "phase": 2,
+    "pattern": "@rx ^<html>\\n      <head>\\n             <title>azrail [0-9.]+ by C-W-M</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_78332494593202836658553376770366029710",
+    "phase": 2,
+    "pattern": "@rx >SmEvK_PaThAn Shell v[0-9]+ coded by <a href=",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_233820624862212087044037111214307137674",
+    "phase": 2,
+    "pattern": "@rx ^<html>\\n<title>.*? ~ Shell I</title>\\n<head>\\n<style>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_59687088284248469315209428407718359067",
+    "phase": 2,
+    "pattern": "@rx ^ <html><head><title>:: b374k m1n1 [0-9.]+ ::</title>",
+    "targets": [
+      "BODY"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "955013",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "955015",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "955017",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_65968117326386351645415209591094246188",
+    "phase": 2,
+    "pattern": "@ge 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_305379359558018776862871660283210621998",
+    "phase": 2,
+    "pattern": "@ge 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_21758560834036043613814358474127461021",
+    "phase": 2,
+    "pattern": "@ge 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_237842289153788708711735880323514226035",
+    "phase": 2,
+    "pattern": "@ge 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_110056301750449022400192688768622437411",
+    "phase": 2,
+    "pattern": "@ge %{tx.outbound_anomaly_score_threshold}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "unknown_35311314273056419887488148871373472381",
+    "phase": 2,
+    "pattern": "@eq 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "959011",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "959013",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "959015",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "959017",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980041",
+    "phase": 2,
+    "pattern": "@eq 0",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980042",
+    "phase": 2,
+    "pattern": "@ge 5",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980044",
+    "phase": 2,
+    "pattern": "@ge %{tx.inbound_anomaly_score_threshold}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980045",
+    "phase": 2,
+    "pattern": "@ge %{tx.outbound_anomaly_score_threshold}",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980046",
+    "phase": 2,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980049",
+    "phase": 2,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980050",
+    "phase": 2,
+    "pattern": "@gt 0",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980051",
+    "phase": 2,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980011",
+    "phase": 1,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980012",
+    "phase": 2,
+    "pattern": "@lt 1",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980013",
+    "phase": 1,
+    "pattern": "@lt 2",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980015",
+    "phase": 1,
+    "pattern": "@lt 3",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  },
+  {
+    "id": "980017",
+    "phase": 1,
+    "pattern": "@lt 4",
+    "targets": [
+      "ARGS"
+    ],
+    "severity": "LOW",
+    "action": "block",
+    "score": 3,
+    "description": "No description provided."
+  }
+]
