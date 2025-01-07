@@ -22,18 +22,57 @@ jobs:
           sudo apt update
           sudo apt install -y wget git build-essential
 
-      - name: Install Go
+      - name: Install Go 1.22.3
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: '1.22.3'
+
+      - name: Validate Go Installation
+        run: |
+          go version
+          if ! go version | grep -q "go1.22.3"; then
+            echo "Go installation failed or incorrect version"
+            exit 1
+          fi
 
       - name: Clone caddy-waf Repository
         run: |
           git clone https://github.com/fabriziosalmi/caddy-waf.git
           cd caddy-waf
+
+      - name: Validate Repository Cloning
+        run: |
+          if [ ! -d "caddy-waf" ]; then
+            echo "Repository cloning failed"
+            exit 1
+          fi
+
+      - name: Install Go Dependencies
+        run: |
+          cd caddy-waf
           go mod tidy
           go get -v github.com/fabriziosalmi/caddy-waf github.com/caddyserver/caddy/v2 github.com/oschwald/maxminddb-golang
+
+      - name: Validate Dependency Installation
+        run: |
+          cd caddy-waf
+          if [ ! -f "go.sum" ]; then
+            echo "Dependency installation failed"
+            exit 1
+          fi
+
+      - name: Download GeoLite2 Country Database
+        run: |
+          cd caddy-waf
           wget https://git.io/GeoLite2-Country.mmdb
+
+      - name: Validate GeoLite2 Download
+        run: |
+          cd caddy-waf
+          if [ ! -f "GeoLite2-Country.mmdb" ]; then
+            echo "GeoLite2 database download failed"
+            exit 1
+          fi
 
       - name: Build Caddy with caddy-waf
         run: |
@@ -41,15 +80,31 @@ jobs:
           go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
           xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
 
+      - name: Validate Build
+        run: |
+          cd caddy-waf
+          if [ ! -f "caddy" ]; then
+            echo "Caddy build failed"
+            exit 1
+          fi
+
       - name: Format Caddyfile
         run: |
           cd caddy-waf
           ./caddy fmt --overwrite
 
+      - name: Validate Caddyfile Formatting
+        run: |
+          cd caddy-waf
+          if [ $? -ne 0 ]; then
+            echo "Caddyfile formatting failed"
+            exit 1
+          fi
+
       - name: Test Caddy Run and Verify WAF Logs
         run: |
           cd caddy-waf
-          ./caddy run &> caddy.log &
+          timeout 10 ./caddy run | tee output.log &
           sleep 5
           
           if ! pgrep -f "caddy run"; then
@@ -57,13 +112,13 @@ jobs:
             exit 1
           fi
           
-          if ! grep -q "WAF initialized" caddy.log; then
-            echo "WAF module not initialized correctly"
-            cat caddy.log
+          if ! grep -q "WAF middleware provisioned successfully" output.log; then
+            echo "WAF module did not initialize correctly"
+            cat output.log
             exit 1
           fi
           
-          echo "Caddy WAF build and run successful with WAF initialized"
+          echo "Caddy WAF build and run successful with WAF middleware provisioned"
 
       - name: Clean Up
         if: always()
