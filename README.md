@@ -16,6 +16,16 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
 -   **Detailed logging and monitoring** for security analysis.
 -   **Dynamic rule reloading** without server restart.
 
+```
+2025/01/07 13:40:46.649	INFO	http.handlers.waf	Provisioning WAF middleware	{"log_level": "info", "log_json": false, "anomaly_threshold": 10}
+2025/01/07 13:40:46.649	INFO	http.handlers.waf	Rate limit configuration	{"requests": 1000, "window": 60, "cleanup_interval": 300}
+2025/01/07 13:40:46.651	INFO	http.handlers.waf	GeoIP database loaded successfully	{"path": "GeoLite2-Country.mmdb"}
+2025/01/07 13:40:46.658	INFO	http.handlers.waf	Rules loaded successfully	{"file": "rules.json", "total_rules": 416, "invalid_rules": 0}
+2025/01/07 13:40:46.662	INFO	http.handlers.waf	Total rules loaded	{"total_rules": 416}
+2025/01/07 13:40:46.668	INFO	http.handlers.waf	IP blacklist loaded successfully	{"file": "ip_blacklist.txt", "valid_entries": 19219, "total_lines": 19220}
+2025/01/07 13:40:46.732	INFO	http.handlers.waf	DNS blacklist loaded successfully	{"file": "dns_blacklist.txt", "valid_entries": 766270, "total_lines": 766271}
+2025/01/07 13:40:46.732	INFO	http.handlers.waf	WAF middleware provisioned successfully
+```
 
 ## 📑 Table of Contents
 1.  [🚀 Installation](#-installation)
