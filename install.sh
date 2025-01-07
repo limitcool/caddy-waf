@@ -120,3 +120,4 @@ print_success "Caddyfile formatted." || print_error "Failed to format Caddyfile.
 echo -e "🚀 Starting Caddy server..."
 ./caddy run && \
 print_success "Caddy is running." || print_error "Failed to start Caddy."
+
