@@ -1684,17 +1684,21 @@ func (m *Middleware) ReloadConfig() error {
 	// Log the start of the reload process
 	m.logger.Info("Reloading WAF configuration")
 
-	// Reload rules
-	if err := m.loadRulesFromFiles(); err != nil {
+	// Create a temporary map to hold the new rules
+	newRules := make(map[int][]Rule)
+
+	// Reload rules into the temporary map
+	if err := m.loadRulesIntoMap(newRules); err != nil {
 		m.logger.Error("Failed to reload rules",
 			zap.Error(err),
 		)
 		return fmt.Errorf("failed to reload rules: %v", err)
 	}
 
-	// Reload IP blacklist
+	// Reload IP blacklist into a temporary map
+	newIPBlacklist := make(map[string]bool)
 	if m.IPBlacklistFile != "" {
-		if err := m.loadIPBlacklistFromFile(m.IPBlacklistFile); err != nil {
+		if err := m.loadIPBlacklistIntoMap(m.IPBlacklistFile, newIPBlacklist); err != nil {
 			m.logger.Error("Failed to reload IP blacklist",
 				zap.String("file", m.IPBlacklistFile),
 				zap.Error(err),
@@ -1705,9 +1709,10 @@ func (m *Middleware) ReloadConfig() error {
 		m.logger.Debug("No IP blacklist file specified, skipping reload")
 	}
 
-	// Reload DNS blacklist
+	// Reload DNS blacklist into a temporary map
+	newDNSBlacklist := make(map[string]bool)
 	if m.DNSBlacklistFile != "" {
-		if err := m.loadDNSBlacklistFromFile(m.DNSBlacklistFile); err != nil {
+		if err := m.loadDNSBlacklistIntoMap(m.DNSBlacklistFile, newDNSBlacklist); err != nil {
 			m.logger.Error("Failed to reload DNS blacklist",
 				zap.String("file", m.DNSBlacklistFile),
 				zap.Error(err),
@@ -1718,9 +1723,81 @@ func (m *Middleware) ReloadConfig() error {
 		m.logger.Debug("No DNS blacklist file specified, skipping reload")
 	}
 
+	// Swap the old configuration with the new one atomically
+	m.Rules = newRules
+	m.ipBlacklist = newIPBlacklist
+	m.dnsBlacklist = newDNSBlacklist
+
 	// Log the successful completion of the reload process
 	m.logger.Info("WAF configuration reloaded successfully")
 
+	return nil
+}
+
+// loadRulesIntoMap loads rules into a provided map instead of directly updating the middleware's rule set
+func (m *Middleware) loadRulesIntoMap(rulesMap map[int][]Rule) error {
+	for _, file := range m.RuleFiles {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			m.logger.Error("Failed to read rule file",
+				zap.String("file", file),
+				zap.Error(err),
+			)
+			return fmt.Errorf("failed to read rule file: %s, error: %v", file, err)
+		}
+
+		var rules []Rule
+		if err := json.Unmarshal(content, &rules); err != nil {
+			m.logger.Error("Failed to unmarshal rules from file",
+				zap.String("file", file),
+				zap.Error(err),
+			)
+			return fmt.Errorf("failed to unmarshal rules from file: %s, error: %v. Ensure valid JSON.", file, err)
+		}
+
+		for _, rule := range rules {
+			if _, ok := rulesMap[rule.Phase]; !ok {
+				rulesMap[rule.Phase] = []Rule{}
+			}
+			rulesMap[rule.Phase] = append(rulesMap[rule.Phase], rule)
+		}
+	}
+	return nil
+}
+
+// loadIPBlacklistIntoMap loads IP blacklist entries into a provided map
+func (m *Middleware) loadIPBlacklistIntoMap(path string, blacklistMap map[string]bool) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read IP blacklist file: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		blacklistMap[line] = true
+	}
+	return nil
+}
+
+// loadDNSBlacklistIntoMap loads DNS blacklist entries into a provided map
+func (m *Middleware) loadDNSBlacklistIntoMap(path string, blacklistMap map[string]bool) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read DNS blacklist file: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.ToLower(strings.TrimSpace(line))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		blacklistMap[line] = true
+	}
 	return nil
 }
 
