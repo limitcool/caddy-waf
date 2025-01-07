@@ -597,15 +597,24 @@ func (m *Middleware) getCountryCode(remoteAddr string, geoIP *maxminddb.Reader) 
 }
 
 func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, fields ...zap.Field) {
-	// Atomically update the state
-	stateUpdate := func() {
-		state.Blocked = true
-		state.StatusCode = statusCode
-		state.ResponseWritten = true
-	}
-
-	// Execute the state update only if the response hasn't been written yet
+	// Atomically update the state and write response if not already written
 	if !state.ResponseWritten {
+		stateUpdate := func() {
+			state.Blocked = true
+			state.StatusCode = statusCode
+			state.ResponseWritten = true
+		}
+
+		// Write the buffered response body if using responseRecorder
+		if recorder, ok := w.(*responseRecorder); ok && recorder.body.Len() > 0 {
+			// Attempt to write the buffered body to the client
+			if _, err := w.Write(recorder.body.Bytes()); err != nil {
+				m.logger.Error("Failed to write recorded body on block", zap.Error(err), zap.String("log_id", r.Context().Value("logID").(string)))
+				// If writing the buffered body fails, we might still want to proceed with blocking
+				// and setting the appropriate status code.
+			}
+		}
+
 		stateUpdate()
 
 		// Extract or generate log ID from request context
@@ -629,13 +638,13 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 		// Log the blocked request at WARN level
 		m.logRequest(zapcore.WarnLevel, "Request blocked", blockFields...)
 
-		// Respond with status code
+		// Respond with the status code
 		w.WriteHeader(statusCode)
 	} else {
 		m.logger.Debug("blockRequest called but response already written",
 			zap.Int("intended_status_code", statusCode),
 			zap.String("path", r.URL.Path),
-			zap.String("log_id", r.Context().Value("logID").(string)), // Assuming logID is in context
+			zap.String("log_id", r.Context().Value("logID").(string)),
 		)
 	}
 }
