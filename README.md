@@ -157,8 +157,8 @@ caddy fmt --overwrite
 | `ip_blacklist_file` | File with blocked IPs/CIDR ranges | `ip_blacklist_file blacklist.txt` |
 | `dns_blacklist_file` | File with blocked domains | `dns_blacklist_file domains.txt` |
 | `rate_limit` | Rate limiting config | `rate_limit 100 1m` |
-| `block_countries` | Country blocking config | `block_countries GeoLite2-Country.mmdb RU CN NK` |
-| `whitelist_countries` | Country whitelisting config  | `whitelist_countries GeoLite2-Country.mmdb US GB CA`|
+| `block_countries` | Country blocking config | `block_countries GeoLite2-Country.mmdb RU CN KP` |
+| `whitelist_countries` | Country whitelisting config  | `whitelist_countries GeoLite2-Country.mmdb US`|
 | `log_severity` | Sets the minimum logging severity level for this module. | `log_severity debug`|
 | `log_json` | Enables JSON log output | `log_json` |
 
@@ -185,16 +185,23 @@ Rules are defined in a JSON file. Each rule specifies a pattern to match, target
 
 ### Rule Fields
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| `id` | Unique rule identifier | `sql_injection` |
-| `phase` | Processing phase (1-2) | `1` |
-| `pattern` | Regular expression pattern | `(?i)(?:select|insert)` |
-| `targets` | Areas to inspect | `["ARGS", "BODY"]` |
-| `severity` | Rule severity (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`) | `CRITICAL` |
-| `action` | Action to take (`block`, `log`) | default: `block` |
-| `score` | Score for anomaly detection | `10` |
-| `description` | Rule description | `Block SQL injection attempts.` |
+| Field          | Description                                                             | Example                               |
+|----------------|-------------------------------------------------------------------------|---------------------------------------|
+| `id`           | Unique identifier for the rule, used to track and manage security policies.| `sql_injection`                       |
+| `phase`        | Processing phase, executed in order (1 - request headers, 2 - body, 3 - response headers, 4 - response body).| `1`                                   |
+| `pattern`      | Regular expression pattern for detecting threats, allows precise filtering of malicious payloads. | `(?i)(?:insert)`                  |
+| `targets`      | Specifies areas of the request to inspect for malicious content (URI, ARGS, BODY, HEADERS, COOKIES). | `["ARGS", "BODY"]`                    |
+| `severity`     | Rule severity indicates the risk level of the threat (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`). | `CRITICAL`                                |
+| `action`       | Defines the action to take when the rule matches (`block` or `log`). If unspecified, the default action is `block`. | default: `block`               |
+| `score`        | Score added to the anomaly detection system when a rule matches, contributing to overall request evaluation.| `10`                                  |
+| `description`  | Provides a human-readable explanation of the rule's purpose and conditions it checks for. | `Block SQL injection attempts.`       |
+| `mode`         | Optional field that allows switching between strict blocking and passive logging. | `block` or `log`                        |
+| `enabled`      | Boolean flag to enable or disable specific rules dynamically.              | `true`                                 |
+| `log_detail`   | Additional logging level for matched rules, providing extended information during forensic analysis. | `true` or `false`                      |
+
+Rules can be fine-tuned by adjusting the `score` and `severity` values, allowing greater flexibility in blocking decisions. More complex patterns targeting multiple request areas can be designed using regexes, ensuring multi-layered defense strategies are effectively enforced.
+
+
 
 ---
 
