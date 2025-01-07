@@ -119,10 +119,10 @@ caddy fmt --overwrite
     route {
         waf {
             # Anomaly threshold will block request if the score is => the threshold
-            anomaly_threshold 5
+            anomaly_threshold 10
 
             # Rate limiting: 1000 requests per 1 minute
-            rate_limit 1000 1m
+            rate_limit 1000 1m 5m
 
             # Rules and blacklists
             rule_file rules.json
