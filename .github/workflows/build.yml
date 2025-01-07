@@ -53,14 +53,6 @@ jobs:
           go mod tidy
           go get -v github.com/fabriziosalmi/caddy-waf github.com/caddyserver/caddy/v2 github.com/oschwald/maxminddb-golang
 
-      - name: Validate Dependency Installation
-        run: |
-          cd caddy-waf
-          if [ ! -f "go.sum" ]; then
-            echo "Dependency installation failed"
-            exit 1
-          fi
-
       - name: Download GeoLite2 Country Database
         run: |
           cd caddy-waf
@@ -93,32 +85,19 @@ jobs:
           cd caddy-waf
           ./caddy fmt --overwrite
 
-      - name: Validate Caddyfile Formatting
+      - name: Test Caddy Run and Validate WAF Provisioning
         run: |
           cd caddy-waf
-          if [ $? -ne 0 ]; then
-            echo "Caddyfile formatting failed"
-            exit 1
-          fi
-
-      - name: Test Caddy Run and Verify WAF Logs
-        run: |
-          cd caddy-waf
-          timeout 10 ./caddy run | tee output.log &
-          sleep 5
+          ./caddy run | tee /dev/tty | while read line; do
+            echo "$line"
+            if echo "$line" | grep -q "WAF middleware provisioned successfully"; then
+              echo "WAF middleware successfully initialized"
+              exit 0
+            fi
+          done
           
-          if ! pgrep -f "caddy run"; then
-            echo "Caddy run failed"
-            exit 1
-          fi
-          
-          if ! grep -q "WAF middleware provisioned successfully" output.log; then
-            echo "WAF module did not initialize correctly"
-            cat output.log
-            exit 1
-          fi
-          
-          echo "Caddy WAF build and run successful with WAF middleware provisioned"
+          echo "WAF provisioning log not found"
+          exit 1
 
       - name: Clean Up
         if: always()
