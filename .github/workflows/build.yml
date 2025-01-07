@@ -88,16 +88,22 @@ jobs:
       - name: Test Caddy Run and Validate WAF Provisioning
         run: |
           cd caddy-waf
-          ./caddy run | tee /dev/tty | while read line; do
-            echo "$line"
-            if echo "$line" | grep -q "WAF middleware provisioned successfully"; then
-              echo "WAF middleware successfully initialized"
-              exit 0
-            fi
-          done
+          ./caddy run > caddy_output.log 2>&1 &
+          sleep 5
           
-          echo "WAF provisioning log not found"
-          exit 1
+          if ! pgrep -f "caddy run"; then
+            echo "Caddy run failed"
+            cat caddy_output.log
+            exit 1
+          fi
+          
+          if ! grep -q "WAF middleware provisioned successfully" caddy_output.log; then
+            echo "WAF provisioning log not found"
+            cat caddy_output.log
+            exit 1
+          fi
+          
+          echo "Caddy WAF build and run successful with WAF middleware provisioned"
 
       - name: Clean Up
         if: always()
