@@ -2,38 +2,6 @@
 
 A **simple Web Application Firewall (WAF)** middleware for the Caddy server, designed to provide **comprehensive protection** against web attacks. This middleware integrates seamlessly with Caddy and offers a wide range of security features to safeguard your applications.
 
----
-
-## 📑 Table of Contents
-1.  [🌟 Key Features](#-key-features)
-2.  [🚀 Installation](#-installation)
-    *   [Final Notes](#final-notes)
-3.  [🛠️ Configuration](#️-configuration)
-    *   [Basic Caddyfile Setup](#basic-caddyfile-setup)
-4.  [⚙️ Configuration Options](#️-configuration-options)
-5.  [📜 Rules Format (`rules.json`)](#-rules-format-rulesjson)
-    *   [Rule Fields](#rule-fields)
-6.  [🛡️ Protected Attack Types](#️-protected-attack-types)
-7.  [🚫 Blacklist Formats](#-blacklist-formats)
-    *   [IP Blacklist (`ip_blacklist.txt`)](#ip-blacklist-ip_blacklisttxt)
-    *   [DNS Blacklist (`dns_blacklist.txt`)](#dns-blacklist-dns_blacklisttxt)
-8.  [⏱️ Rate Limiting](#️-rate-limiting)
-9.  [🌍 Country Blocking](#-country-blocking)
-10. [🔄 Dynamic Updates](#-dynamic-updates)
-11. [🧪 Testing](#-testing)
-    *  [Basic Testing](#basic-testing)
-    *  [Load Testing](#load-testing)
-    *  [Security Testing Suite](#security-testing-suite)
-12. [🐳 Docker Support](#-docker-support)
-13. [🐍 Rule/Blacklist Population Scripts](#-ruleblacklist-population-scripts)
-    * [get_owasp_rules.py](#get_owasp_rulespy)
-    * [get_blacklisted_ip.py](#get_blacklisted_ippy)
-    * [get_blacklisted_dns.py](#get_blacklisted_dnspy)
-14. [📜 License](#-license)
-15. [🙏 Contributing](#-contributing)
-
----
-
 ## 🌟 Key Features
 
 -   **Rule-based request filtering** with regex patterns.
@@ -45,6 +13,35 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
 -   **Protection against common attacks** (SQL injection, XSS, RCE, Log4j, etc.).
 -   **Detailed logging and monitoring** for security analysis.
 -   **Dynamic rule reloading** without server restart.
+
+
+## 📑 Table of Contents
+1.  [🚀 Installation](#-installation)
+    *   [Final Notes](#final-notes)
+2.  [🛠️ Configuration](#️-configuration)
+    *   [Basic Caddyfile Setup](#basic-caddyfile-setup)
+3.  [⚙️ Configuration Options](#️-configuration-options)
+4.  [📜 Rules Format (`rules.json`)](#-rules-format-rulesjson)
+    *   [Rule Fields](#rule-fields)
+5.  [🛡️ Protected Attack Types](#️-protected-attack-types)
+6.  [🚫 Blacklist Formats](#-blacklist-formats)
+    *   [IP Blacklist (`ip_blacklist.txt`)](#ip-blacklist-ip_blacklisttxt)
+    *   [DNS Blacklist (`dns_blacklist.txt`)](#dns-blacklist-dns_blacklisttxt)
+7.  [⏱️ Rate Limiting](#️-rate-limiting)
+8.  [🌍 Country Blocking](#-country-blocking)
+9. [🔄 Dynamic Updates](#-dynamic-updates)
+10. [🧪 Testing](#-testing)
+    *  [Basic Testing](#basic-testing)
+    *  [Load Testing](#load-testing)
+    *  [Security Testing Suite](#security-testing-suite)
+11. [🐳 Docker Support](#-docker-support)
+12. [🐍 Rule/Blacklist Population Scripts](#-ruleblacklist-population-scripts)
+    * [get_owasp_rules.py](#get_owasp_rulespy)
+    * [get_blacklisted_ip.py](#get_blacklisted_ippy)
+    * [get_blacklisted_dns.py](#get_blacklisted_dnspy)
+13. [📜 License](#-license)
+14. [🙏 Contributing](#-contributing)
+
 
 ---
 
