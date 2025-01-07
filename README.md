@@ -71,7 +71,10 @@ wget https://git.io/GeoLite2-Country.mmdb
 # Step 7: Build Caddy with the caddy-waf module
 xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
 
-# Step 8: Run the compiled Caddy server
+# Step 8: Fix Caddyfile format
+caddy fmt --overwrite
+
+# Step 9: Run the compiled Caddy server
 ./caddy run
 ```
 
