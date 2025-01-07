@@ -752,26 +752,26 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	// Log the rule match in detail
 	m.logRequest(zapcore.InfoLevel, "Rule matched during evaluation", requestInfo...)
 
-	// Block if anomaly threshold is exceeded
-	if state.TotalScore >= m.AnomalyThreshold && !state.ResponseWritten {
-		m.logRequest(zapcore.WarnLevel, "Request blocked - Anomaly threshold exceeded",
-			zap.String("log_id", logID),
-			zap.Int("total_score", state.TotalScore),
-			zap.Int("anomaly_threshold", m.AnomalyThreshold),
-			zap.Int("status_code", http.StatusForbidden),
-			zap.String("rule_id", rule.ID),
-		)
-		state.Blocked = true
-		state.StatusCode = http.StatusForbidden
-		w.WriteHeader(state.StatusCode)
-		state.ResponseWritten = true
-		return
-	}
+	// Consolidate blocking logic
+	if !state.ResponseWritten {
+		// Block if anomaly threshold is exceeded
+		if state.TotalScore >= m.AnomalyThreshold {
+			m.logRequest(zapcore.WarnLevel, "Request blocked - Anomaly threshold exceeded",
+				zap.String("log_id", logID),
+				zap.Int("total_score", state.TotalScore),
+				zap.Int("anomaly_threshold", m.AnomalyThreshold),
+				zap.Int("status_code", http.StatusForbidden),
+				zap.String("rule_id", rule.ID),
+			)
+			state.Blocked = true
+			state.StatusCode = http.StatusForbidden
+			w.WriteHeader(state.StatusCode)
+			state.ResponseWritten = true
+			return
+		}
 
-	// Handle the rule's defined action (block or log)
-	switch rule.Action {
-	case "block":
-		if !state.ResponseWritten {
+		// Handle the rule's defined action (block)
+		if rule.Action == "block" {
 			m.logRequest(zapcore.WarnLevel, "Request blocked by rule match",
 				zap.String("log_id", logID),
 				zap.String("rule_id", rule.ID),
@@ -783,28 +783,32 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 			state.ResponseWritten = true
 			return
 		}
+	} else {
+		m.logger.Debug("Blocking actions skipped, response already written", zap.String("log_id", logID), zap.String("rule_id", rule.ID))
+	}
 
-	case "log":
+	// Handle the rule's defined action (log) - this happens outside the blocking check
+	if rule.Action == "log" {
 		m.logRequest(zapcore.InfoLevel, "Rule matched - Request allowed but logged",
 			zap.String("log_id", logID),
 			zap.String("rule_id", rule.ID),
 		)
 		return
+	}
 
-	default:
-		if !state.ResponseWritten {
-			m.logRequest(zapcore.ErrorLevel, "Unknown rule action - Blocking request",
-				zap.String("log_id", logID),
-				zap.String("rule_id", rule.ID),
-				zap.String("action", rule.Action),
-				zap.Int("status_code", http.StatusForbidden),
-			)
-			state.Blocked = true
-			state.StatusCode = http.StatusForbidden
-			w.WriteHeader(state.StatusCode)
-			state.ResponseWritten = true
-			return
-		}
+	// Handle unknown action when response is not written yet
+	if rule.Action != "log" && !state.ResponseWritten {
+		m.logRequest(zapcore.ErrorLevel, "Unknown rule action - Blocking request",
+			zap.String("log_id", logID),
+			zap.String("rule_id", rule.ID),
+			zap.String("action", rule.Action),
+			zap.Int("status_code", http.StatusForbidden),
+		)
+		state.Blocked = true
+		state.StatusCode = http.StatusForbidden
+		w.WriteHeader(state.StatusCode)
+		state.ResponseWritten = true
+		return
 	}
 }
 
