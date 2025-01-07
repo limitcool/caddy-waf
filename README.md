@@ -276,6 +276,8 @@ Rules and blacklists can be updated without server restart:
 ## 🧪 Testing
 
 ### Basic Testing
+A `test.sh` script is included in this repository to perform a comprehensive security test suite. This script sends a series of forged `curl` requests, each designed to simulate a different type of attack.
+
 ```bash
 caddy-waf % ./test.sh
 WAF Security Test Suite
@@ -407,10 +409,6 @@ Detailed results saved to: waf_test_results.log
 ```bash
 ab -n 1000 -c 100 http://localhost:8080/
 ```
-
-### Security Testing Suite
-
-A `test.sh` script is included in this repository to perform a comprehensive security test suite. This script sends a series of forged `curl` requests, each designed to simulate a different type of attack.
 
 ---
 
