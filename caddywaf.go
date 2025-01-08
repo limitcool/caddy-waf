@@ -1253,10 +1253,20 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				continue
 			}
 
+			// Redact sensitive fields from being logged
+			redacted := value
+			sensitiveTargets := []string{"password", "token", "apikey", "authorization", "secret"}
+			for _, sensitive := range sensitiveTargets {
+				if strings.Contains(strings.ToLower(target), sensitive) {
+					redacted = "REDACTED"
+					break
+				}
+			}
+
 			m.logger.Debug("Extracted value",
 				zap.String("rule_id", rule.ID),
 				zap.String("target", target),
-				zap.String("value", value),
+				zap.String("value", redacted), // Redacted sensitive data
 			)
 
 			if rule.regex.MatchString(value) {
