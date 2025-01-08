@@ -36,9 +36,9 @@ jobs:
             exit 1
           fi
 
-      - name: Clone caddy-waf Repository
+      - name: Clone caddy-waf Repository (test)
         run: |
-          git clone https://github.com/fabriziosalmi/caddy-waf.git
+          git clone --branch test https://github.com/fabriziosalmi/caddy-waf.git
           cd caddy-waf
 
       - name: Validate Repository Cloning
