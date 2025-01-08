@@ -86,6 +86,9 @@
 
             # Log WAF events in JSON format
             log_json
+            
+            # Log path
+            log_path debug.json
         }
 
         # Respond to all requests with "Hello, world!" and a 200 status code
