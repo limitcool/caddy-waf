@@ -77,21 +77,25 @@ cd caddy-waf
 go mod tidy
 
 # Step 4: Fetch and install the required Go modules
-go get -v github.com/fabriziosalmi/caddy-waf github.com/caddyserver/caddy/v2 github.com/oschwald/maxminddb-golang
+go get github.com/caddyserver/caddy/v2
+go get github.com/caddyserver/caddy/v2/caddyconfig/caddyfile
+go get github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile
+go get github.com/caddyserver/caddy/v2/modules/caddyhttp
+go get github.com/oschwald/maxminddb-golang
+go get github.com/fsnotify/fsnotify
+go get -v github.com/fabriziosalmi/caddy-waf
+go mod tidy
 
 # Step 5: Download the GeoLite2 Country database
 wget https://git.io/GeoLite2-Country.mmdb
 
-# Step 6 (optional): Clean up previous build artifacts
-# rm -rf buildenv_*
-
-# Step 7: Build Caddy with the caddy-waf module
+# Step 6: Build Caddy with the caddy-waf module
 xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
 
-# Step 8: Fix Caddyfile format
+# Step 7: Fix Caddyfile format
 caddy fmt --overwrite
 
-# Step 9: Run the compiled Caddy server
+# Step 8: Run the compiled Caddy server
 ./caddy run
 ```
 
@@ -147,8 +151,11 @@ caddy fmt --overwrite
 
             # Set Log JSON output
             log_json
+
+            # Set Log JSON file path
+            log_path debug.json
         }
-        respond "Hello, world!" 200
+        respond "Hello, world! This is caddy-waf" 200
     }
 }
 ```
