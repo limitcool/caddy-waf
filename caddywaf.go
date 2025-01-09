@@ -1464,13 +1464,26 @@ func (m *Middleware) startFileWatcher(filePaths []string) {
 						m.logger.Info("Detected configuration change. Reloading...",
 							zap.String("file", file),
 						)
-						err := m.ReloadConfig()
-						if err != nil {
-							m.logger.Error("Failed to reload config after change",
-								zap.Error(err),
-							)
+						if strings.Contains(file, "rule") { // Detect rule file changes
+							if err := m.ReloadRules(); err != nil {
+								m.logger.Error("Failed to reload rules after change",
+									zap.String("file", file),
+									zap.Error(err),
+								)
+							} else {
+								m.logger.Info("Rules reloaded successfully",
+									zap.String("file", file),
+								)
+							}
 						} else {
-							m.logger.Info("Configuration reloaded successfully")
+							err := m.ReloadConfig()
+							if err != nil {
+								m.logger.Error("Failed to reload config after change",
+									zap.Error(err),
+								)
+							} else {
+								m.logger.Info("Configuration reloaded successfully")
+							}
 						}
 					}
 				case err := <-watcher.Errors:
@@ -1479,6 +1492,71 @@ func (m *Middleware) startFileWatcher(filePaths []string) {
 			}
 		}(path)
 	}
+}
+
+func (m *Middleware) ReloadRules() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.logger.Info("Reloading WAF rules")
+
+	// Temporary map for new rules
+	newRules := make(map[int][]Rule)
+
+	// Load rules into temporary map
+	for _, file := range m.RuleFiles {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			m.logger.Error("Failed to read rule file",
+				zap.String("file", file),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		var rules []Rule
+		if err := json.Unmarshal(content, &rules); err != nil {
+			m.logger.Error("Failed to unmarshal rules from file",
+				zap.String("file", file),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		for _, rule := range rules {
+			// Validate and compile rule
+			if err := validateRule(&rule); err != nil {
+				m.logger.Warn("Invalid rule encountered",
+					zap.String("file", file),
+					zap.String("rule_id", rule.ID),
+					zap.Error(err),
+				)
+				continue
+			}
+
+			// Compile regex
+			rule.regex, err = regexp.Compile(rule.Pattern)
+			if err != nil {
+				m.logger.Error("Failed to compile regex for rule",
+					zap.String("rule_id", rule.ID),
+					zap.Error(err),
+				)
+				continue
+			}
+
+			// Add to appropriate phase
+			if _, exists := newRules[rule.Phase]; !exists {
+				newRules[rule.Phase] = []Rule{}
+			}
+			newRules[rule.Phase] = append(newRules[rule.Phase], rule)
+		}
+	}
+
+	// Replace the old rules with the new rules
+	m.Rules = newRules
+	m.logger.Info("WAF rules reloaded successfully")
+
+	return nil
 }
 
 func caddyTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
@@ -1554,7 +1632,10 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	// Log the dynamically fetched version
 	m.logVersion()
 
-	// Start watching files for reload (IP blacklist, DNS blacklist)
+	// Watch rule files for changes
+	m.startFileWatcher(m.RuleFiles)
+
+	// Watch IP and DNS blacklist files
 	m.startFileWatcher([]string{m.IPBlacklistFile, m.DNSBlacklistFile})
 
 	// Rate Limiter Setup
