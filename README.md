@@ -147,7 +147,7 @@ caddy fmt --overwrite
             # whitelist_countries GeoLite2-Country.mmdb US
 
             # Set Log Severity
-            log_severity debug
+            log_severity info
 
             # Set Log JSON output
             log_json
