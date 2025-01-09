@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -62,6 +64,111 @@ var (
 	_ caddyfile.Unmarshaler       = (*Middleware)(nil)
 )
 
+// requestCounter struct
+type requestCounter struct {
+	count  int
+	window time.Time
+}
+
+// RateLimit struct
+type RateLimit struct {
+	Requests        int           `json:"requests"`
+	Window          time.Duration `json:"window"`
+	CleanupInterval time.Duration `json:"cleanup_interval"`
+}
+
+// RateLimiter struct
+type RateLimiter struct {
+	sync.RWMutex
+	requests    map[string]*requestCounter
+	config      RateLimit
+	stopCleanup chan struct{} // Channel to signal cleanup goroutine to stop
+}
+
+// isRateLimited checks if a given IP is rate limited.
+func (rl *RateLimiter) isRateLimited(ip string) bool {
+	now := time.Now()
+
+	rl.Lock()
+	defer rl.Unlock()
+
+	counter, exists := rl.requests[ip]
+	if exists {
+		if now.Sub(counter.window) > rl.config.Window {
+			// Window expired, reset the counter
+			rl.requests[ip] = &requestCounter{count: 1, window: now}
+			return false
+		}
+
+		// Window not expired, increment the counter
+		counter.count++
+		return counter.count > rl.config.Requests
+	}
+
+	// IP doesn't exist, add it
+	rl.requests[ip] = &requestCounter{count: 1, window: now}
+	return false
+}
+
+// cleanupExpiredEntries removes expired entries from the rate limiter.
+func (rl *RateLimiter) cleanupExpiredEntries() {
+	now := time.Now()
+	var expiredIPs []string
+
+	// Collect expired IPs to delete (read lock)
+	rl.RLock()
+	for ip, counter := range rl.requests {
+		if now.Sub(counter.window) > rl.config.Window {
+			expiredIPs = append(expiredIPs, ip)
+		}
+	}
+	rl.RUnlock()
+
+	// Delete expired IPs (write lock)
+	if len(expiredIPs) > 0 {
+		rl.Lock()
+		for _, ip := range expiredIPs {
+			delete(rl.requests, ip)
+		}
+		rl.Unlock()
+	}
+}
+
+// startCleanup starts the goroutine to periodically clean up expired entries.
+func (rl *RateLimiter) startCleanup() {
+	// Ensure stopCleanup channel is created only once
+	if rl.stopCleanup == nil {
+		rl.stopCleanup = make(chan struct{})
+	}
+
+	go func() {
+		log.Println("[INFO] Starting rate limiter cleanup goroutine") // Added logging
+		ticker := time.NewTicker(rl.config.CleanupInterval)           // Use the specified cleanup interval
+		defer func() {
+			ticker.Stop()
+			log.Println("[INFO] Rate limiter cleanup goroutine stopped") // Added logging on exit
+		}()
+		for {
+			select {
+			case <-ticker.C:
+				rl.cleanupExpiredEntries()
+			case <-rl.stopCleanup:
+				return
+			}
+		}
+	}()
+}
+
+// signalStopCleanup signals the cleanup goroutine to stop.
+func (rl *RateLimiter) signalStopCleanup() {
+	if rl.stopCleanup != nil {
+		log.Println("[INFO] Signaling rate limiter cleanup goroutine to stop") // Added logging
+		close(rl.stopCleanup)
+		// We avoid setting rl.stopCleanup to nil here for maximum safety.
+		// Subsequent calls to signalStopCleanup will still be protected by the nil check.
+	}
+}
+
 // CountryAccessFilter struct
 type CountryAccessFilter struct {
 	Enabled     bool     `json:"enabled"`
@@ -75,6 +182,19 @@ type GeoIPRecord struct {
 	Country struct {
 		ISOCode string `maxminddb:"iso_code"`
 	} `maxminddb:"country"`
+}
+
+// Rule struct
+type Rule struct {
+	ID          string   `json:"id"`
+	Phase       int      `json:"phase"`
+	Pattern     string   `json:"pattern"`
+	Targets     []string `json:"targets"`
+	Severity    string   `json:"severity"` // Used for logging only
+	Score       int      `json:"score"`
+	Action      string   `json:"mode"` // Determines the action (block/log)
+	Description string   `json:"description"`
+	regex       *regexp.Regexp
 }
 
 // Awesome: Structure to represent a custom block response.
@@ -93,10 +213,12 @@ type Middleware struct {
 	DNSBlacklistFile string              `json:"dns_blacklist_file"`
 	AnomalyThreshold int                 `json:"anomaly_threshold"`
 	RateLimit        RateLimit           `json:"rate_limit"`
-	rateLimiter      *RateLimiter        `json:"-"`
 	CountryBlock     CountryAccessFilter `json:"country_block"`
 	CountryWhitelist CountryAccessFilter `json:"country_whitelist"`
 	Rules            map[int][]Rule      `json:"-"`
+	ipBlacklist      map[string]bool     `json:"-"` // Changed type here
+	dnsBlacklist     map[string]bool     `json:"-"`
+	rateLimiter      *RateLimiter        `json:"-"`
 	logger           *zap.Logger
 	LogSeverity      string `json:"log_severity,omitempty"`
 	LogJSON          bool   `json:"log_json,omitempty"`
@@ -115,9 +237,7 @@ type Middleware struct {
 
 	LogFilePath string // New field for configurable log path
 
-	RedactSensitiveData bool              `json:"redact_sensitive_data,omitempty"`
-	blacklistManager    *BlacklistManager `json:"-"` // Add this line
-
+	RedactSensitiveData bool `json:"redact_sensitive_data,omitempty"`
 }
 
 // WAFState struct: Used to maintain state between phases
@@ -162,20 +282,10 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 	// Signal the rate limiter cleanup goroutine to stop
 	if m.rateLimiter != nil {
 		m.logger.Debug("Signaling rate limiter cleanup to stop...")
-		m.rateLimiter.Stop()
+		m.rateLimiter.signalStopCleanup()
 		m.logger.Debug("Rate limiter cleanup signaled.")
 	} else {
 		m.logger.Debug("Rate limiter is nil, no cleanup signaling needed.")
-	}
-
-	// Gracefully shutdown the Blacklist Manager
-	if m.blacklistManager != nil {
-		m.logger.Debug("Shutting down Blacklist Manager...")
-		// No need to explicitly close anything, just cleanup references
-		m.blacklistManager = nil
-		m.logger.Debug("Blacklist Manager shutdown complete.")
-	} else {
-		m.logger.Debug("Blacklist Manager is nil, no shutdown needed")
 	}
 
 	var firstError error // Capture the first error encountered
@@ -1112,30 +1222,26 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 	}
 
 	// Phase 1 - IP Blacklist
-	if phase == 1 {
-		if m.blacklistManager.IsIPBlacklisted(r.RemoteAddr) {
-			m.logger.Debug("Starting IP blacklist phase")
-			m.blockRequest(w, r, state, http.StatusForbidden,
-				zap.String("message", "Request blocked by IP blacklist"),
-				zap.String("reason", "ip_blacklist"),
-			)
-			m.logger.Debug("IP blacklist phase completed - blocked")
-			return
-		}
+	if phase == 1 && m.isIPBlacklisted(r.RemoteAddr) {
+		m.logger.Debug("Starting IP blacklist phase")
+		m.blockRequest(w, r, state, http.StatusForbidden,
+			zap.String("message", "Request blocked by IP blacklist"),
+			zap.String("reason", "ip_blacklist"),
+		)
+		m.logger.Debug("IP blacklist phase completed - blocked")
+		return
 	}
 
 	// Phase 1 - DNS Blacklist
-	if phase == 1 {
-		if m.blacklistManager.IsDNSBlacklisted(r.Host) {
-			m.logger.Debug("Starting DNS blacklist phase")
-			m.blockRequest(w, r, state, http.StatusForbidden,
-				zap.String("message", "Request blocked by DNS blacklist"),
-				zap.String("reason", "dns_blacklist"),
-				zap.String("host", r.Host),
-			)
-			m.logger.Debug("DNS blacklist phase completed - blocked")
-			return
-		}
+	if phase == 1 && m.isDNSBlacklisted(r.Host) {
+		m.logger.Debug("Starting DNS blacklist phase")
+		m.blockRequest(w, r, state, http.StatusForbidden,
+			zap.String("message", "Request blocked by DNS blacklist"),
+			zap.String("reason", "dns_blacklist"),
+			zap.String("host", r.Host),
+		)
+		m.logger.Debug("DNS blacklist phase completed - blocked")
+		return
 	}
 
 	// Phase 1 to 4 - Rule Evaluation
@@ -1400,18 +1506,18 @@ func (m *Middleware) redactQueryParams(queryParams string) string {
 }
 
 func (m *Middleware) startFileWatcher(filePaths []string) {
-	if m.IPBlacklistFile != "" {
+	for _, path := range filePaths {
 		go func(file string) {
 			watcher, err := fsnotify.NewWatcher()
 			if err != nil {
-				m.logger.Error("Failed to start IP blacklist file watcher", zap.Error(err))
+				m.logger.Error("Failed to start file watcher", zap.Error(err))
 				return
 			}
 			defer watcher.Close()
 
 			err = watcher.Add(file)
 			if err != nil {
-				m.logger.Error("Failed to watch IP blacklist file", zap.String("file", file), zap.Error(err))
+				m.logger.Error("Failed to watch file", zap.String("file", file), zap.Error(err))
 				return
 			}
 
@@ -1419,61 +1525,23 @@ func (m *Middleware) startFileWatcher(filePaths []string) {
 				select {
 				case event := <-watcher.Events:
 					if event.Op&fsnotify.Write == fsnotify.Write {
-						m.logger.Info("Detected IP blacklist file change. Reloading...",
+						m.logger.Info("Detected configuration change. Reloading...",
 							zap.String("file", file),
 						)
 						err := m.ReloadConfig()
 						if err != nil {
-							m.logger.Error("Failed to reload config after IP blacklist change",
+							m.logger.Error("Failed to reload config after change",
 								zap.Error(err),
 							)
 						} else {
-							m.logger.Info("Configuration reloaded successfully after IP blacklist change")
+							m.logger.Info("Configuration reloaded successfully")
 						}
 					}
 				case err := <-watcher.Errors:
-					m.logger.Error("IP blacklist file watcher error", zap.Error(err))
+					m.logger.Error("File watcher error", zap.Error(err))
 				}
 			}
-		}(m.IPBlacklistFile)
-	}
-
-	if m.DNSBlacklistFile != "" {
-		go func(file string) {
-			watcher, err := fsnotify.NewWatcher()
-			if err != nil {
-				m.logger.Error("Failed to start DNS blacklist file watcher", zap.Error(err))
-				return
-			}
-			defer watcher.Close()
-
-			err = watcher.Add(file)
-			if err != nil {
-				m.logger.Error("Failed to watch DNS blacklist file", zap.String("file", file), zap.Error(err))
-				return
-			}
-
-			for {
-				select {
-				case event := <-watcher.Events:
-					if event.Op&fsnotify.Write == fsnotify.Write {
-						m.logger.Info("Detected DNS blacklist file change. Reloading...",
-							zap.String("file", file),
-						)
-						err := m.ReloadConfig()
-						if err != nil {
-							m.logger.Error("Failed to reload config after DNS blacklist change",
-								zap.Error(err),
-							)
-						} else {
-							m.logger.Info("Configuration reloaded successfully after DNS blacklist change")
-						}
-					}
-				case err := <-watcher.Errors:
-					m.logger.Error("DNS blacklist file watcher error", zap.Error(err))
-				}
-			}
-		}(m.DNSBlacklistFile)
+		}(path)
 	}
 }
 
@@ -1550,14 +1618,8 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	// Log the dynamically fetched version
 	m.logVersion()
 
-	// Initialize Blacklist Manager
-	m.blacklistManager = NewBlacklistManager(m.IPBlacklistFile, m.DNSBlacklistFile, m.logger)
-	if err := m.blacklistManager.LoadBlacklists(); err != nil {
-		return fmt.Errorf("failed to load blacklists: %w", err)
-	}
-
 	// Start watching files for reload (IP blacklist, DNS blacklist)
-	m.startFileWatcher([]string{})
+	m.startFileWatcher([]string{m.IPBlacklistFile, m.DNSBlacklistFile})
 
 	// Rate Limiter Setup
 	if m.RateLimit.Requests > 0 {
@@ -1566,8 +1628,11 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			zap.Duration("window", m.RateLimit.Window),
 			zap.Duration("cleanup_interval", m.RateLimit.CleanupInterval),
 		)
-		// Create a new RateLimiter using the config from the middleware
-		m.rateLimiter = NewRateLimiter(m.RateLimit)
+		m.rateLimiter = &RateLimiter{
+			requests: make(map[string]*requestCounter),
+			config:   m.RateLimit,
+		}
+		m.rateLimiter.startCleanup()
 	} else {
 		m.logger.Info("Rate limiting is disabled")
 	}
@@ -1614,14 +1679,170 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Rule, Blacklists File Loading
-	rules, err := LoadRules(m.RuleFiles, m.logger)
-	if err != nil {
-		return fmt.Errorf("failed to load rules: %w", err)
+	if err := m.loadRules(m.RuleFiles, m.IPBlacklistFile, m.DNSBlacklistFile); err != nil {
+		return fmt.Errorf("failed to load rules and blacklists: %w", err)
 	}
 
-	m.Rules = rules
-
 	m.logger.Info("WAF middleware provisioned successfully")
+	return nil
+}
+
+func (m *Middleware) loadRules(paths []string, ipBlacklistPath string, dnsBlacklistPath string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.logger.Debug("Loading rules and blacklists from files", zap.Strings("rule_files", paths), zap.String("ip_blacklist", ipBlacklistPath), zap.String("dns_blacklist", dnsBlacklistPath))
+
+	m.Rules = make(map[int][]Rule)
+	totalRules := 0
+	var invalidFiles []string
+	var allInvalidRules []string
+	ruleIDs := make(map[string]bool) // Track rule IDs across all files
+
+	// Load Rules
+	for _, path := range paths {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			m.logger.Error("Failed to read rule file", zap.String("file", path), zap.Error(err))
+			invalidFiles = append(invalidFiles, path)
+			continue
+		}
+
+		var rules []Rule
+		if err := json.Unmarshal(content, &rules); err != nil {
+			m.logger.Error("Failed to unmarshal rules from file", zap.String("file", path), zap.Error(err))
+			invalidFiles = append(invalidFiles, path)
+			continue
+		}
+
+		var invalidRulesInFile []string
+		for i, rule := range rules {
+			// Validate rule structure
+			if err := validateRule(&rule); err != nil {
+				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule at index %d: %v", i, err))
+				continue
+			}
+
+			// Check for duplicate IDs across all files
+			if _, exists := ruleIDs[rule.ID]; exists {
+				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Duplicate rule ID '%s' at index %d", rule.ID, i))
+				continue
+			}
+			ruleIDs[rule.ID] = true
+
+			// Compile regex pattern
+			regex, err := regexp.Compile(rule.Pattern)
+			if err != nil {
+				m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.Error(err))
+				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
+				continue
+			}
+			rule.regex = regex
+
+			// Initialize phase if missing
+			if _, ok := m.Rules[rule.Phase]; !ok {
+				m.Rules[rule.Phase] = []Rule{}
+			}
+
+			// Add rule to appropriate phase
+			m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rule)
+			totalRules++
+		}
+		if len(invalidRulesInFile) > 0 {
+			m.logger.Warn("Some rules failed validation", zap.String("file", path), zap.Strings("invalid_rules", invalidRulesInFile))
+			allInvalidRules = append(allInvalidRules, invalidRulesInFile...)
+		}
+
+		m.logger.Info("Rules loaded", zap.String("file", path), zap.Int("total_rules", len(rules)), zap.Int("invalid_rules", len(invalidRulesInFile)))
+	}
+
+	// Load IP Blacklist
+	m.ipBlacklist = make(map[string]bool) // Initialize the IP blacklist map
+	if ipBlacklistPath != "" {
+		content, err := os.ReadFile(ipBlacklistPath)
+		if err != nil {
+			m.logger.Warn("Failed to read IP blacklist file", zap.String("file", ipBlacklistPath), zap.Error(err))
+		} else {
+			lines := strings.Split(string(content), "\n")
+			validEntries := 0
+			for i, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue // Skip empty lines and comments
+				}
+
+				// Check if the line is a valid IP or CIDR range
+				if _, _, err := net.ParseCIDR(line); err == nil {
+					// It's a valid CIDR range
+					m.ipBlacklist[line] = true
+					validEntries++
+					m.logger.Debug("Added CIDR range to blacklist",
+						zap.String("cidr", line),
+					)
+					continue
+				}
+
+				if ip := net.ParseIP(line); ip != nil {
+					// It's a valid IP address
+					m.ipBlacklist[line] = true
+					validEntries++
+					m.logger.Debug("Added IP to blacklist",
+						zap.String("ip", line),
+					)
+					continue
+				}
+
+				// Log invalid entries for debugging
+				m.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
+					zap.String("file", ipBlacklistPath),
+					zap.Int("line", i+1),
+					zap.String("entry", line),
+				)
+			}
+			m.logger.Info("IP blacklist loaded successfully",
+				zap.String("file", ipBlacklistPath),
+				zap.Int("valid_entries", validEntries),
+				zap.Int("total_lines", len(lines)),
+			)
+		}
+	}
+	// Load DNS Blacklist
+	m.dnsBlacklist = make(map[string]bool) // Initialize DNS Blacklist
+	if dnsBlacklistPath != "" {
+		content, err := os.ReadFile(dnsBlacklistPath)
+		if err != nil {
+			m.logger.Warn("Failed to read DNS blacklist file", zap.String("file", dnsBlacklistPath), zap.Error(err))
+		} else {
+			lines := strings.Split(string(content), "\n")
+			validEntriesCount := 0
+			for _, line := range lines {
+				line = strings.ToLower(strings.TrimSpace(line))
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue // Skip empty lines and comments
+				}
+				m.dnsBlacklist[line] = true
+				validEntriesCount++
+			}
+			m.logger.Info("DNS blacklist loaded successfully",
+				zap.String("file", dnsBlacklistPath),
+				zap.Int("valid_entries", validEntriesCount),
+				zap.Int("total_lines", len(lines)),
+			)
+		}
+	}
+
+	if len(invalidFiles) > 0 {
+		m.logger.Warn("Some rule files could not be loaded", zap.Strings("invalid_files", invalidFiles))
+	}
+	if len(allInvalidRules) > 0 {
+		m.logger.Warn("Some rules across files failed validation", zap.Strings("invalid_rules", allInvalidRules))
+	}
+
+	if totalRules == 0 && len(invalidFiles) > 0 {
+		return fmt.Errorf("no valid rules were loaded from any file")
+	}
+	m.logger.Debug("Rules and Blacklists loaded successfully", zap.Int("total_rules", totalRules))
+
 	return nil
 }
 
@@ -1635,6 +1856,62 @@ func fileExists(path string) bool {
 		return false
 	}
 	return !info.IsDir()
+}
+
+func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
+	ipStr := extractIP(remoteAddr)
+	if ipStr == "" {
+		return false
+	}
+
+	// Check if the IP is directly blacklisted
+	if m.ipBlacklist[ipStr] {
+		return true
+	}
+
+	// Check if the IP falls within any CIDR range in the blacklist
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+
+	for blacklistEntry := range m.ipBlacklist {
+		if strings.Contains(blacklistEntry, "/") {
+			_, ipNet, err := net.ParseCIDR(blacklistEntry)
+			if err != nil {
+				continue
+			}
+			if ipNet.Contains(ip) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (m *Middleware) isDNSBlacklisted(host string) bool {
+	normalizedHost := strings.ToLower(strings.TrimSpace(host))
+	if normalizedHost == "" {
+		m.logger.Warn("Empty host provided for DNS blacklist check")
+		return false
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if _, exists := m.dnsBlacklist[normalizedHost]; exists {
+		m.logger.Info("Host is blacklisted",
+			zap.String("host", host),
+			zap.String("blacklisted_domain", normalizedHost),
+		)
+		return true
+	}
+
+	m.logger.Debug("Host is not blacklisted",
+		zap.String("host", host),
+	)
+	return false
 }
 
 func (m *Middleware) extractValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
@@ -1846,6 +2123,122 @@ func validateRule(rule *Rule) error {
 	return nil
 }
 
+func (m *Middleware) loadIPBlacklistFromFile(path string) error {
+	// Acquire a write lock to protect shared state
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Initialize the IP blacklist
+	m.ipBlacklist = make(map[string]bool)
+
+	// Log the attempt to load the IP blacklist file
+	m.logger.Debug("Loading IP blacklist from file",
+		zap.String("file", path),
+	)
+
+	// Attempt to read the file
+	content, err := os.ReadFile(path)
+	if err != nil {
+		m.logger.Warn("Failed to read IP blacklist file",
+			zap.String("file", path),
+			zap.Error(err),
+		)
+		return nil // Continue with an empty blacklist
+	}
+
+	// Split the file content into lines
+	lines := strings.Split(string(content), "\n")
+	validEntries := 0
+
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue // Skip empty lines and comments
+		}
+
+		// Check if the line is a valid IP or CIDR range
+		if _, _, err := net.ParseCIDR(line); err == nil {
+			// It's a valid CIDR range
+			m.ipBlacklist[line] = true
+			validEntries++
+			m.logger.Debug("Added CIDR range to blacklist",
+				zap.String("cidr", line),
+			)
+			continue
+		}
+
+		if ip := net.ParseIP(line); ip != nil {
+			// It's a valid IP address
+			m.ipBlacklist[line] = true
+			validEntries++
+			m.logger.Debug("Added IP to blacklist",
+				zap.String("ip", line),
+			)
+			continue
+		}
+
+		// Log invalid entries for debugging
+		m.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
+			zap.String("file", path),
+			zap.Int("line", i+1),
+			zap.String("entry", line),
+		)
+	}
+
+	m.logger.Info("IP blacklist loaded successfully",
+		zap.String("file", path),
+		zap.Int("valid_entries", validEntries),
+		zap.Int("total_lines", len(lines)),
+	)
+	return nil
+}
+
+func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
+	// Acquire a write lock to protect shared state
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Initialize an empty DNS blacklist map
+	m.dnsBlacklist = make(map[string]bool)
+
+	// Log the attempt to load the DNS blacklist file
+	m.logger.Debug("Loading DNS blacklist from file",
+		zap.String("file", path),
+	)
+
+	// Attempt to read the file
+	content, err := os.ReadFile(path)
+	if err != nil {
+		m.logger.Warn("Failed to read DNS blacklist file",
+			zap.String("file", path),
+			zap.Error(err),
+		)
+		return nil // Continue with an empty blacklist
+	}
+
+	// Convert all entries to lowercase and trim whitespace and add to the map
+	lines := strings.Split(string(content), "\n")
+	validEntriesCount := 0
+
+	for _, line := range lines {
+		line = strings.ToLower(strings.TrimSpace(line))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue // Skip empty lines and comments
+		}
+		m.dnsBlacklist[line] = true
+		validEntriesCount++
+	}
+
+	// Log the successful loading of the DNS blacklist
+	m.logger.Info("DNS blacklist loaded successfully",
+		zap.String("file", path),
+		zap.Int("valid_entries", validEntriesCount),
+		zap.Int("total_lines", len(lines)),
+	)
+
+	return nil
+}
+
 func (m *Middleware) ReloadConfig() error {
 	// Acquire a write lock to protect shared state during reload
 	m.mu.Lock()
@@ -1857,22 +2250,46 @@ func (m *Middleware) ReloadConfig() error {
 	// Create a temporary map to hold the new rules
 	newRules := make(map[int][]Rule)
 
-	// Reload rules using the new ReloadRules function
-	if err := ReloadRules(m.RuleFiles, m.logger, newRules, &m.mu); err != nil {
+	// Reload rules into the temporary map
+	if err := m.loadRulesIntoMap(newRules); err != nil {
 		m.logger.Error("Failed to reload rules",
 			zap.Error(err),
 		)
 		return fmt.Errorf("failed to reload rules: %v", err)
 	}
 
-	// Reload blacklists using the BlacklistManager
-	if err := m.blacklistManager.ReloadBlacklists(); err != nil {
-		m.logger.Error("Failed to reload blacklists", zap.Error(err))
-		return fmt.Errorf("failed to reload blacklists: %w", err)
+	// Reload IP blacklist into a temporary map
+	newIPBlacklist := make(map[string]bool)
+	if m.IPBlacklistFile != "" {
+		if err := m.loadIPBlacklistIntoMap(m.IPBlacklistFile, newIPBlacklist); err != nil {
+			m.logger.Error("Failed to reload IP blacklist",
+				zap.String("file", m.IPBlacklistFile),
+				zap.Error(err),
+			)
+			return fmt.Errorf("failed to reload IP blacklist: %v", err)
+		}
+	} else {
+		m.logger.Debug("No IP blacklist file specified, skipping reload")
+	}
+
+	// Reload DNS blacklist into a temporary map
+	newDNSBlacklist := make(map[string]bool)
+	if m.DNSBlacklistFile != "" {
+		if err := m.loadDNSBlacklistIntoMap(m.DNSBlacklistFile, newDNSBlacklist); err != nil {
+			m.logger.Error("Failed to reload DNS blacklist",
+				zap.String("file", m.DNSBlacklistFile),
+				zap.Error(err),
+			)
+			return fmt.Errorf("failed to reload DNS blacklist: %v", err)
+		}
+	} else {
+		m.logger.Debug("No DNS blacklist file specified, skipping reload")
 	}
 
 	// Swap the old configuration with the new one atomically
 	m.Rules = newRules
+	m.ipBlacklist = newIPBlacklist
+	m.dnsBlacklist = newDNSBlacklist
 
 	// Log the successful completion of the reload process
 	m.logger.Info("WAF configuration reloaded successfully")
@@ -1907,6 +2324,42 @@ func (m *Middleware) loadRulesIntoMap(rulesMap map[int][]Rule) error {
 			}
 			rulesMap[rule.Phase] = append(rulesMap[rule.Phase], rule)
 		}
+	}
+	return nil
+}
+
+// loadIPBlacklistIntoMap loads IP blacklist entries into a provided map
+func (m *Middleware) loadIPBlacklistIntoMap(path string, blacklistMap map[string]bool) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read IP blacklist file: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		blacklistMap[line] = true
+	}
+	return nil
+}
+
+// loadDNSBlacklistIntoMap loads DNS blacklist entries into a provided map
+func (m *Middleware) loadDNSBlacklistIntoMap(path string, blacklistMap map[string]bool) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read DNS blacklist file: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.ToLower(strings.TrimSpace(line))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		blacklistMap[line] = true
 	}
 	return nil
 }
