@@ -1934,15 +1934,39 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 func (m *Middleware) extractValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
 	target = strings.ToUpper(strings.TrimSpace(target))
 	var unredactedValue string
+	var err error
 
 	switch {
-	// Query Parameters
+	// Basic Request Properties
+	case target == "METHOD":
+		unredactedValue = r.Method
+	case target == "REMOTE_IP":
+		unredactedValue = r.RemoteAddr
+	case target == "PROTOCOL":
+		unredactedValue = r.Proto
+	case target == "HOST":
+		unredactedValue = r.Host
 	case target == "ARGS":
 		if r.URL.RawQuery == "" {
 			m.logger.Debug("Query string is empty", zap.String("target", target))
 			return "", fmt.Errorf("query string is empty for target: %s", target)
 		}
 		unredactedValue = r.URL.RawQuery
+	case target == "USER_AGENT":
+		unredactedValue = r.UserAgent()
+		if unredactedValue == "" {
+			m.logger.Debug("User-Agent is empty", zap.String("target", target))
+		}
+	case target == "PATH":
+		unredactedValue = r.URL.Path
+		if unredactedValue == "" {
+			m.logger.Debug("Request path is empty", zap.String("target", target))
+		}
+	case target == "URI":
+		unredactedValue = r.URL.RequestURI()
+		if unredactedValue == "" {
+			m.logger.Debug("Request URI is empty", zap.String("target", target))
+		}
 
 	// Request Body
 	case target == "BODY":
@@ -1954,7 +1978,8 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 			m.logger.Debug("Request body is empty", zap.String("target", target))
 			return "", fmt.Errorf("request body is empty for target: %s", target)
 		}
-		bodyBytes, err := io.ReadAll(r.Body)
+		var bodyBytes []byte
+		bodyBytes, err = io.ReadAll(r.Body)
 		if err != nil {
 			m.logger.Error("Failed to read request body", zap.Error(err))
 			return "", fmt.Errorf("failed to read request body for target %s: %w", target, err)
@@ -1991,12 +2016,14 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 			return "", fmt.Errorf("response body not accessible outside Phase 4 for target: %s", target)
 		}
 		if recorder, ok := w.(*responseRecorder); ok {
+			if recorder == nil {
+				return "", fmt.Errorf("response recorder is nil for target: %s", target)
+			}
 			if recorder.body.Len() == 0 {
 				m.logger.Debug("Response body is empty", zap.String("target", target))
 				return "", fmt.Errorf("response body is empty for target: %s", target)
 			}
 			unredactedValue = recorder.BodyString()
-
 		} else {
 			return "", fmt.Errorf("response recorder not available for target: %s", target)
 		}
@@ -2045,28 +2072,6 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 		}
 		unredactedValue = cookie.Value
 
-	// User Agent
-	case target == "USER_AGENT":
-		userAgent := r.UserAgent()
-		if userAgent == "" {
-			m.logger.Debug("User-Agent is empty", zap.String("target", target))
-		}
-		unredactedValue = userAgent
-
-	// Path
-	case target == "PATH":
-		path := r.URL.Path
-		if path == "" {
-			m.logger.Debug("Request path is empty", zap.String("target", target))
-		}
-		unredactedValue = path
-	// URI (full request URI)
-	case target == "URI":
-		uri := r.URL.RequestURI()
-		if uri == "" {
-			m.logger.Debug("Request URI is empty", zap.String("target", target))
-		}
-		unredactedValue = uri
 	// Catch-all for Unrecognized Targets
 	default:
 		m.logger.Warn("Unknown extraction target", zap.String("target", target))
