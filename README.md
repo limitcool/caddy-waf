@@ -175,6 +175,7 @@ caddy fmt --overwrite
 | `whitelist_countries` | Country whitelisting config  | `whitelist_countries GeoLite2-Country.mmdb US`|
 | `log_severity` | Sets the minimum logging severity level for this module. | `log_severity debug`|
 | `log_json` | Enables JSON log output | `log_json` |
+| `log_path` | JSON debug log | `debug.json` |
 
 ---
 
