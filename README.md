@@ -14,7 +14,7 @@ A **simple Web Application Firewall (WAF)** middleware for the Caddy server, des
 -   **Request inspection** (URL, args, body, headers, cookies, user-agent).
 -   **Protection against common attacks** (SQL injection, XSS, RCE, Log4j, etc.).
 -   **Detailed logging and monitoring** for security analysis.
--   **Dynamic rule reloading** without server restart.
+-   **Dynamic reloading** on changes for rules, IP and DNS blacklists
 
 ## 🚀 Quick start
 ```
