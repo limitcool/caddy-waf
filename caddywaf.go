@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,19 +75,6 @@ type GeoIPRecord struct {
 	Country struct {
 		ISOCode string `maxminddb:"iso_code"`
 	} `maxminddb:"country"`
-}
-
-// Rule struct
-type Rule struct {
-	ID          string   `json:"id"`
-	Phase       int      `json:"phase"`
-	Pattern     string   `json:"pattern"`
-	Targets     []string `json:"targets"`
-	Severity    string   `json:"severity"` // Used for logging only
-	Score       int      `json:"score"`
-	Action      string   `json:"mode"` // Determines the action (block/log)
-	Description string   `json:"description"`
-	regex       *regexp.Regexp
 }
 
 // Awesome: Structure to represent a custom block response.
@@ -1628,94 +1614,14 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Rule, Blacklists File Loading
-	if err := m.loadRules(m.RuleFiles, m.IPBlacklistFile, m.DNSBlacklistFile); err != nil {
-		return fmt.Errorf("failed to load rules and blacklists: %w", err)
+	rules, err := LoadRules(m.RuleFiles, m.logger)
+	if err != nil {
+		return fmt.Errorf("failed to load rules: %w", err)
 	}
+
+	m.Rules = rules
 
 	m.logger.Info("WAF middleware provisioned successfully")
-	return nil
-}
-
-func (m *Middleware) loadRules(paths []string, ipBlacklistPath string, dnsBlacklistPath string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.logger.Debug("Loading rules from files", zap.Strings("rule_files", paths), zap.String("ip_blacklist", ipBlacklistPath), zap.String("dns_blacklist", dnsBlacklistPath))
-
-	m.Rules = make(map[int][]Rule)
-	totalRules := 0
-	var invalidFiles []string
-	var allInvalidRules []string
-	ruleIDs := make(map[string]bool) // Track rule IDs across all files
-
-	// Load Rules
-	for _, path := range paths {
-		content, err := os.ReadFile(path)
-		if err != nil {
-			m.logger.Error("Failed to read rule file", zap.String("file", path), zap.Error(err))
-			invalidFiles = append(invalidFiles, path)
-			continue
-		}
-
-		var rules []Rule
-		if err := json.Unmarshal(content, &rules); err != nil {
-			m.logger.Error("Failed to unmarshal rules from file", zap.String("file", path), zap.Error(err))
-			invalidFiles = append(invalidFiles, path)
-			continue
-		}
-
-		var invalidRulesInFile []string
-		for i, rule := range rules {
-			// Validate rule structure
-			if err := validateRule(&rule); err != nil {
-				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule at index %d: %v", i, err))
-				continue
-			}
-
-			// Check for duplicate IDs across all files
-			if _, exists := ruleIDs[rule.ID]; exists {
-				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Duplicate rule ID '%s' at index %d", rule.ID, i))
-				continue
-			}
-			ruleIDs[rule.ID] = true
-
-			// Compile regex pattern
-			regex, err := regexp.Compile(rule.Pattern)
-			if err != nil {
-				m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.Error(err))
-				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
-				continue
-			}
-			rule.regex = regex
-
-			// Initialize phase if missing
-			if _, ok := m.Rules[rule.Phase]; !ok {
-				m.Rules[rule.Phase] = []Rule{}
-			}
-
-			// Add rule to appropriate phase
-			m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rule)
-			totalRules++
-		}
-		if len(invalidRulesInFile) > 0 {
-			m.logger.Warn("Some rules failed validation", zap.String("file", path), zap.Strings("invalid_rules", invalidRulesInFile))
-			allInvalidRules = append(allInvalidRules, invalidRulesInFile...)
-		}
-
-		m.logger.Info("Rules loaded", zap.String("file", path), zap.Int("total_rules", len(rules)), zap.Int("invalid_rules", len(invalidRulesInFile)))
-	}
-
-	if len(invalidFiles) > 0 {
-		m.logger.Warn("Some rule files could not be loaded", zap.Strings("invalid_files", invalidFiles))
-	}
-	if len(allInvalidRules) > 0 {
-		m.logger.Warn("Some rules across files failed validation", zap.Strings("invalid_rules", allInvalidRules))
-	}
-
-	if totalRules == 0 && len(invalidFiles) > 0 {
-		return fmt.Errorf("no valid rules were loaded from any file")
-	}
-	m.logger.Debug("Rules loaded successfully", zap.Int("total_rules", totalRules))
 	return nil
 }
 
@@ -1951,8 +1857,8 @@ func (m *Middleware) ReloadConfig() error {
 	// Create a temporary map to hold the new rules
 	newRules := make(map[int][]Rule)
 
-	// Reload rules into the temporary map
-	if err := m.loadRulesIntoMap(newRules); err != nil {
+	// Reload rules using the new ReloadRules function
+	if err := ReloadRules(m.RuleFiles, m.logger, newRules, &m.mu); err != nil {
 		m.logger.Error("Failed to reload rules",
 			zap.Error(err),
 		)
@@ -1967,8 +1873,6 @@ func (m *Middleware) ReloadConfig() error {
 
 	// Swap the old configuration with the new one atomically
 	m.Rules = newRules
-	// m.ipBlacklist = newIPBlacklist  // REMOVE THIS LINE
-	// m.dnsBlacklist = newDNSBlacklist // REMOVE THIS LINE
 
 	// Log the successful completion of the reload process
 	m.logger.Info("WAF configuration reloaded successfully")
