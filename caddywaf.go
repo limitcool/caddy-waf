@@ -236,6 +236,8 @@ type Middleware struct {
 	CustomResponses map[int]CustomBlockResponse `json:"custom_responses,omitempty"`
 
 	LogFilePath string // New field for configurable log path
+
+	RedactSensitiveData bool `json:"redact_sensitive_data,omitempty"`
 }
 
 // WAFState struct: Used to maintain state between phases
@@ -340,6 +342,7 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	m.CountryBlock.Enabled = false
 	m.CountryWhitelist.Enabled = false
 	m.LogFilePath = "debug.json"
+	m.RedactSensitiveData = false // Initialize with default value
 
 	for d.Next() {
 		for d.NextBlock(0) {
@@ -396,6 +399,9 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				if err := m.parseCustomResponse(d); err != nil {
 					return err
 				}
+			case "redact_sensitive_data":
+				m.RedactSensitiveData = true
+				m.logger.Debug("Redact sensitive data enabled", zap.String("file", d.File()), zap.Int("line", d.Line()))
 			default:
 				m.logger.Warn("WAF Unrecognized SubDirective", zap.String("directive", directive), zap.String("file", d.File()), zap.Int("line", d.Line()))
 				return fmt.Errorf("File: %s, Line: %d: unrecognized subdirective: %s", d.File(), d.Line(), d.Val())
@@ -1250,6 +1256,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 	m.logger.Debug("Starting rule evaluation for phase", zap.Int("phase", phase), zap.Int("rule_count", len(rules)))
 	for _, rule := range rules {
 		m.logger.Debug("Processing rule", zap.String("rule_id", rule.ID), zap.Int("target_count", len(rule.Targets)))
+		ctx := context.WithValue(r.Context(), "rule_id", rule.ID)
+		r = r.WithContext(ctx)
 		for _, target := range rule.Targets {
 			m.logger.Debug("Extracting value for target", zap.String("target", target), zap.String("rule_id", rule.ID))
 			var value string
@@ -1278,19 +1286,11 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			}
 
 			// Redact sensitive fields from being logged
-			redacted := value
-			sensitiveTargets := []string{"password", "token", "apikey", "authorization", "secret"}
-			for _, sensitive := range sensitiveTargets {
-				if strings.Contains(strings.ToLower(target), sensitive) {
-					redacted = "REDACTED"
-					break
-				}
-			}
 
 			m.logger.Debug("Extracted value",
 				zap.String("rule_id", rule.ID),
 				zap.String("target", target),
-				zap.String("value", redacted), // Redacted sensitive data
+				zap.String("value", value),
 			)
 
 			if rule.regex.MatchString(value) {
@@ -1384,16 +1384,18 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 
 	// Extract log ID from fields or request context
 	var logID string
+	var foundLogID bool
 	for i, field := range fields {
 		if field.Key == "log_id" {
 			logID = field.String
 			fields = append(fields[:i], fields[i+1:]...) // Remove log_id from fields
+			foundLogID = true
 			break
 		}
 	}
 
-	// Fallback to generating a new log ID if missing
-	if logID == "" {
+	// Fallback to generating a new log ID if missing or not found in fields
+	if !foundLogID {
 		logID = uuid.New().String()
 	}
 	fields = append(fields, zap.String("log_id", logID))
@@ -1463,15 +1465,44 @@ func (m *Middleware) getCommonLogFields(fields []zap.Field) []zap.Field {
 		}
 	}
 
-	return []zap.Field{
+	// Create the common fields
+	commonFields := []zap.Field{
 		zap.String("log_id", logID),
 		zap.String("source_ip", sourceIP),
 		zap.String("user_agent", userAgent),
 		zap.String("request_method", requestMethod),
 		zap.String("request_path", requestPath),
-		zap.String("query_params", queryParams),
 		zap.Int("status_code", statusCode),
 	}
+	if m.RedactSensitiveData {
+		redactedQueryParams := m.redactQueryParams(queryParams)
+		commonFields = append(commonFields, zap.String("query_params", redactedQueryParams))
+
+	} else {
+		commonFields = append(commonFields, zap.String("query_params", queryParams))
+	}
+
+	return commonFields
+}
+
+func (m *Middleware) redactQueryParams(queryParams string) string {
+	if queryParams == "" {
+		return ""
+	}
+
+	parts := strings.Split(queryParams, "&")
+	for i, part := range parts {
+		if strings.Contains(part, "=") {
+			keyValue := strings.SplitN(part, "=", 2)
+			if len(keyValue) == 2 {
+				key := strings.ToLower(keyValue[0])
+				if strings.Contains(key, "password") || strings.Contains(key, "token") || strings.Contains(key, "apikey") || strings.Contains(key, "authorization") || strings.Contains(key, "secret") {
+					parts[i] = keyValue[0] + "=REDACTED"
+				}
+			}
+		}
+	}
+	return strings.Join(parts, "&")
 }
 
 func (m *Middleware) startFileWatcher(filePaths []string) {
@@ -1885,6 +1916,7 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 
 func (m *Middleware) extractValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
 	target = strings.ToUpper(strings.TrimSpace(target))
+	var unredactedValue string
 
 	switch {
 	// Query Parameters
@@ -1893,7 +1925,7 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 			m.logger.Debug("Query string is empty", zap.String("target", target))
 			return "", fmt.Errorf("query string is empty for target: %s", target)
 		}
-		return r.URL.RawQuery, nil
+		unredactedValue = r.URL.RawQuery
 
 	// Request Body
 	case target == "BODY":
@@ -1911,7 +1943,7 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 			return "", fmt.Errorf("failed to read request body for target %s: %w", target, err)
 		}
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
-		return string(bodyBytes), nil
+		unredactedValue = string(bodyBytes)
 
 	// Full Header Dump (Request)
 	case target == "HEADERS", target == "REQUEST_HEADERS":
@@ -1923,7 +1955,7 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 		for name, values := range r.Header {
 			headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
 		}
-		return strings.Join(headers, "; "), nil
+		unredactedValue = strings.Join(headers, "; ")
 
 	// Response Headers (Phase 3)
 	case target == "RESPONSE_HEADERS":
@@ -1934,7 +1966,7 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 		for name, values := range w.Header() {
 			headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
 		}
-		return strings.Join(headers, "; "), nil
+		unredactedValue = strings.Join(headers, "; ")
 
 	// Response Body (Phase 4)
 	case target == "RESPONSE_BODY":
@@ -1946,9 +1978,11 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 				m.logger.Debug("Response body is empty", zap.String("target", target))
 				return "", fmt.Errorf("response body is empty for target: %s", target)
 			}
-			return recorder.BodyString(), nil
+			unredactedValue = recorder.BodyString()
+
+		} else {
+			return "", fmt.Errorf("response recorder not available for target: %s", target)
 		}
-		return "", fmt.Errorf("response recorder not available for target: %s", target)
 
 	// Dynamic Header Extraction (Request)
 	case strings.HasPrefix(target, "HEADERS:"):
@@ -1958,7 +1992,7 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 			m.logger.Debug("Header not found", zap.String("header", headerName))
 			return "", fmt.Errorf("header '%s' not found for target: %s", headerName, target)
 		}
-		return headerValue, nil
+		unredactedValue = headerValue
 
 	// Dynamic Response Header Extraction (Phase 3)
 	case strings.HasPrefix(target, "RESPONSE_HEADERS:"):
@@ -1971,7 +2005,7 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 			m.logger.Debug("Response header not found", zap.String("header", headerName))
 			return "", fmt.Errorf("response header '%s' not found for target: %s", headerName, target)
 		}
-		return headerValue, nil
+		unredactedValue = headerValue
 
 	// Cookies Extraction
 	case target == "COOKIES":
@@ -1983,7 +2017,7 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 			m.logger.Debug("No cookies found", zap.String("target", target))
 			return "", fmt.Errorf("no cookies found for target: %s", target)
 		}
-		return strings.Join(cookies, "; "), nil
+		unredactedValue = strings.Join(cookies, "; ")
 
 	case strings.HasPrefix(target, "COOKIES:"):
 		cookieName := strings.TrimPrefix(target, "COOKIES:")
@@ -1992,14 +2026,15 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 			m.logger.Debug("Cookie not found", zap.String("cookie", cookieName))
 			return "", fmt.Errorf("cookie '%s' not found for target: %s", cookieName, target)
 		}
-		return cookie.Value, nil
-		// User Agent
+		unredactedValue = cookie.Value
+
+	// User Agent
 	case target == "USER_AGENT":
 		userAgent := r.UserAgent()
 		if userAgent == "" {
 			m.logger.Debug("User-Agent is empty", zap.String("target", target))
 		}
-		return userAgent, nil
+		unredactedValue = userAgent
 
 	// Path
 	case target == "PATH":
@@ -2007,21 +2042,40 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 		if path == "" {
 			m.logger.Debug("Request path is empty", zap.String("target", target))
 		}
-		return path, nil
-
+		unredactedValue = path
 	// URI (full request URI)
 	case target == "URI":
 		uri := r.URL.RequestURI()
 		if uri == "" {
 			m.logger.Debug("Request URI is empty", zap.String("target", target))
 		}
-		return uri, nil
-
+		unredactedValue = uri
 	// Catch-all for Unrecognized Targets
 	default:
 		m.logger.Warn("Unknown extraction target", zap.String("target", target))
 		return "", fmt.Errorf("unknown extraction target: %s", target)
 	}
+
+	// Redact sensitive fields
+	value := unredactedValue
+	if m.RedactSensitiveData {
+		sensitiveTargets := []string{"password", "token", "apikey", "authorization", "secret"}
+		for _, sensitive := range sensitiveTargets {
+			if strings.Contains(strings.ToLower(target), sensitive) {
+				value = "REDACTED"
+				break
+			}
+		}
+	}
+
+	m.logger.Debug("Extracted value",
+		zap.String("rule_id", r.Context().Value("rule_id").(string)),
+		zap.String("target", target),
+		zap.String("value", value), // Now logging the potentially redacted value
+	)
+
+	return unredactedValue, nil // Return the unredacted value for rule matching
+
 }
 
 // validateRule checks if a rule is valid
