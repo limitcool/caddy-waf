@@ -1917,58 +1917,155 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 func (m *Middleware) extractValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
 	target = strings.ToUpper(strings.TrimSpace(target))
 	var unredactedValue string
-	var err error
 
 	switch {
 	// Query Parameters
 	case target == "ARGS":
-		unredactedValue, err = m.extractQueryParams(r)
+		if r.URL.RawQuery == "" {
+			m.logger.Debug("Query string is empty", zap.String("target", target))
+			return "", fmt.Errorf("query string is empty for target: %s", target)
+		}
+		unredactedValue = r.URL.RawQuery
+
 	// Request Body
 	case target == "BODY":
-		unredactedValue, err = m.extractRequestBody(r)
+		if r.Body == nil {
+			m.logger.Warn("Request body is nil", zap.String("target", target))
+			return "", fmt.Errorf("request body is nil for target: %s", target)
+		}
+		if r.ContentLength == 0 {
+			m.logger.Debug("Request body is empty", zap.String("target", target))
+			return "", fmt.Errorf("request body is empty for target: %s", target)
+		}
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			m.logger.Error("Failed to read request body", zap.Error(err))
+			return "", fmt.Errorf("failed to read request body for target %s: %w", target, err)
+		}
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
+		unredactedValue = string(bodyBytes)
+
 	// Full Header Dump (Request)
 	case target == "HEADERS", target == "REQUEST_HEADERS":
-		unredactedValue, err = m.extractRequestHeaders(r)
+		if len(r.Header) == 0 {
+			m.logger.Debug("Request headers are empty", zap.String("target", target))
+			return "", fmt.Errorf("request headers are empty for target: %s", target)
+		}
+		headers := make([]string, 0)
+		for name, values := range r.Header {
+			headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
+		}
+		unredactedValue = strings.Join(headers, "; ")
+
 	// Response Headers (Phase 3)
 	case target == "RESPONSE_HEADERS":
-		unredactedValue, err = m.extractResponseHeaders(w)
+		if w == nil {
+			return "", fmt.Errorf("response headers not accessible outside Phase 3 for target: %s", target)
+		}
+		headers := make([]string, 0)
+		for name, values := range w.Header() {
+			headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
+		}
+		unredactedValue = strings.Join(headers, "; ")
+
 	// Response Body (Phase 4)
 	case target == "RESPONSE_BODY":
-		unredactedValue, err = m.extractResponseBody(w)
+		if w == nil {
+			return "", fmt.Errorf("response body not accessible outside Phase 4 for target: %s", target)
+		}
+		if recorder, ok := w.(*responseRecorder); ok {
+			if recorder.body.Len() == 0 {
+				m.logger.Debug("Response body is empty", zap.String("target", target))
+				return "", fmt.Errorf("response body is empty for target: %s", target)
+			}
+			unredactedValue = recorder.BodyString()
+
+		} else {
+			return "", fmt.Errorf("response recorder not available for target: %s", target)
+		}
+
 	// Dynamic Header Extraction (Request)
 	case strings.HasPrefix(target, "HEADERS:"):
-		unredactedValue, err = m.extractDynamicHeader(r, target)
+		headerName := strings.TrimPrefix(target, "HEADERS:")
+		headerValue := r.Header.Get(headerName)
+		if headerValue == "" {
+			m.logger.Debug("Header not found", zap.String("header", headerName))
+			return "", fmt.Errorf("header '%s' not found for target: %s", headerName, target)
+		}
+		unredactedValue = headerValue
+
 	// Dynamic Response Header Extraction (Phase 3)
 	case strings.HasPrefix(target, "RESPONSE_HEADERS:"):
-		unredactedValue, err = m.extractDynamicResponseHeader(w, target)
+		if w == nil {
+			return "", fmt.Errorf("response headers not available during this phase for target: %s", target)
+		}
+		headerName := strings.TrimPrefix(target, "RESPONSE_HEADERS:")
+		headerValue := w.Header().Get(headerName)
+		if headerValue == "" {
+			m.logger.Debug("Response header not found", zap.String("header", headerName))
+			return "", fmt.Errorf("response header '%s' not found for target: %s", headerName, target)
+		}
+		unredactedValue = headerValue
+
 	// Cookies Extraction
 	case target == "COOKIES":
-		unredactedValue, err = m.extractCookies(r)
+		cookies := make([]string, 0)
+		for _, c := range r.Cookies() {
+			cookies = append(cookies, fmt.Sprintf("%s=%s", c.Name, c.Value))
+		}
+		if len(cookies) == 0 {
+			m.logger.Debug("No cookies found", zap.String("target", target))
+			return "", fmt.Errorf("no cookies found for target: %s", target)
+		}
+		unredactedValue = strings.Join(cookies, "; ")
+
 	case strings.HasPrefix(target, "COOKIES:"):
-		unredactedValue, err = m.extractSpecificCookie(r, target)
+		cookieName := strings.TrimPrefix(target, "COOKIES:")
+		cookie, err := r.Cookie(cookieName)
+		if err != nil {
+			m.logger.Debug("Cookie not found", zap.String("cookie", cookieName))
+			return "", fmt.Errorf("cookie '%s' not found for target: %s", cookieName, target)
+		}
+		unredactedValue = cookie.Value
+
 	// User Agent
 	case target == "USER_AGENT":
-		unredactedValue = r.UserAgent()
+		userAgent := r.UserAgent()
+		if userAgent == "" {
+			m.logger.Debug("User-Agent is empty", zap.String("target", target))
+		}
+		unredactedValue = userAgent
+
 	// Path
 	case target == "PATH":
-		unredactedValue = r.URL.Path
+		path := r.URL.Path
+		if path == "" {
+			m.logger.Debug("Request path is empty", zap.String("target", target))
+		}
+		unredactedValue = path
 	// URI (full request URI)
 	case target == "URI":
-		unredactedValue = r.URL.RequestURI()
+		uri := r.URL.RequestURI()
+		if uri == "" {
+			m.logger.Debug("Request URI is empty", zap.String("target", target))
+		}
+		unredactedValue = uri
 	// Catch-all for Unrecognized Targets
 	default:
 		m.logger.Warn("Unknown extraction target", zap.String("target", target))
 		return "", fmt.Errorf("unknown extraction target: %s", target)
 	}
 
-	if err != nil {
-		return "", err
-	}
-
 	// Redact sensitive fields
 	value := unredactedValue
 	if m.RedactSensitiveData {
-		value = m.redactSensitiveData(target, unredactedValue)
+		sensitiveTargets := []string{"password", "token", "apikey", "authorization", "secret"}
+		for _, sensitive := range sensitiveTargets {
+			if strings.Contains(strings.ToLower(target), sensitive) {
+				value = "REDACTED"
+				break
+			}
+		}
 	}
 
 	m.logger.Debug("Extracted value",
@@ -1978,126 +2075,7 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 	)
 
 	return unredactedValue, nil // Return the unredacted value for rule matching
-}
 
-// Helper functions for extraction
-
-func (m *Middleware) extractQueryParams(r *http.Request) (string, error) {
-	if r.URL.RawQuery == "" {
-		m.logger.Debug("Query string is empty", zap.String("target", "ARGS"))
-		return "", fmt.Errorf("query string is empty for target: ARGS")
-	}
-	return r.URL.RawQuery, nil
-}
-
-func (m *Middleware) extractRequestBody(r *http.Request) (string, error) {
-	if r.Body == nil {
-		m.logger.Warn("Request body is nil", zap.String("target", "BODY"))
-		return "", fmt.Errorf("request body is nil for target: BODY")
-	}
-	if r.ContentLength == 0 {
-		m.logger.Debug("Request body is empty", zap.String("target", "BODY"))
-		return "", fmt.Errorf("request body is empty for target: BODY")
-	}
-	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		m.logger.Error("Failed to read request body", zap.Error(err))
-		return "", fmt.Errorf("failed to read request body for target BODY: %w", err)
-	}
-	r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
-	return string(bodyBytes), nil
-}
-
-func (m *Middleware) extractRequestHeaders(r *http.Request) (string, error) {
-	if len(r.Header) == 0 {
-		m.logger.Debug("Request headers are empty", zap.String("target", "HEADERS"))
-		return "", fmt.Errorf("request headers are empty for target: HEADERS")
-	}
-	headers := make([]string, 0, len(r.Header))
-	for name, values := range r.Header {
-		headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
-	}
-	return strings.Join(headers, "; "), nil
-}
-
-func (m *Middleware) extractResponseHeaders(w http.ResponseWriter) (string, error) {
-	if w == nil {
-		return "", fmt.Errorf("response headers not accessible outside Phase 3 for target: RESPONSE_HEADERS")
-	}
-	headers := make([]string, 0)
-	for name, values := range w.Header() {
-		headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
-	}
-	return strings.Join(headers, "; "), nil
-}
-
-func (m *Middleware) extractResponseBody(w http.ResponseWriter) (string, error) {
-	if w == nil {
-		return "", fmt.Errorf("response body not accessible outside Phase 4 for target: RESPONSE_BODY")
-	}
-	if recorder, ok := w.(*responseRecorder); ok {
-		if recorder.body.Len() == 0 {
-			m.logger.Debug("Response body is empty", zap.String("target", "RESPONSE_BODY"))
-			return "", fmt.Errorf("response body is empty for target: RESPONSE_BODY")
-		}
-		return recorder.BodyString(), nil
-	}
-	return "", fmt.Errorf("response recorder not available for target: RESPONSE_BODY")
-}
-
-func (m *Middleware) extractDynamicHeader(r *http.Request, target string) (string, error) {
-	headerName := strings.TrimPrefix(target, "HEADERS:")
-	headerValue := r.Header.Get(headerName)
-	if headerValue == "" {
-		m.logger.Debug("Header not found", zap.String("header", headerName))
-		return "", fmt.Errorf("header '%s' not found for target: %s", headerName, target)
-	}
-	return headerValue, nil
-}
-
-func (m *Middleware) extractDynamicResponseHeader(w http.ResponseWriter, target string) (string, error) {
-	if w == nil {
-		return "", fmt.Errorf("response headers not available during this phase for target: %s", target)
-	}
-	headerName := strings.TrimPrefix(target, "RESPONSE_HEADERS:")
-	headerValue := w.Header().Get(headerName)
-	if headerValue == "" {
-		m.logger.Debug("Response header not found", zap.String("header", headerName))
-		return "", fmt.Errorf("response header '%s' not found for target: %s", headerName, target)
-	}
-	return headerValue, nil
-}
-
-func (m *Middleware) extractCookies(r *http.Request) (string, error) {
-	cookies := make([]string, 0, len(r.Cookies()))
-	for _, c := range r.Cookies() {
-		cookies = append(cookies, fmt.Sprintf("%s=%s", c.Name, c.Value))
-	}
-	if len(cookies) == 0 {
-		m.logger.Debug("No cookies found", zap.String("target", "COOKIES"))
-		return "", fmt.Errorf("no cookies found for target: COOKIES")
-	}
-	return strings.Join(cookies, "; "), nil
-}
-
-func (m *Middleware) extractSpecificCookie(r *http.Request, target string) (string, error) {
-	cookieName := strings.TrimPrefix(target, "COOKIES:")
-	cookie, err := r.Cookie(cookieName)
-	if err != nil {
-		m.logger.Debug("Cookie not found", zap.String("cookie", cookieName))
-		return "", fmt.Errorf("cookie '%s' not found for target: %s", cookieName, target)
-	}
-	return cookie.Value, nil
-}
-
-func (m *Middleware) redactSensitiveData(target, value string) string {
-	sensitiveTargets := []string{"password", "token", "apikey", "authorization", "secret"}
-	for _, sensitive := range sensitiveTargets {
-		if strings.Contains(strings.ToLower(target), sensitive) {
-			return "REDACTED"
-		}
-	}
-	return value
 }
 
 // validateRule checks if a rule is valid
