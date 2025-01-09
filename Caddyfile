@@ -89,6 +89,9 @@
             
             # Log path
             log_path debug.json
+
+            # Redact sensitive data
+            # redact_sensitive_data
         }
 
         # Respond to all requests with "Hello, world!" and a 200 status code
