@@ -1318,34 +1318,32 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 		return
 	}
 
-	// Extract log ID from fields or request context
+	// Extract log ID or generate a new one
 	var logID string
-	var foundLogID bool
-	for i, field := range fields {
+	var newFields []zap.Field
+	foundLogID := false
+
+	for _, field := range fields {
 		if field.Key == "log_id" {
 			logID = field.String
-			fields = append(fields[:i], fields[i+1:]...) // Remove log_id from fields
 			foundLogID = true
-			break
+		} else {
+			newFields = append(newFields, field)
 		}
 	}
 
-	// Fallback to generating a new log ID if missing or not found in fields
 	if !foundLogID {
 		logID = uuid.New().String()
 	}
-	fields = append(fields, zap.String("log_id", logID))
 
-	// Attach common request metadata (IP, User-Agent, etc.)
-	commonFields := m.getCommonLogFields(fields)
-	fields = append(fields, commonFields...)
+	// Append log_id explicitly to newFields
+	newFields = append(newFields, zap.String("log_id", logID))
 
-	// Set logging threshold if unset
-	if m.LogSeverity == "" {
-		m.LogSeverity = "info"
-	}
+	// Attach common request metadata
+	commonFields := m.getCommonLogFields(newFields)
+	newFields = append(newFields, commonFields...)
 
-	// Cache log level for efficiency
+	// Determine the log level if unset
 	if m.logLevel == 0 {
 		switch strings.ToLower(m.LogSeverity) {
 		case "debug":
@@ -1359,33 +1357,27 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 		}
 	}
 
-	// Skip logging if level is below threshold
+	// Skip logging if level is below the threshold
 	if level < m.logLevel {
 		return
 	}
 
-	// Perform JSON or plaintext logging
+	// Log the message with the appropriate format
 	if m.LogJSON {
-		fields = append(fields, zap.String("message", msg))
-		m.logger.Log(level, "", fields...)
+		newFields = append(newFields, zap.String("message", msg))
+		m.logger.Log(level, "", newFields...)
 	} else {
-		m.logger.Log(level, msg, fields...)
+		m.logger.Log(level, msg, newFields...)
 	}
 }
 
 func (m *Middleware) getCommonLogFields(fields []zap.Field) []zap.Field {
-	var logID string
-	var sourceIP string
-	var userAgent string
-	var requestMethod string
-	var requestPath string
-	var queryParams string
+	// Extract or assign default values for metadata fields
+	var sourceIP, userAgent, requestMethod, requestPath, queryParams string
 	var statusCode int
 
 	for _, field := range fields {
 		switch field.Key {
-		case "log_id":
-			logID = field.String
 		case "source_ip":
 			sourceIP = field.String
 		case "user_agent":
@@ -1397,28 +1389,39 @@ func (m *Middleware) getCommonLogFields(fields []zap.Field) []zap.Field {
 		case "query_params":
 			queryParams = field.String
 		case "status_code":
-			statusCode = int(field.Integer) // Explicit conversion here
+			statusCode = int(field.Integer)
 		}
 	}
 
-	// Create the common fields
-	commonFields := []zap.Field{
-		zap.String("log_id", logID),
+	// Default values for missing fields
+	if sourceIP == "" {
+		sourceIP = "unknown"
+	}
+	if userAgent == "" {
+		userAgent = "unknown"
+	}
+	if requestMethod == "" {
+		requestMethod = "unknown"
+	}
+	if requestPath == "" {
+		requestPath = "unknown"
+	}
+
+	// Redact query parameters if required
+	if m.RedactSensitiveData {
+		queryParams = m.redactQueryParams(queryParams)
+	}
+
+	// Construct and return common fields
+	return []zap.Field{
 		zap.String("source_ip", sourceIP),
 		zap.String("user_agent", userAgent),
 		zap.String("request_method", requestMethod),
 		zap.String("request_path", requestPath),
+		zap.String("query_params", queryParams),
 		zap.Int("status_code", statusCode),
+		zap.Time("timestamp", time.Now()), // Include a timestamp
 	}
-	if m.RedactSensitiveData {
-		redactedQueryParams := m.redactQueryParams(queryParams)
-		commonFields = append(commonFields, zap.String("query_params", redactedQueryParams))
-
-	} else {
-		commonFields = append(commonFields, zap.String("query_params", queryParams))
-	}
-
-	return commonFields
 }
 
 func (m *Middleware) redactQueryParams(queryParams string) string {
