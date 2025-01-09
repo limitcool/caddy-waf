@@ -26,7 +26,31 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/fsnotify/fsnotify"
+
+	"runtime/debug"
 )
+
+func (m *Middleware) logVersion() {
+	buildInfo, ok := debug.ReadBuildInfo()
+	if !ok {
+		m.logger.Warn("Failed to read build info, version unavailable")
+		return
+	}
+
+	var moduleVersion string
+	for _, mod := range buildInfo.Deps {
+		if mod.Path == "github.com/fabriziosalmi/caddy-waf" {
+			moduleVersion = mod.Version
+			break
+		}
+	}
+
+	if moduleVersion == "" {
+		moduleVersion = "unknown"
+	}
+
+	m.logger.Info("Starting caddy-waf", zap.String("version", moduleVersion))
+}
 
 func init() {
 	// Register the module and directive without logging
@@ -1559,6 +1583,9 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		zap.Bool("log_json", m.LogJSON),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
+
+	// Log the dynamically fetched version
+	m.logVersion()
 
 	// Start watching files for reload (IP blacklist, DNS blacklist)
 	m.startFileWatcher([]string{m.IPBlacklistFile, m.DNSBlacklistFile})
