@@ -94,9 +94,9 @@ echo -e "📦 Running go mod tidy..."
 go mod tidy && print_success "Dependencies updated (go mod tidy)." || print_error "Failed to run go mod tidy."
 
 echo -e "🔍 Fetching Go modules..."
-go get -v github.com/fabriziosalmi/caddy-waf github.com/caddyserver/caddy/v2 github.com/oschwald/maxminddb-golang && \
+go get -v github.com/caddyserver/caddy/v2 github.com/caddyserver/caddy/v2/caddyconfig/caddyfile github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile github.com/caddyserver/caddy/v2 github.com/caddyserver/caddy/v2/modules/caddyhttp github.com/oschwald/maxminddb-golang github.com/fsnotify/fsnotify github.com/fabriziosalmi/caddy-waf && \
 print_success "Go modules fetched successfully." || print_error "Failed to fetch Go modules."
-
+        
 # Download GeoLite2 Country database
 if [ ! -f "GeoLite2-Country.mmdb" ]; then
     echo -e "🌍 Downloading GeoLite2 Country database..."
