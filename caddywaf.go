@@ -1841,7 +1841,7 @@ func (m *Middleware) loadRules(paths []string, ipBlacklistPath string, dnsBlackl
 	if totalRules == 0 && len(invalidFiles) > 0 {
 		return fmt.Errorf("no valid rules were loaded from any file")
 	}
-	m.logger.Info("Rules and Blacklists loaded successfully", zap.Int("total_rules", totalRules))
+	m.logger.Debug("Rules and Blacklists loaded successfully", zap.Int("total_rules", totalRules))
 
 	return nil
 }
