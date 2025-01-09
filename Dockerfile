@@ -14,11 +14,11 @@ RUN git clone https://github.com/fabriziosalmi/caddy-waf.git
 # Navigate into the caddy-waf directory
 WORKDIR /app/caddy-waf
 
+# Fetch and install the required Go modules (including Caddy v2)
+RUN go get -v github.com/caddyserver/caddy/v2 github.com/caddyserver/caddy/v2/caddyconfig/caddyfile github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile github.com/caddyserver/caddy/v2 github.com/caddyserver/caddy/v2/modules/caddyhttp github.com/oschwald/maxminddb-golang github.com/fsnotify/fsnotify github.com/fabriziosalmi/caddy-waf && \
+
 # Clean up and update the go.mod file
 RUN go mod tidy
-
-# Fetch and install the required Go modules (including Caddy v2)
-RUN go get -v github.com/fabriziosalmi/caddy-waf github.com/caddyserver/caddy/v2 github.com/oschwald/maxminddb-golang
 
 # Download the GeoLite2 Country database
 RUN wget https://git.io/GeoLite2-Country.mmdb
