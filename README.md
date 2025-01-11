@@ -413,7 +413,7 @@ You can chain **caddy-waf**, **caddy-mib**, and **caddy-mlf** to create a multi-
 | **caddy-waf** | Acts as the first gate, inspecting and filtering malicious requests based on anomaly scores, rate limits, and blacklists. | [GitHub: caddy-waf](https://github.com/fabriziosalmi/caddy-waf) |
 | **caddy-mib** | Handles IP banning for repeated errors, such as 404 or 500, to prevent brute force or abusive access attempts. | [GitHub: caddy-mib](https://github.com/fabriziosalmi/caddy-mib) |
 | **caddy-mlf** | Provides an additional layer of protection by analyzing request attributes and marking/blocking suspicious traffic based on anomaly thresholds. | [GitHub: caddy-mlf](https://github.com/fabriziosalmi/caddy-mlf) |
-Here’s an example configuration to chain the modules:
+Here’s an example configuration to chain the modules: `xcaddy built --with github.com/fabriziosalmi/caddy-waf --with github.com/fabriziosalmi/caddy-mib --with github.com/fabriziosalmi/caddy-mlf
 
 ### Flow:
 1. **caddy-waf**: Listens on `localhost:8080` and forwards requests to **caddy-mib**.
