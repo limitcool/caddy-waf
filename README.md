@@ -1,41 +1,46 @@
 # 🛡️ Caddy WAF Middleware
 
-A **simple Web Application Firewall (WAF)** middleware for the Caddy server, designed to provide **comprehensive protection** against web attacks. This middleware integrates seamlessly with Caddy and offers a wide range of security features to safeguard your applications.
+A robust and flexible **Web Application Firewall (WAF)** middleware for the Caddy web server, designed to provide **comprehensive protection** against a wide array of web-based attacks. This middleware integrates seamlessly with Caddy and offers a rich set of security features to safeguard your applications.
 
 [![Go](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/go.yml/badge.svg)](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/go.yml) [![Build and test Caddy with WAF](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/build.yml/badge.svg)](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/build.yml) [![CodeQL](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/github-code-scanning/codeql)
 
 ## 🌟 Key Features
 
--   **Rule-based request filtering** with regex patterns.
--   **IP and DNS blacklisting** to block malicious traffic.
--   **Country-based blocking** using MaxMind GeoIP2.
--   **Rate limiting** per IP address to prevent abuse.
--   **Anomaly scoring system** for detecting suspicious behavior.
--   **Request inspection** (URL, args, body, headers, cookies, user-agent).
--   **Protection against common attacks** (SQL injection, XSS, RCE, Log4j, etc.).
--   **Detailed logging and monitoring** for security analysis.
--   **Dynamic reloading** on changes for rules, IP and DNS blacklists
+*   **Rule-Based Filtering:** Flexible rule engine using regular expressions to inspect request components such as URL, arguments, body, headers, and cookies.
+*   **IP and DNS Blacklisting:** Block malicious traffic using IP address and DNS domain blacklists. Supports both single IPs and CIDR ranges in the IP blacklist.
+*   **Country-Based Blocking/Whitelisting:** Control access based on the geographic location of the client using MaxMind GeoIP2 databases.
+*   **Rate Limiting:** Protect against brute-force attacks and abusive behavior by setting limits on requests per IP address.
+*   **Anomaly Scoring System:** Detect suspicious activity by assigning scores to rule matches, triggering actions when a threshold is exceeded.
+*   **Multi-Phase Inspection:** Rules are evaluated across multiple request/response phases, offering in-depth traffic analysis.
+*   **Customizable Block Responses:** Customize block responses with custom status codes, headers, and body content, including static files.
+*   **Detailed Logging:** Comprehensive logging of WAF activities with configurable severity levels (debug, info, warn, error) and JSON format options.
+*   **Dynamic Configuration Reloading:** Changes to rules, blacklists, and most other configurations are applied without restarting Caddy, using file watchers.
+*   **Request Redaction:** Option to redact sensitive data in logs such as password, token, and API keys found in query parameters.
+*   **Graceful Shutdown:** Ensures that all resources like database connections and rate limiter are closed gracefully.
+*   **GeoIP Lookup Fallback**: Configurable behavior when GeoIP lookup fails, allowing for default allow, deny, or specific country code fallback.
 
-## 🚀 Quick start
-```
+## 🚀 Quick Start
+
+```bash
 curl -fsSL -H "Pragma: no-cache" https://raw.githubusercontent.com/fabriziosalmi/caddy-waf/refs/heads/main/install.sh | bash
 ```
 
-**Example output**
+**Example output:**
 
 ```
-INFO	Starting caddy-waf	{"version": "v0.0.0-20250109090908-5a8c1c74fab0"}
-INFO	Rate limit configuration	{"requests": 1000, "window": 60, "cleanup_interval": 300}
-INFO	[INFO] Starting rate limiter cleanup goroutine
-INFO	GeoIP database loaded successfully	{"path": "GeoLite2-Country.mmdb"}
-INFO	Rules loaded	{"file": "rules.json", "total_rules": 14, "invalid_rules": 0}
-INFO	IP blacklist loaded successfully	{"file": "ip_blacklist.txt", "valid_entries": 3, "total_lines": 3}
-INFO	DNS blacklist loaded successfully	{"file": "dns_blacklist.txt", "valid_entries": 2, "total_lines": 2}
-INFO	Rules and Blacklists loaded successfully	{"total_rules": 14}
-INFO	WAF middleware provisioned successfully
+INFO    Starting caddy-waf    {"version": "v0.0.0-20250109090908-5a8c1c74fab0"}
+INFO    Rate limit configuration        {"requests": 1000, "window": 60, "cleanup_interval": 300}
+INFO    Starting rate limiter cleanup goroutine
+INFO    GeoIP database loaded successfully    {"path": "GeoLite2-Country.mmdb"}
+INFO    Rules loaded    {"file": "rules.json", "total_rules": 14, "invalid_rules": 0}
+INFO    IP blacklist loaded successfully    {"file": "ip_blacklist.txt", "valid_entries": 3, "total_lines": 3}
+INFO    DNS blacklist loaded successfully    {"file": "dns_blacklist.txt", "valid_entries": 2, "total_lines": 2}
+INFO    Rules and Blacklists loaded successfully    {"total_rules": 14}
+INFO    WAF middleware provisioned successfully
 ```
 
 ## 📑 Table of Contents
+
 1.  [🚀 Installation](#-installation)
     *   [Final Notes](#final-notes)
 2.  [🛠️ Configuration](#️-configuration)
@@ -48,8 +53,8 @@ INFO	WAF middleware provisioned successfully
     *   [IP Blacklist (`ip_blacklist.txt`)](#ip-blacklist-ip_blacklisttxt)
     *   [DNS Blacklist (`dns_blacklist.txt`)](#dns-blacklist-dns_blacklisttxt)
 7.  [⏱️ Rate Limiting](#️-rate-limiting)
-8.  [🌍 Country Blocking](#-country-blocking)
-9. [🔄 Dynamic Updates](#-dynamic-updates)
+8.  [🌍 Country Blocking and Whitelisting](#-country-blocking-and-whitelisting)
+9.  [🔄 Dynamic Updates](#-dynamic-updates)
 10. [🧪 Testing](#-testing)
     *  [Basic Testing](#basic-testing)
     *  [Load Testing](#load-testing)
@@ -59,9 +64,9 @@ INFO	WAF middleware provisioned successfully
     * [get_owasp_rules.py](#get_owasp_rulespy)
     * [get_blacklisted_ip.py](#get_blacklisted_ippy)
     * [get_blacklisted_dns.py](#get_blacklisted_dnspy)
-13. [📜 License](#-license)
-14. [🙏 Contributing](#-contributing)
-
+13. [🌐 Combining Caddy Modules](#-combining-caddy-modules-for-enhanced-security)
+14. [📜 License](#-license)
+15. [🙏 Contributing](#-contributing)
 
 ---
 
@@ -87,7 +92,7 @@ go get github.com/fsnotify/fsnotify
 go get -v github.com/fabriziosalmi/caddy-waf
 go mod tidy
 
-# Step 5: Download the GeoLite2 Country database
+# Step 5: Download the GeoLite2 Country database (required for country blocking/whitelisting)
 wget https://git.io/GeoLite2-Country.mmdb
 
 # Step 6: Build Caddy with the caddy-waf module
@@ -102,12 +107,8 @@ caddy fmt --overwrite
 
 ### Final Notes
 
--   If you encounter any issues, ensure that your Go environment is set up correctly and that you're using a compatible version of Go (as specified in the `caddy-waf` repository's `go.mod` file).
--   After building Caddy with `xcaddy`, the resulting binary will include the WAF middleware. You can verify this by running:
-    ```bash
-    ./caddy list-modules
-    ```
-    Look for the `http.handlers.waf` module in the output.
+*   Ensure your Go environment is properly configured and that you are using a compatible version of Go as specified in the `go.mod` file.
+*   After building with `xcaddy`, verify the `http.handlers.waf` module by running `./caddy list-modules`.
 
 ---
 
@@ -130,7 +131,7 @@ caddy fmt --overwrite
 
     route {
         waf {
-            # Anomaly threshold will block request if the score is => the threshold
+            # Anomaly threshold to block request if the score is >= the threshold
             anomaly_threshold 10
 
             # Rate limiting: 1000 requests per 1 minute
@@ -147,14 +148,24 @@ caddy fmt --overwrite
             # Whitelist countries (requires MaxMind GeoIP2 database)
             # whitelist_countries GeoLite2-Country.mmdb US
 
-            # Set Log Severity
+            # Set Log Severity Level
             log_severity info
 
-            # Set Log JSON output
+            # Enable JSON log output
             log_json
 
-            # Set Log JSON file path
+            # Set the log file path
             log_path debug.json
+
+            # Redact sensitive data from the query parameters in the logs
+            # redact_sensitive_data
+
+             # Example custom response for a 403 status code
+             custom_response 403 text/html "<h1>Access Denied</h1><p>Your request has been blocked by the WAF.</p>"
+              
+             # Example custom response for a 401 status code using a file
+              # custom_response 401 application/json error.json
+              
         }
         respond "Hello, world! This is caddy-waf" 200
     }
@@ -165,24 +176,26 @@ caddy fmt --overwrite
 
 ## ⚙️ Configuration Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `anomaly_threshold` | Sets the anomaly score threshold. | `anomaly_threshold 20` |
-| `rule_file` | JSON file containing WAF rules | `rule_file rules.json` |
-| `ip_blacklist_file` | File with blocked IPs/CIDR ranges | `ip_blacklist_file blacklist.txt` |
-| `dns_blacklist_file` | File with blocked domains | `dns_blacklist_file domains.txt` |
-| `rate_limit` | Rate limiting config | `rate_limit 100 1m` |
-| `block_countries` | Country blocking config | `block_countries GeoLite2-Country.mmdb RU CN KP` |
-| `whitelist_countries` | Country whitelisting config  | `whitelist_countries GeoLite2-Country.mmdb US`|
-| `log_severity` | Sets the minimum logging severity level for this module. | `log_severity debug`|
-| `log_json` | Enables JSON log output | `log_json` |
-| `log_path` | JSON debug log | `debug.json` |
+| Option                 | Description                                                                                                    | Example                                                       |
+|------------------------|----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
+| `anomaly_threshold`    | Sets the anomaly score threshold at which requests will be blocked.                                             | `anomaly_threshold 20`                                          |
+| `rule_file`            | Path to a JSON file containing the WAF rules.                                                                    | `rule_file rules.json`                                          |
+| `ip_blacklist_file`    | Path to a file containing blacklisted IP addresses and CIDR ranges.                                               | `ip_blacklist_file blacklist.txt`                               |
+| `dns_blacklist_file`   | Path to a file containing blacklisted domain names.                                                             | `dns_blacklist_file domains.txt`                               |
+| `rate_limit`           | Configures the rate limiting parameters. The syntax is requests, window, and optional cleanup interval          | `rate_limit 100 1m 5m`                                          |
+| `block_countries`      | Enables country blocking, requires the GeoIP database path and ISO country codes.                               | `block_countries GeoLite2-Country.mmdb RU CN KP`                   |
+| `whitelist_countries`  | Enables country whitelisting, requires the GeoIP database path and ISO country codes.                           | `whitelist_countries GeoLite2-Country.mmdb US`                   |
+| `log_severity`         | Sets the minimum logging level (`debug`, `info`, `warn`, `error`).                                              | `log_severity debug`                                           |
+| `log_json`             | Enables JSON formatted log output.                                                                             | `log_json`                                                   |
+| `log_path`             | Sets the path for the log file. If not specified it will default to `/var/log/caddy/waf.json`                        | `log_path debug.json`                                           |
+| `redact_sensitive_data` | When enabled, it will redact sensitive data from the query string on the logs.                          | `redact_sensitive_data`                                           |
+| `custom_response`     | Defines custom response for the specified status code, following the sintax custom_response STATUS_CODE content_type body_string_or_file_path  | `custom_response 403 application/json error.json` or `custom_response 403 text/html "<h1>Access Denied</h1>"`|
 
 ---
 
 ## 📜 Rules Format (`rules.json`)
 
-Rules are defined in a JSON file. Each rule specifies a pattern to match, targets to inspect, and actions to take.
+Rules are defined in a JSON file as an array of objects. Each rule specifies how to match a pattern, what parts of the request to inspect, and what action to take when a match is found.
 
 ```json
 [
@@ -192,64 +205,58 @@ Rules are defined in a JSON file. Each rule specifies a pattern to match, target
         "pattern": "(?i)(?:wp-login\\.php|xmlrpc\\.php).*?(?:username=|pwd=)",
         "targets": ["URI", "ARGS"],
         "severity": "HIGH",
-        "action": "block",
+         "action": "block",
         "score": 8,
         "description": "Block brute force attempts targeting WordPress login and XML-RPC endpoints."
-    }
+    },
+     {
+        "id": "sql-injection-header",
+        "phase": 1,
+        "pattern": "(?i)(?:select|insert|update|delete|union|drop|--|;)",
+        "targets": ["HEADERS:X-Attack"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 10,
+        "description": "Detect and block SQL injection attempts in custom header."
+    },
+     {
+        "id": "log4j-jndi",
+         "phase": 2,
+        "pattern": "(?i)\\$\\{jndi:(ldap|rmi|dns):\\/\\/.*\\}",
+        "targets": ["BODY","ARGS","URI","HEADERS"],
+       "severity": "CRITICAL",
+        "action": "block",
+        "score": 10,
+        "description":"Detect Log4j vulnerability attempts"
+     }
+
 ]
 ```
 
 ### Rule Fields
 
-| Field          | Description                                                             | Example                               |
-|----------------|-------------------------------------------------------------------------|---------------------------------------|
-| `id`           | Unique identifier for the rule, used to track and manage security policies.| `sql_injection`                       |
-| `phase`        | Processing phase, executed in order (1 - request headers, 2 - body, 3 - response headers, 4 - response body).| `1`                                   |
-| `pattern`      | Regular expression pattern for detecting threats, allows precise filtering of malicious payloads. | `(?i)(?:insert)`                  |
-| `targets`      | Specifies areas of the request to inspect for malicious content (URI, ARGS, BODY, HEADERS, COOKIES). | `["ARGS", "BODY"]`                    |
-| `severity`     | Rule severity indicates the risk level of the threat (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`). | `CRITICAL`                                |
-| `action`       | Defines the action to take when the rule matches (`block` or `log`). If unspecified, the default action is `block`. | default: `block`               |
-| `score`        | Score added to the anomaly detection system when a rule matches, contributing to overall request evaluation.| `10`                                  |
-| `description`  | Provides a human-readable explanation of the rule's purpose and conditions it checks for. | `Block SQL injection attempts.`       |
-| `mode`         | Optional field that allows switching between strict blocking and passive logging. | `block` or `log`                        |
-| `enabled`      | Boolean flag to enable or disable specific rules dynamically.              | `true`                                 |
-| `log_detail`   | Additional logging level for matched rules, providing extended information during forensic analysis. | `true` or `false`                      |
-
-Rules can be fine-tuned by adjusting the `score` and `severity` values, allowing greater flexibility in blocking decisions. More complex patterns targeting multiple request areas can be designed using regexes, ensuring multi-layered defense strategies are effectively enforced.
-
-
+| Field        | Description                                                                           | Example                                |
+|--------------|---------------------------------------------------------------------------------------|----------------------------------------|
+| `id`         | Unique identifier for the rule.                                                      | `sql_injection_1`                      |
+| `phase`      | Processing phase (1: Request Headers, 2: Request Body, 3: Response Headers, 4: Response Body).| `2`                                    |
+| `pattern`    | Regular expression to match malicious patterns.                                      | `(?i)(?:select|insert|update)`        |
+| `targets`    | Array of request parts to inspect, which can be: `URI`, `ARGS`, `BODY`, `HEADERS`, `COOKIES`, `HEADERS:<header_name>`,  `RESPONSE_HEADERS`, `RESPONSE_BODY`, `RESPONSE_HEADERS:<header_name>`, or `COOKIES:<cookie_name>`.| `["ARGS", "BODY"]`                     |
+| `severity`   | Severity of the rule (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`).  Used only for logging.        | `CRITICAL`                             |
+| `action`     | Action to take on match (`block` or `log`). If empty, defaults to `block`.            | `block`                                |
+| `score`      | Anomaly score to add when this rule matches.                                        | `5`                                    |
+| `description`| A descriptive text for the rule.                                                      | `Detect SQL injection`                 |
 
 ---
 
 ## 🛡️ Protected Attack Types
 
-1.  **SQL Injection**
-    *   Basic `SELECT`/`UNION` injections
-    *   Time-based injection attacks
-    *   Boolean-based injections
-2.  **Cross-Site Scripting (XSS)**
-    *   Script tag injection
-    *   Event handler injection
-    *   SVG-based XSS
-3.  **Path Traversal**
-    *   Directory traversal attempts
-    *   Encoded path traversal
-    *   Double-encoded traversal
-4.  **Remote Code Execution (RCE)**
-    *   Command injection
-    *   Shell command execution
-    *   System command execution
-5.  **Log4j Exploits**
-    *   JNDI lookup attempts
-    *   Nested expressions
-6.  **Protocol Attacks**
-    *   Git repository access
-    *   Environment file access
-    *   Configuration file access
-7.  **Scanner Detection**
-    *   Common vulnerability scanners
-    *   Web application scanners
-    *   Network scanning tools
+1.  **SQL Injection (SQLi):** Detects attempts to inject malicious SQL code.
+2.  **Cross-Site Scripting (XSS):** Protects against injection of malicious scripts.
+3.  **Path Traversal:** Blocks access to restricted files/directories.
+4.  **Remote Code Execution (RCE):** Detects attempts to execute arbitrary commands.
+5.  **Log4j Exploits:** Identifies and blocks Log4j related attack patterns.
+6.  **Protocol Attacks:** Protects against access to sensitive protocol or configuration files.
+7.  **Scanner Detection:** Identifies known vulnerability scanners.
 
 ---
 
@@ -257,208 +264,111 @@ Rules can be fine-tuned by adjusting the `score` and `severity` values, allowing
 
 ### IP Blacklist (`ip_blacklist.txt`)
 
+*   Supports single IP addresses, CIDR ranges, and comments (lines starting with `#`).
+
 ```text
 192.168.1.1
 10.0.0.0/8
 2001:db8::/32
+# This is a comment
 ```
 
 ### DNS Blacklist (`dns_blacklist.txt`)
 
+*   Contains one domain per line (comments are allowed with `#`).
+*   All entries are lowercased before matching.
+
 ```text
 malicious.com
 evil.example.org
+# This is a comment
 ```
 
 ---
 
 ## ⏱️ Rate Limiting
 
-Configure rate limits using requests count and time window:
+Configure rate limits using requests count and time window, and optional cleanup interval:
 
 ```caddyfile
-# 100 requests per minute
+# 100 requests per minute with a 5 minute cleanup interval
 rate_limit 100 1m 5m
 
-# 10 requests per second
-rate_limit 10 1s 5m
+# 10 requests per second with a 1 minute cleanup interval
+rate_limit 10 1s 1m
 
-# 1000 requests per hour
+# 1000 requests per hour with a 5 minute cleanup interval
 rate_limit 1000 1h 5m
-
-# note the last 5m is the cleanup routine cycle to remove stale address from memory
 ```
+
+*   The rate limiter is based on the client IP address.
+* The cleanup interval controls how frequently the rate limiter clears expired entries from memory.
+*   When the requests count is greater than the specified value for the defined period, then the request will be blocked.
 
 ---
 
-## 🌍 Country Blocking
+## 🌍 Country Blocking and Whitelisting
 
-Block traffic from specific countries using ISO country codes:
+*   Uses the MaxMind GeoIP2 database for country lookups.
+*   Download the `GeoLite2-Country.mmdb` file (see [Installation](#-installation)).
+*   Use `block_countries` or `whitelist_countries` with ISO country codes:
 
 ```caddyfile
 # Block requests from Russia, China, and North Korea
 block_countries /path/to/GeoLite2-Country.mmdb RU CN KP
+
+# Whitelist requests from the United States
+whitelist_countries /path/to/GeoLite2-Country.mmdb US
 ```
+
+*   **Note:** Only one of `block_countries` or `whitelist_countries` can be enabled at a time.
+*   When GeoIP lookup fails, the fallback behavior is configurable using the `WithGeoIPLookupFallbackBehavior` option when instantiating the middleware. Default behavior is to log and treat the lookup as not in the list. Options are `none` to block if the lookup fails or a specific country code to fallback to. For example, setting it to `US` will allow requests from IPs if the GeoIP lookup fails and `US` was in the list of allowed countries.
 
 ---
 
 ## 🔄 Dynamic Updates
 
-Rules and blacklists can be updated without server restart:
-
-1.  Modify `rules.json` or blacklist files.
-2.  Reload Caddy: `caddy reload`.
+*   Most changes to the configuration (rules, blacklists, etc) can be applied without restarting Caddy.
+*   File watchers monitor the changes on your rules and blacklist files and trigger the automatic reload.
+*   Simply modify the related files and the changes will be applied automatically by the file watcher.
+*   To reload configurations using the Caddy API execute `caddy reload`.
 
 ---
 
 ## 🧪 Testing
 
 ### Basic Testing
-A `test.sh` script is included in this repository to perform a comprehensive security test suite. This script sends a series of forged `curl` requests, each designed to simulate a different type of attack.
+
+The included `test.sh` script sends a series of `curl` requests to test various attack scenarios:
 
 ```bash
-caddy-waf % ./test.sh
-WAF Security Test Suite
-Target: http://localhost:8080
-Date: Mar  7 Gen 2025 01:12:22 CET
-----------------------------------------
-[✗] SQL Injection - SQL Server Version                           [200]
-[✗] SQL Injection - SQL Server Time Delay                        [200]
-[✓] SQL Injection - Oracle Time Delay                            [403]
-[✗] SQL Injection - Error Based 1                                [200]
-[✗] SQL Injection - Error Based 2                                [200]
-[✗] SQL Injection - Error Based 3                                [200]
-[✗] SQL Injection - MySQL user                                   [200]
-[✗] SQL Injection - PostgreSQL user                              [200]
-[✗] SQL Injection - Case Variation                               [200]
-[✗] SQL Injection - Whitespace Variation                         [200]
-[✗] SQL Injection - Obfuscation Variation                        [200]
-[✗] SQL Injection - Unicode Variation                            [200]
-[✗] SQL Injection - Triple URL Encoded Variation                 [200]
-[✗] SQL Injection - OOB DNS Lookup                               [200]
-[✗] SQL Injection - Oracle OOB DNS Lookup                        [200]
-[✓] SQL Injection - Header - Basic Select                        [403]
-[✓] SQL Injection - Cookie - Basic Select                        [403]
-[✗] SQL Injection - Header - Basic Select                        [200]
-[✗] SQL Injection - JSON body                                    [200]
-[✓] XSS - Basic Script Tag                                       [403]
-
-[✓] XSS - IMG Onerror                                            [403]
-[✓] XSS - JavaScript Protocol                                    [403]
-[✓] XSS - SVG Onload                                             [403]
-[✓] XSS - Anchor Tag JavaScript                                  [403]
-[✓] XSS - URL Encoded Script                                     [403]
-[✓] XSS - Double URL Encoded                                     [403]
-[✓] XSS - URL Encoded IMG                                        [403]
-[✓] XSS - Body Onload                                            [403]
-[✓] XSS - Input Onfocus Autofocus                                [403]
-[✓] XSS - Breaking Out of Attribute                              [403]
-[✓] XSS - HTML Encoded                                           [403]
-[✓] XSS - IFRAME srcdoc                                          [403]
-[✓] XSS - Details Tag                                            [403]
-[✓] XSS - HTML Comment Breakout                                  [403]
-[✓] Path Traversal - Basic                                       [403]
-
-[✓] Path Traversal - Double Dot                                  [403]
-[✓] Path Traversal - Triple Dot                                  [403]
-[✓] Path Traversal - URL Encoded                                 [403]
-[✗] Path Traversal - Double URL Encoded                          [200]
-[✓] Path Traversal - Mixed Slashes                               [403]
-[✗] Path Traversal - UTF-8 Encoded                               [200]
-[✓] Path Traversal - Encoded and Literal                         [403]
-[✓] Path Traversal - Mixed Encoding                              [403]
-[✗] Path Traversal - Multiple Slashes                            [200]
-[✓] RCE - Basic Command                                          [403]
-
-[✓] RCE - Base64 Command                                         [403]
-[✗] RCE - Backticks                                              [200]
-[✗] RCE - List Files                                             [200]
-[✗] RCE - Uname                                                  [200]
-[✗] RCE - ID                                                     [200]
-[✓] RCE - whoami Command                                         [403]
-[✓] RCE - Echo Test                                              [403]
-[✗] RCE - Hex Encoded Command                                    [200]
-[✓] RCE - Curl Request                                           [403]
-[✓] RCE - Wget Request                                           [403]
-[✗] RCE - Ping                                                   [200]
-[✗] RCE - PowerShell Command                                     [200]
-[✗] Log4j - JNDI LDAP                                            [200]
-
-[✗] Log4j - Environment                                          [200]
-[✗] Log4j - JNDI RMI                                             [200]
-[✗] Log4j - System Property                                      [200]
-[✗] Log4j - Lowercase                                            [200]
-[✗] Log4j - Uppercase                                            [200]
-[✗] Log4j - Date                                                 [200]
-[✓] Log4j - Base64                                               [403]
-[✗] Log4j - Partial Lookup                                       [200]
-[✗] Log4j - URL Encoded                                          [200]
-[✓] Header - SQL Injection                                       [403]
-
-[✓] Header - XSS Cookie                                          [403]
-[✓] Header - Path Traversal                                      [403]
-[✓] Header - Custom X-Attack                                     [403]
-[✗] Header -  X-Forwarded-Host                                   [200]
-[✓] Header - User-Agent SQL                                      [403]
-[✗] Header -  Host Spoof                                         [200]
-[✓] Header -  Accept-Language                                    [403]
-[✓] Protocol - Git Access                                        [403]
-
-[✓] Protocol - Env File                                          [403]
-[✓] Protocol - htaccess                                          [403]
-[✗] Protocol - Web.config Access                                 [200]
-[✓] Protocol - Java Web Descriptor                               [403]
-[✓] Protocol - SVN Access                                        [403]
-[✗] Protocol - Robots.txt                                        [200]
-[✗] Protocol - VS Code Settings                                  [200]
-[✗] Protocol - config.php Access                                 [200]
-[✗] Protocol - Apache Server Status                              [200]
-[✓] Valid - Homepage                                             [200]
-
-[✓] Valid - API Endpoint                                         [200]
-[✓] Scanner - SQLMap                                             [403]
-
-[✓] Scanner - Acunetix                                           [403]
-[✓] Scanner - Nikto                                              [403]
-[✓] Scanner - Nmap                                               [403]
-[✓] Scanner - Dirbuster                                          [403]
-[✓] Valid - Health Check                                         [200]
-
-[✓] Valid - Chrome Browser                                       [200]
-[✗] Scanner -  Burp Suite                                        [200]
-
-[✓] Scanner - OWASP ZAP                                          [403]
-[✓] Scanner - Nessus                                             [403]
-[✓] Scanner - Qualys                                             [403]
-[✓] Scanner -  Wfuzz                                             [403]
-[✓] Scanner -  OpenVAS                                           [403]
-----------------------------------------
-Results Summary
-Total Tests: 100
-Passed: 57
-Failed: 43
-Pass Percentage: 57%
-Warning:  Test pass percentage is below 90%. Review the failures!
-
-Detailed results saved to: waf_test_results.log
+./test.sh
 ```
-
 ### Load Testing
+
+Use a tool like `ab` to perform load testing:
 ```bash
 ab -n 1000 -c 100 http://localhost:8080/
 ```
+
+### Security Testing Suite
+
+The `test.sh` script will provide a comprehensive check if the rules configured are working. 
+*   Each test will be passed or failed based on the configured WAF configuration.
+*   The output log contains the result for each test along with a summary.
+*   An overall percentage is given at the end, and if the percentage is less than 90% it is recommended to check the output log to analyse the cause of the failing tests.
 
 ---
 
 ## 🐳 Docker Support
 
-A `Dockerfile` is included to simplify building a Docker image with the Caddy server and WAF middleware. Here's how to use it:
+Build and run a Docker container:
 
 ```bash
 # Build the Docker image
 docker build -t caddy-waf .
 
-# Run the Docker container
+# Run the Docker container, mapping port 8080
 docker run -p 8080:8080 caddy-waf
 ```
 
@@ -466,11 +376,11 @@ docker run -p 8080:8080 caddy-waf
 
 ## 🐍 Rule/Blacklist Population Scripts
 
-Three Python scripts are provided in this repository to help automate the population of your rules and blacklists:
+Scripts to generate/download rules and blacklists:
 
 ### `get_owasp_rules.py`
 
-This script fetches the OWASP core rules and converts them into the JSON format required for the WAF rules.
+*   Fetches OWASP core rules and converts them to the required JSON format.
 
 ```bash
 python3 get_owasp_rules.py
@@ -478,7 +388,7 @@ python3 get_owasp_rules.py
 
 ### `get_blacklisted_ip.py`
 
-This script downloads the blacklisted IPs from several external sources.
+*   Downloads IPs from several external sources.
 
 ```bash
 python3 get_blacklisted_ip.py
@@ -486,31 +396,23 @@ python3 get_blacklisted_ip.py
 
 ### `get_blacklisted_dns.py`
 
-This script downloads blacklisted domains from various sources.
+*   Downloads blacklisted domains from various sources.
 
 ```bash
 python3 get_blacklisted_dns.py
 ```
 
 ---
+
 # 🌐 Combining Caddy Modules for Enhanced Security
 
-Did you know you can combine **caddy-waf**, **caddy-mib**, and **caddy-mlf** to create a robust multi-layered security solution for your web applications? By chaining these modules, you can leverage their unique features to provide comprehensive protection against web attacks, abusive behavior, and suspicious traffic patterns.
-
-## 🔗 Chain Overview
-
-By chaining these modules, you can set up a flow where each layer contributes to filtering, banning, and analyzing traffic for maximum security:
+You can chain **caddy-waf**, **caddy-mib**, and **caddy-mlf** to create a multi-layered security solution:
 
 | Module       | Role in the Chain                                                                                           | Repository Link                                   |
 |--------------|------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
 | **caddy-waf** | Acts as the first gate, inspecting and filtering malicious requests based on anomaly scores, rate limits, and blacklists. | [GitHub: caddy-waf](https://github.com/fabriziosalmi/caddy-waf) |
 | **caddy-mib** | Handles IP banning for repeated errors, such as 404 or 500, to prevent brute force or abusive access attempts. | [GitHub: caddy-mib](https://github.com/fabriziosalmi/caddy-mib) |
 | **caddy-mlf** | Provides an additional layer of protection by analyzing request attributes and marking/blocking suspicious traffic based on anomaly thresholds. | [GitHub: caddy-mlf](https://github.com/fabriziosalmi/caddy-mlf) |
-
----
-
-## 🔧 Example Configuration
-
 Here’s an example configuration to chain the modules:
 
 ### Flow:
@@ -519,6 +421,7 @@ Here’s an example configuration to chain the modules:
 3. **caddy-mlf**: Listens on `localhost:8082` and returns a `200 OK` response for legitimate requests or forwards requests to your **origin applications**. 
 
 ---
+
 ## 📜 License
 
 This project is licensed under the **AGPLv3 License**.
@@ -527,4 +430,4 @@ This project is licensed under the **AGPLv3 License**.
 
 ## 🙏 Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request.
+Contributions are highly welcome! Feel free to open an issue or submit a pull request.
