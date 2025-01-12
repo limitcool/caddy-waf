@@ -64,9 +64,8 @@ INFO    WAF middleware provisioned successfully
     * [get_owasp_rules.py](#get_owasp_rulespy)
     * [get_blacklisted_ip.py](#get_blacklisted_ippy)
     * [get_blacklisted_dns.py](#get_blacklisted_dnspy)
-13. [🌐 Combining Caddy Modules](#-combining-caddy-modules-for-enhanced-security)
-14. [📜 License](#-license)
-15. [🙏 Contributing](#-contributing)
+13. [📜 License](#-license)
+14. [🙏 Contributing](#-contributing)
 
 ---
 
@@ -401,25 +400,6 @@ python3 get_blacklisted_ip.py
 ```bash
 python3 get_blacklisted_dns.py
 ```
-
----
-
-# 🌐 Combining Caddy Modules for Enhanced Security
-
-You can chain **caddy-waf**, **caddy-mib**, and **caddy-adf** to create a multi-layered security solution:
-
-| Module       | Role in the Chain                                                                                           | Repository Link                                   |
-|--------------|------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
-| **caddy-waf** | Acts as the first gate, inspecting and filtering malicious requests based on anomaly scores, rate limits, and blacklists. | [GitHub: caddy-waf](https://github.com/fabriziosalmi/caddy-waf) |
-| **caddy-mib** | Handles IP banning for repeated errors, such as 404 or 500, to prevent brute force or abusive access attempts. | [GitHub: caddy-mib](https://github.com/fabriziosalmi/caddy-mib) |
-| **caddy-adf** | Provides an additional layer of protection by analyzing request attributes and marking/blocking suspicious traffic based on anomaly thresholds. | [GitHub: caddy-mlf](https://github.com/fabriziosalmi/caddy-mlf) |
-
-Here’s an example configuration to chain the modules: 
-
-### Flow:
-1. **caddy-waf**: Listens on `localhost:8080` and forwards requests to **caddy-mib**.
-2. **caddy-mib**: Listens on `localhost:8081` and forwards requests to **caddy-mlf**.
-3. **caddy-adf**: Listens on `localhost:8082` and returns a `200 OK` response for legitimate requests or forwards requests to your **origin applications**. 
 
 ---
 
