@@ -1935,12 +1935,37 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 }
 
 func (m *Middleware) extractValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "", fmt.Errorf("empty extraction target")
+	}
+
+	// If target is a comma separated list, extract values and return them separated by commas.
+	if strings.Contains(target, ",") {
+		var values []string
+		targets := strings.Split(target, ",")
+		for _, t := range targets {
+			t = strings.TrimSpace(t)
+			v, err := m.extractSingleValue(t, r, w)
+			if err == nil {
+				values = append(values, v)
+			} else {
+				m.logger.Debug("Failed to extract single value from multiple targets.", zap.String("target", t), zap.Error(err))
+				// if one extraction fails we continue and don't return an error.
+			}
+		}
+		return strings.Join(values, ","), nil // Returning concatenated values
+	}
+	return m.extractSingleValue(target, r, w)
+}
+
+func (m *Middleware) extractSingleValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
 	target = strings.ToUpper(strings.TrimSpace(target))
 	var unredactedValue string
 	var err error
 
+	// Basic Cases (Keep as Before)
 	switch {
-	// Basic Request Properties
 	case target == "METHOD":
 		unredactedValue = r.Method
 	case target == "REMOTE_IP":
@@ -1971,7 +1996,6 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 			m.logger.Debug("Request URI is empty", zap.String("target", target))
 		}
 
-	// Request Body
 	case target == "BODY":
 		if r.Body == nil {
 			m.logger.Warn("Request body is nil", zap.String("target", target))
@@ -1990,7 +2014,7 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
 		unredactedValue = string(bodyBytes)
 
-	// Full Header Dump (Request)
+		// Full Header Dump (Request)
 	case target == "HEADERS", target == "REQUEST_HEADERS":
 		if len(r.Header) == 0 {
 			m.logger.Debug("Request headers are empty", zap.String("target", target))
@@ -2032,15 +2056,14 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 		}
 
 	// Dynamic Header Extraction (Request)
-	case strings.HasPrefix(target, "HEADERS:"):
-		headerName := strings.TrimPrefix(target, "HEADERS:")
+	case strings.HasPrefix(target, "HEADERS:"), strings.HasPrefix(target, "REQUEST_HEADERS:"):
+		headerName := strings.TrimPrefix(strings.TrimPrefix(target, "HEADERS:"), "REQUEST_HEADERS:") // Trim both prefixes
 		headerValue := r.Header.Get(headerName)
 		if headerValue == "" {
 			m.logger.Debug("Header not found", zap.String("header", headerName))
 			return "", fmt.Errorf("header '%s' not found for target: %s", headerName, target)
 		}
 		unredactedValue = headerValue
-
 	// Dynamic Response Header Extraction (Phase 3)
 	case strings.HasPrefix(target, "RESPONSE_HEADERS:"):
 		if w == nil {
@@ -2075,13 +2098,74 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 		}
 		unredactedValue = cookie.Value
 
-	// Catch-all for Unrecognized Targets
+		// URL Parameter Extraction
+	case strings.HasPrefix(target, "URL_PARAM:"):
+		paramName := strings.TrimPrefix(target, "URL_PARAM:")
+		if paramName == "" {
+			return "", fmt.Errorf("URL parameter name is empty for target: %s", target)
+		}
+		if r.URL.Query().Get(paramName) == "" {
+			m.logger.Debug("URL parameter not found", zap.String("parameter", paramName))
+			return "", fmt.Errorf("url parameter '%s' not found for target: %s", paramName, target)
+		}
+		unredactedValue = r.URL.Query().Get(paramName)
+
+		// JSON Path Extraction from Body
+	case strings.HasPrefix(target, "JSON_PATH:"):
+		jsonPath := strings.TrimPrefix(target, "JSON_PATH:")
+		if r.Body == nil {
+			m.logger.Warn("Request body is nil", zap.String("target", target))
+			return "", fmt.Errorf("request body is nil for target: %s", target)
+		}
+		if r.ContentLength == 0 {
+			m.logger.Debug("Request body is empty", zap.String("target", target))
+			return "", fmt.Errorf("request body is empty for target: %s", target)
+		}
+
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			m.logger.Error("Failed to read request body", zap.Error(err))
+			return "", fmt.Errorf("failed to read request body for JSON_PATH target %s: %w", target, err)
+		}
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
+
+		// Use helper method to dynamically extract value based on JSON path (e.g., 'data.items.0.name').
+		unredactedValue, err = m.extractJSONPath(string(bodyBytes), jsonPath)
+		if err != nil {
+			m.logger.Debug("Failed to extract value from JSON path", zap.String("target", target), zap.String("path", jsonPath), zap.Error(err))
+			return "", fmt.Errorf("failed to extract from JSON path '%s': %w", jsonPath, err)
+		}
+	// New cases start here:
+	case target == "CONTENT_TYPE":
+		unredactedValue = r.Header.Get("Content-Type")
+		if unredactedValue == "" {
+			m.logger.Debug("Content-Type header not found", zap.String("target", target))
+			return "", fmt.Errorf("content-type header not found for target: %s", target)
+		}
+	case target == "URL":
+		unredactedValue = r.URL.String()
+		if unredactedValue == "" {
+			m.logger.Debug("URL could not be extracted", zap.String("target", target))
+			return "", fmt.Errorf("url could not be extracted for target: %s", target)
+		}
+
+	case target == "REQUEST_COOKIES":
+		cookies := make([]string, 0)
+		for _, c := range r.Cookies() {
+			cookies = append(cookies, fmt.Sprintf("%s=%s", c.Name, c.Value))
+		}
+		unredactedValue = strings.Join(cookies, "; ")
+		if len(cookies) == 0 {
+			m.logger.Debug("No cookies found", zap.String("target", target))
+			return "", fmt.Errorf("no cookies found for target: %s", target)
+		}
+
 	default:
 		m.logger.Warn("Unknown extraction target", zap.String("target", target))
 		return "", fmt.Errorf("unknown extraction target: %s", target)
 	}
 
-	// Redact sensitive fields
+	// Redact sensitive fields (unchanged)
 	value := unredactedValue
 	if m.RedactSensitiveData {
 		sensitiveTargets := []string{"password", "token", "apikey", "authorization", "secret"}
@@ -2100,7 +2184,53 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 	)
 
 	return unredactedValue, nil // Return the unredacted value for rule matching
+}
 
+// Helper function for JSON path extraction.
+func (m *Middleware) extractJSONPath(jsonStr string, jsonPath string) (string, error) {
+	if jsonStr == "" {
+		return "", fmt.Errorf("json string is empty")
+	}
+
+	var jsonData interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &jsonData); err != nil {
+		return "", fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+
+	// If jsonData is nil or not a valid JSON, return empty string or error.
+	if jsonData == nil {
+		return "", fmt.Errorf("invalid json data")
+	}
+
+	pathParts := strings.Split(jsonPath, ".")
+	current := jsonData
+
+	for _, part := range pathParts {
+		if current == nil {
+			return "", fmt.Errorf("invalid json path, not found '%s'", part)
+		}
+
+		switch value := current.(type) {
+		case map[string]interface{}:
+			if next, ok := value[part]; ok {
+				current = next
+			} else {
+				return "", fmt.Errorf("invalid json path, not found '%s'", part)
+			}
+		case []interface{}:
+			index, err := strconv.Atoi(part)
+			if err != nil || index < 0 || index >= len(value) {
+				return "", fmt.Errorf("invalid json path, not found '%s'", part)
+			}
+			current = value[index]
+		default:
+			return "", fmt.Errorf("invalid path '%s'", part)
+		}
+	}
+	if current == nil {
+		return "", fmt.Errorf("invalid path, value is nil '%s'", jsonPath)
+	}
+	return fmt.Sprintf("%v", current), nil // Convert value to string (if possible)
 }
 
 // validateRule checks if a rule is valid
