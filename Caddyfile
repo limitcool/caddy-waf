@@ -16,6 +16,7 @@
 
 	route {
 		waf {
+			metrics_endpoint /waf_metrics 				# new option
 			anomaly_threshold 10
 			block_countries GeoLite2-Country.mmdb RU CN KP
 			# whitelist_countries GeoLite2-Country.mmdb US
