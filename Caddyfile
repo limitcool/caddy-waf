@@ -1,82 +1,49 @@
 {
-	auto_https off							# Disable automatic HTTPS to prevent Caddy from managing TLS certificates
-	admin localhost:2019						# Define the admin API endpoint for managing Caddy (accessible only from localhost)
+	auto_https off
+	admin localhost:2019
 }
 
-# Define a server block listening on port 8080
 :8080 {
-	# Configure logging
 	log {
-		output stdout						# Send logs to standard output (stdout)
-		format json						# Format logs as JSON for easier parsing and analysis
-		level WARN						# Set the log level to INFO to capture informational messages
+		output stdout
+		format json
+		level WARN
 	}
 
 	handle {
 		header -Server
 	}
 
-	# Define routing rules for incoming requests
 	route {
-		# Enable Web Application Firewall (WAF) for additional security
 		waf {
-			anomaly_threshold 10				# Set a threshold for detecting anomalies
-			block_countries GeoLite2-Country.mmdb RU CN KP	# Block requests originating from specific countries (Russia, China, North Korea)
-			# whitelist_countries GeoLite2-Country.mmdb US	# Alternatively, use a whitelist to allow only specific countries
-			rate_limit 10000 1m 5m				# Limit to 1000 rpm, with a 5-minute ban for violators
-			rule_file rules.json 				# Load WAF rules from a JSON file
-			# rule_file rules/wordpress.json		# Load WAF rules from another JSON file
-			ip_blacklist_file ip_blacklist.txt		# Load a list of blacklisted IPs from a file
-			dns_blacklist_file dns_blacklist.txt		# Load a list of blacklisted DNS entries from a file
-			log_severity warn				# Set the log severity level for WAF events
-
-			# Log WAF events in JSON format
+			anomaly_threshold 10
+			block_countries GeoLite2-Country.mmdb RU CN KP
+			# whitelist_countries GeoLite2-Country.mmdb US
+			rate_limit 10000 1m 5m
+			rule_file rules.json
+			# rule_file rules/wordpress.json
+			ip_blacklist_file ip_blacklist.txt
+			dns_blacklist_file dns_blacklist.txt
+			log_severity warn
 			log_json
-
-			# Log path
 			log_path debug.json
-
-			# Redact sensitive data
 			# redact_sensitive_data
 		}
 
-		# Respond to all requests with "Hello, world!" and a 200 status code
 		respond "Hello, world!" 200
 	}
 
-		# Add HTTP headers for enhanced security
 	header {
-		# Enforce HTTPS for the next year and include subdomains
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-
-		# Prevent the page from being embedded in frames or iframes
 		X-Frame-Options "DENY"
-
-		# Prevent MIME type sniffing
 		X-Content-Type-Options "nosniff"
-
-		# Disable referrer information in requests
 		Referrer-Policy "no-referrer"
-
-		# Restrict access to geolocation, microphone, and camera APIs
 		Permissions-Policy "geolocation=(), microphone=(), camera=()"
-
-		# Define a Content Security Policy to restrict resource loading
 		Content-Security-Policy "default-src 'self'; script-src 'self'; object-src 'none'"
-
-		# Disallow cross-domain policies
 		X-Permitted-Cross-Domain-Policies "none"
-
-		# Clear cached data, cookies, and storage when the response is sent
 		Clear-Site-Data "\"cache\", \"cookies\", \"storage\""
-
-		# Require cross-origin isolation for embedded resources
 		Cross-Origin-Embedder-Policy "require-corp"
-
-		# Restrict cross-origin window interactions to the same origin
 		Cross-Origin-Opener-Policy "same-origin"
-
-		# Restrict cross-origin resource access to the same origin
 		Cross-Origin-Resource-Policy "same-origin"
 	}
 }
