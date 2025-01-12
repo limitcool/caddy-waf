@@ -238,6 +238,10 @@ type Middleware struct {
 	LogFilePath string // New field for configurable log path
 
 	RedactSensitiveData bool `json:"redact_sensitive_data,omitempty"`
+
+	// rules hits stats
+	ruleHits        sync.Map `json:"-"` // Use sync.Map for concurrent access, don't serialize
+	MetricsEndpoint string   `json:"metrics_endpoint,omitempty"`
 }
 
 // WAFState struct: Used to maintain state between phases
@@ -324,6 +328,13 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 		m.logger.Debug("Country whitelist GeoIP database was not open, skipping close.")
 	}
 
+	// Log rule hit statistics
+	m.logger.Info("Rule Hit Statistics:")
+	m.ruleHits.Range(func(key, value interface{}) bool {
+		m.logger.Info(fmt.Sprintf("Rule ID: %s, Hits: %d", key.(string), value.(int)))
+		return true // Continue iterating
+	})
+
 	m.logger.Info("WAF middleware shutdown procedures completed")
 	return firstError // Return the first error encountered, if any
 }
@@ -350,6 +361,16 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			m.logger.Debug("Processing directive", zap.String("directive", directive), zap.String("file", d.File()), zap.Int("line", d.Line()))
 
 			switch directive {
+			case "metrics_endpoint":
+				if !d.NextArg() {
+					return fmt.Errorf("File: %s, Line: %d: missing value for metrics_endpoint", d.File(), d.Line())
+				}
+				m.MetricsEndpoint = d.Val()
+				m.logger.Debug("Metrics endpoint set from Caddyfile",
+					zap.String("metrics_endpoint", m.MetricsEndpoint),
+					zap.String("file", d.File()),
+					zap.Int("line", d.Line()),
+				)
 			case "log_path":
 				if !d.NextArg() {
 					return fmt.Errorf("File: %s, Line: %d: missing value for log_path", d.File(), d.Line())
@@ -419,6 +440,9 @@ func (m *Middleware) parseRuleFile(d *caddyfile.Dispenser) error {
 	ruleFile := d.Val()
 	m.RuleFiles = append(m.RuleFiles, ruleFile)
 
+	if m.MetricsEndpoint != "" && !strings.HasPrefix(m.MetricsEndpoint, "/") {
+		return fmt.Errorf("metrics_endpoint must start with '/'")
+	}
 	m.logger.Info("WAF Loading Rule File",
 		zap.String("file", ruleFile),
 		zap.String("caddyfile", d.File()),
@@ -838,6 +862,11 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		}
 	}
 
+	// Check if the request matches the metrics endpoint
+	if m.MetricsEndpoint != "" && r.URL.Path == m.MetricsEndpoint {
+		return m.handleMetricsRequest(w, r)
+	}
+
 	m.logger.Info("WAF evaluation complete",
 		zap.String("log_id", logID),
 		zap.Int("total_score", state.TotalScore),
@@ -1018,6 +1047,13 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.String("description", rule.Description),
 		zap.Int("score", rule.Score),
 	)
+
+	// Increment rule hit counter
+	if count, ok := m.ruleHits.Load(rule.ID); ok {
+		m.ruleHits.Store(rule.ID, count.(int)+1)
+	} else {
+		m.ruleHits.Store(rule.ID, 1)
+	}
 
 	// Increase the total anomaly score
 	oldScore := state.TotalScore
@@ -1631,6 +1667,9 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		zap.Bool("log_json", m.LogJSON),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
+
+	// rules hits stats
+	m.ruleHits = sync.Map{}
 
 	// Log the dynamically fetched version
 	m.logVersion()
@@ -2493,6 +2532,40 @@ func (m *Middleware) loadDNSBlacklistIntoMap(path string, blacklistMap map[strin
 			continue
 		}
 		blacklistMap[line] = true
+	}
+	return nil
+}
+
+// rules hits stats
+// logRuleHitStats logs the rule hit statistics
+func (m *Middleware) getRuleHitStats() map[string]int {
+	stats := make(map[string]int)
+	m.ruleHits.Range(func(key, value interface{}) bool {
+		stats[key.(string)] = value.(int)
+		return true
+	})
+	return stats
+}
+
+// handleMetricsRequest handles the request to the metrics endpoint.
+func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request) error {
+	m.logger.Debug("Handling metrics request", zap.String("path", r.URL.Path))
+	w.Header().Set("Content-Type", "application/json")
+
+	stats := m.getRuleHitStats()
+
+	// Convert stats to JSON
+	jsonStats, err := json.Marshal(stats)
+	if err != nil {
+		m.logger.Error("Failed to marshal rule hit stats to JSON", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return fmt.Errorf("failed to marshal rule hit stats to JSON: %v", err)
+	}
+
+	_, err = w.Write(jsonStats)
+	if err != nil {
+		m.logger.Error("Failed to write metrics response", zap.Error(err))
+		return fmt.Errorf("failed to write metrics response: %v", err)
 	}
 	return nil
 }
