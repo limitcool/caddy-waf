@@ -992,7 +992,7 @@ func (r *responseRecorder) Write(b []byte) (int, error) {
 		r.WriteHeader(http.StatusOK) // Default to 200 if not set
 	}
 	n, err := r.body.Write(b)
-	log.Printf("[DEBUG] Recorder Body Written: %d bytes, Error: %v", n, err)
+	// log.Printf("[DEBUG] Recorder Body Written: %d bytes, Error: %v", n, err)
 	return n, err
 }
 
