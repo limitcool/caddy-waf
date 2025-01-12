@@ -18,6 +18,7 @@ A robust and flexible **Web Application Firewall (WAF)** middleware for the Cadd
 *   **Request Redaction:** Option to redact sensitive data in logs such as password, token, and API keys found in query parameters.
 *   **Graceful Shutdown:** Ensures that all resources like database connections and rate limiter are closed gracefully.
 *   **GeoIP Lookup Fallback**: Configurable behavior when GeoIP lookup fails, allowing for default allow, deny, or specific country code fallback.
+*   **Rules metrics**: JSON metrics endpoint to understand your best and worst rules and tune your WAF.
 
 ## 🚀 Quick Start
 
@@ -130,6 +131,9 @@ caddy fmt --overwrite
 
     route {
         waf {
+            # JSON metrics endpoint
+            metrics_endpoint /waf_metrics
+
             # Anomaly threshold to block request if the score is >= the threshold
             anomaly_threshold 10
 
@@ -244,6 +248,35 @@ Rules are defined in a JSON file as an array of objects. Each rule specifies how
 | `action`     | Action to take on match (`block` or `log`). If empty, defaults to `block`.            | `block`                                |
 | `score`      | Anomaly score to add when this rule matches.                                        | `5`                                    |
 | `description`| A descriptive text for the rule.                                                      | `Detect SQL injection`                 |
+
+### Rules metrics
+You can understand what's going under the hood and tune your ruleset by inspecting the rules metrics endpoints or process such stats with others tools.
+
+```
+caddy-waf % curl -fsSL http://localhost:8080/waf_metrics | jq .
+{
+  "block-bad-bots": 12,
+  "common-credentials-in-body": 43,
+  "exposed-admin-panels-no-referer": 65,
+  "log4j-exploit": 26,
+  "mass-assignment-indicators": 2,
+  "path-traversal": 900,
+  "rce-command-injection-args": 40,
+  "rce-commands": 149,
+  "rce-separators": 11,
+  "reflected-xss-on-error-pages": 1,
+  "scanner-detection": 12,
+  "sensitive-files": 84,
+  "sql-injection": 106,
+  "sql-injection-comment-bypass-args": 12,
+  "sql-injection-comment-bypass-body": 33,
+  "sql-injection-common-keywords-body": 2,
+  "suspicious-auth-headers": 492,
+  "suspicious-file-uploads": 41,
+  "unusual-paths": 1546,
+  "xss": 354
+}
+```
 
 ---
 
