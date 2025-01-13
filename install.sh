@@ -100,7 +100,7 @@ print_success "Go modules fetched successfully." || print_error "Failed to fetch
 # Download GeoLite2 Country database
 if [ ! -f "GeoLite2-Country.mmdb" ]; then
     echo -e "🌍 Downloading GeoLite2 Country database..."
-    wget https://git.io/GeoLite2-Country.mmdb && \
+    wget -q https://git.io/GeoLite2-Country.mmdb -o GeoLite2-Country.mmdb && \
     print_success "GeoLite2 database downloaded." || print_error "Failed to download GeoLite2 database."
 else
     print_success "GeoLite2 database already exists."
