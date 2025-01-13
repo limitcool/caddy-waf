@@ -112,9 +112,9 @@ xcaddy build --with github.com/fabriziosalmi/caddy-waf=./ && \
 print_success "Caddy built successfully." || print_error "Failed to build Caddy."
 
 # Format Caddyfile
-echo -e "🧹 Formatting Caddyfile..."
-./caddy fmt --overwrite && \
-print_success "Caddyfile formatted." || print_error "Failed to format Caddyfile."
+# echo -e "🧹 Formatting Caddyfile..."
+# ./caddy fmt --overwrite && \
+# print_success "Caddyfile formatted." || print_error "Failed to format Caddyfile."
 
 # Run Caddy
 echo -e "🚀 Starting Caddy server..."
