@@ -8,6 +8,8 @@ blocklist_sources = {
     "CI Army List": "http://cinsscore.com/list/ci-badguys.txt",
     "IPsum": "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/1.txt",
     "BlockList.de": "https://www.blocklist.de/lists/all.txt",
+    "Blocklist.de - SSH": "https://www.blocklist.de/lists/ssh.txt",
+    "Greensnow": "https://blocklist.greensnow.co/greensnow.txt",
 }
 
 
@@ -24,6 +26,39 @@ def extract_ips(source_name, url):
 
     if source_name == "Talos Intelligence":
         print(f"Skipping {source_name} due to webpage format, needs manual parsing.")
+        return ips
+    elif source_name == "TOR Exit Nodes":
+        for line in content.splitlines():
+            if line.startswith("ExitAddress"):
+                parts = line.split(" ")
+                if len(parts) > 1:
+                    try:
+                        ipaddress.ip_address(parts[1].strip())
+                        ips.add(parts[1].strip())
+                    except ValueError:
+                        continue
+        return ips
+    elif source_name == "Spamhaus DROP" or source_name == "Spamhaus EDROP":
+        for line in content.splitlines():
+           line = line.strip()
+           if not line or line.startswith(";"):
+                continue
+           if "/" in line:
+               try:
+                    for ip in ipaddress.ip_network(line, strict=False):
+                        ips.add(str(ip))
+               except ValueError:
+                    continue
+           else:
+                try:
+                   ipaddress.ip_address(line)
+                   ips.add(line)
+                except ValueError:
+                   continue
+        return ips
+    elif source_name == "MaxMind GeoIP2 Anonymous IP Database":
+        # Requires a license key, skipping for now.
+        print(f"Skipping {source_name} because it requires a license key.")
         return ips
     else:
         # Default parsing for normal text file blocklists
