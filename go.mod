@@ -6,7 +6,7 @@ toolchain go1.23.4
 
 require (
 	github.com/caddyserver/caddy/v2 v2.9.1
-	github.com/fsnotify/fsnotify v1.4.7
+	github.com/fsnotify/fsnotify v1.8.0
 	github.com/google/uuid v1.6.0
 	github.com/oschwald/maxminddb-golang v1.13.1
 	go.uber.org/zap v1.27.0
