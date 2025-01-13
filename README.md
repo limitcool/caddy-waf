@@ -65,6 +65,8 @@ INFO    WAF middleware provisioned successfully
     * [get_owasp_rules.py](#get_owasp_rulespy)
     * [get_blacklisted_ip.py](#get_blacklisted_ippy)
     * [get_blacklisted_dns.py](#get_blacklisted_dnspy)
+    * [get_spiderlabs_rules](get_spiderlabs_rules)
+    * [get_vulnerability_rules](get_vulnerability_rules)
 13. [📜 License](#-license)
 14. [🙏 Contributing](#-contributing)
 
@@ -432,6 +434,21 @@ python3 get_blacklisted_ip.py
 
 ```bash
 python3 get_blacklisted_dns.py
+```
+### `get_spiderlabs_rules.py`
+
+*   Downloads rules from SpiderLabs.
+
+```bash
+python3 get_spiderlabs_rules.py
+```
+
+### `get_vulnerability_rules.py`
+
+*   Downloads rules related to known vulnerabilities.
+
+```bash
+python3 get_vulnerability_rules.py
 ```
 
 ---
