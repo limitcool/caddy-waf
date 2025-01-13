@@ -113,7 +113,7 @@ print_success "Caddy built successfully." || print_error "Failed to build Caddy.
 
 # Format Caddyfile
 echo -e "🧹 Formatting Caddyfile..."
-caddy fmt --overwrite && \
+./caddy fmt --overwrite && \
 print_success "Caddyfile formatted." || print_error "Failed to format Caddyfile."
 
 # Run Caddy
