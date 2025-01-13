@@ -6,7 +6,7 @@ import datetime
 import argparse
 
 # Configuration
-TARGET_URL = 'http://localhost:8088'
+TARGET_URL = 'http://localhost:8080'
 TIMEOUT = 8
 OUTPUT_FILE = "waf_test_results.log"
 DEFAULT_USER_AGENT = "WAF-Test-Script/1.0" # Default User-Agent
