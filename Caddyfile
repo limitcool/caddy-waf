@@ -28,7 +28,7 @@
 			dns_blacklist_file dns_blacklist.txt
 			log_severity info
 			log_json
-			log_path /Users/fab/GitHub/caddy-waf/debug.json
+			log_path debug.json
 			# redact_sensitive_data
 		}
 		# Match the waf metrics endpoint specifically and stop processing
