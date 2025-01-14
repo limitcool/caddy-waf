@@ -5,13 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -72,9 +70,12 @@ type requestCounter struct {
 
 // RateLimit struct
 type RateLimit struct {
-	Requests        int           `json:"requests"`
-	Window          time.Duration `json:"window"`
-	CleanupInterval time.Duration `json:"cleanup_interval"`
+	Requests        int              `json:"requests"`
+	Window          time.Duration    `json:"window"`
+	CleanupInterval time.Duration    `json:"cleanup_interval"`
+	Paths           []string         `json:"paths,omitempty"` // New: optional paths to apply rate limit
+	PathRegexes     []*regexp.Regexp `json:"-"`               // New: compiled regexes for the given paths
+	MatchAllPaths   bool             `json:"match_all_paths,omitempty"`
 }
 
 // RateLimiter struct
@@ -242,6 +243,11 @@ type Middleware struct {
 	// rules hits stats
 	ruleHits        sync.Map `json:"-"` // Use sync.Map for concurrent access, don't serialize
 	MetricsEndpoint string   `json:"metrics_endpoint,omitempty"`
+
+	configLoader          *ConfigLoader          `json:"-"`
+	blacklistLoader       *BlacklistLoader       `json:"-"`
+	geoIPHandler          *GeoIPHandler          `json:"-"`
+	requestValueExtractor *RequestValueExtractor `json:"-"`
 }
 
 // WAFState struct: Used to maintain state between phases
@@ -265,11 +271,11 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 	logger.Info("Starting to parse Caddyfile", zap.String("file", h.Dispenser.File()))
 
 	var m Middleware
-	dispenser := h.Dispenser
+	// dispenser := h.Dispenser
 
-	logger.Debug("Creating dispenser", zap.String("file", dispenser.File()))
+	logger.Debug("Creating dispenser", zap.String("file", h.Dispenser.File()))
 
-	err := m.UnmarshalCaddyfile(dispenser)
+	err := m.UnmarshalCaddyfile(h.Dispenser)
 	if err != nil {
 		// Improve error message by including file and line number
 		return nil, fmt.Errorf("Caddyfile parse error: %w", err)
@@ -340,422 +346,24 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 }
 
 func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
-	if m.logger == nil {
-		m.logger = zap.NewNop()
+	if m.configLoader == nil {
+		m.configLoader = NewConfigLoader(m.logger)
 	}
-
-	m.logger.Debug("WAF UnmarshalCaddyfile Called", zap.String("file", d.File()), zap.Int("line", d.Line()))
-
-	// Explicitly set default values
-	m.LogSeverity = "info"
-	m.LogJSON = false
-	m.AnomalyThreshold = 5
-	m.CountryBlock.Enabled = false
-	m.CountryWhitelist.Enabled = false
-	m.LogFilePath = "debug.json"
-	m.RedactSensitiveData = false // Initialize with default value
-
-	for d.Next() {
-		for d.NextBlock(0) {
-			directive := d.Val()
-			m.logger.Debug("Processing directive", zap.String("directive", directive), zap.String("file", d.File()), zap.Int("line", d.Line()))
-
-			switch directive {
-			case "metrics_endpoint":
-				if !d.NextArg() {
-					return fmt.Errorf("File: %s, Line: %d: missing value for metrics_endpoint", d.File(), d.Line())
-				}
-				m.MetricsEndpoint = d.Val()
-				m.logger.Debug("Metrics endpoint set from Caddyfile",
-					zap.String("metrics_endpoint", m.MetricsEndpoint),
-					zap.String("file", d.File()),
-					zap.Int("line", d.Line()),
-				)
-			case "log_path":
-				if !d.NextArg() {
-					return fmt.Errorf("File: %s, Line: %d: missing value for log_path", d.File(), d.Line())
-				}
-				m.LogFilePath = d.Val()
-				m.logger.Debug("Log path set from Caddyfile",
-					zap.String("log_path", m.LogFilePath),
-					zap.String("file", d.File()),
-					zap.Int("line", d.Line()),
-				)
-			case "rate_limit":
-				if err := m.parseRateLimit(d); err != nil {
-					return err
-				}
-			case "block_countries":
-				if err := m.parseCountryBlock(d, true); err != nil {
-					return err
-				}
-			case "whitelist_countries":
-				if err := m.parseCountryBlock(d, false); err != nil {
-					return err
-				}
-			case "log_severity":
-				if err := m.parseLogSeverity(d); err != nil {
-					return err
-				}
-			case "log_json":
-				m.LogJSON = true
-				m.logger.Debug("Log JSON enabled", zap.String("file", d.File()), zap.Int("line", d.Line()))
-			case "rule_file":
-				if err := m.parseRuleFile(d); err != nil {
-					return err
-				}
-			case "ip_blacklist_file":
-				if err := m.parseBlacklistFile(d, true); err != nil {
-					return err
-				}
-			case "dns_blacklist_file":
-				if err := m.parseBlacklistFile(d, false); err != nil {
-					return err
-				}
-			case "anomaly_threshold":
-				if err := m.parseAnomalyThreshold(d); err != nil {
-					return err
-				}
-			case "custom_response":
-				if err := m.parseCustomResponse(d); err != nil {
-					return err
-				}
-			case "redact_sensitive_data":
-				m.RedactSensitiveData = true
-				m.logger.Debug("Redact sensitive data enabled", zap.String("file", d.File()), zap.Int("line", d.Line()))
-			default:
-				m.logger.Warn("WAF Unrecognized SubDirective", zap.String("directive", directive), zap.String("file", d.File()), zap.Int("line", d.Line()))
-				return fmt.Errorf("File: %s, Line: %d: unrecognized subdirective: %s", d.File(), d.Line(), d.Val())
-			}
-		}
-	}
-
-	return m.validateConfig()
+	return m.configLoader.UnmarshalCaddyfile(d, m)
 }
 
-func (m *Middleware) parseRuleFile(d *caddyfile.Dispenser) error {
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing path for rule_file", d.File(), d.Line())
-	}
-	ruleFile := d.Val()
-	m.RuleFiles = append(m.RuleFiles, ruleFile)
-
-	if m.MetricsEndpoint != "" && !strings.HasPrefix(m.MetricsEndpoint, "/") {
-		return fmt.Errorf("metrics_endpoint must start with '/'")
-	}
-	m.logger.Info("WAF Loading Rule File",
-		zap.String("file", ruleFile),
-		zap.String("caddyfile", d.File()),
-		zap.Int("line", d.Line()),
-	)
-	return nil
-}
-
-func (m *Middleware) parseCustomResponse(d *caddyfile.Dispenser) error {
-	if m.CustomResponses == nil {
-		m.CustomResponses = make(map[int]CustomBlockResponse)
-	}
-
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing status code for custom_response", d.File(), d.Line())
-	}
-	statusCode, err := strconv.Atoi(d.Val())
-	if err != nil {
-		return fmt.Errorf("File: %s, Line: %d: invalid status code for custom_response: %v", d.File(), d.Line(), err)
-	}
-
-	if m.CustomResponses[statusCode].Headers == nil {
-		m.CustomResponses[statusCode] = CustomBlockResponse{
-			StatusCode: statusCode,
-			Headers:    make(map[string]string),
-		}
-	}
-
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing content_type or file path for custom_response", d.File(), d.Line())
-	}
-	contentTypeOrFile := d.Val()
-
-	if d.NextArg() {
-		filePath := d.Val()
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			return fmt.Errorf("File: %s, Line: %d: could not read custom response file '%s': %v", d.File(), d.Line(), filePath, err)
-		}
-		m.CustomResponses[statusCode] = CustomBlockResponse{
-			StatusCode: statusCode,
-			Headers: map[string]string{
-				"Content-Type": contentTypeOrFile,
-			},
-			Body: string(content),
-		}
-		m.logger.Debug("Loaded custom response from file",
-			zap.Int("status_code", statusCode),
-			zap.String("file", filePath),
-			zap.String("content_type", contentTypeOrFile),
-			zap.String("caddyfile", d.File()),
-			zap.Int("line", d.Line()),
-		)
-	} else {
-		remaining := d.RemainingArgs()
-		if len(remaining) == 0 {
-			return fmt.Errorf("File: %s, Line: %d: missing custom response body", d.File(), d.Line())
-		}
-		body := strings.Join(remaining, " ")
-		m.CustomResponses[statusCode] = CustomBlockResponse{
-			StatusCode: statusCode,
-			Headers: map[string]string{
-				"Content-Type": contentTypeOrFile,
-			},
-			Body: body,
-		}
-		m.logger.Debug("Loaded inline custom response",
-			zap.Int("status_code", statusCode),
-			zap.String("content_type", contentTypeOrFile),
-			zap.String("body", body),
-			zap.String("caddyfile", d.File()),
-			zap.Int("line", d.Line()),
-		)
-	}
-	return nil
-}
-
-func (m *Middleware) parseRateLimit(d *caddyfile.Dispenser) error {
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing requests value for rate_limit", d.File(), d.Line())
-	}
-	requests, err := strconv.Atoi(d.Val())
-	if err != nil {
-		return fmt.Errorf("File: %s, Line: %d: invalid requests value for rate_limit: %v", d.File(), d.Line(), err)
-	}
-
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing window duration for rate_limit", d.File(), d.Line())
-	}
-	window, err := time.ParseDuration(d.Val())
-	if err != nil {
-		return fmt.Errorf("File: %s, Line: %d: invalid duration for rate_limit: %v", d.File(), d.Line(), err)
-	}
-
-	cleanupInterval := time.Minute
-	if d.NextArg() {
-		cleanupInterval, err = time.ParseDuration(d.Val())
-		if err != nil {
-			return fmt.Errorf("File: %s, Line: %d: invalid cleanup interval: %v", d.File(), d.Line(), err)
-		}
-	}
-
-	m.RateLimit = RateLimit{
-		Requests:        requests,
-		Window:          window,
-		CleanupInterval: cleanupInterval,
-	}
-
-	m.logger.Debug("Rate limit configured",
-		zap.Int("requests", requests),
-		zap.Duration("window", window),
-		zap.Duration("cleanup_interval", cleanupInterval),
-		zap.String("file", d.File()),
-		zap.Int("line", d.Line()),
-	)
-	return nil
-}
-
-func (m *Middleware) parseCountryBlock(d *caddyfile.Dispenser, isBlock bool) error {
-	target := &m.CountryBlock
-	if !isBlock {
-		target = &m.CountryWhitelist
-	}
-	target.Enabled = true
-
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing GeoIP DB path", d.File(), d.Line())
-	}
-	target.GeoIPDBPath = d.Val()
-	target.CountryList = []string{}
-
-	for d.NextArg() {
-		country := strings.ToUpper(d.Val())
-		target.CountryList = append(target.CountryList, country)
-	}
-
-	m.logger.Debug("Country list configured",
-		zap.Bool("block_mode", isBlock),
-		zap.Strings("countries", target.CountryList),
-		zap.String("geoip_db_path", target.GeoIPDBPath),
-		zap.String("file", d.File()), zap.Int("line", d.Line()),
-	)
-	return nil
-}
-
-func (m *Middleware) parseLogSeverity(d *caddyfile.Dispenser) error {
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing value for log_severity", d.File(), d.Line())
-	}
-	m.LogSeverity = d.Val()
-	m.logger.Debug("Log severity set",
-		zap.String("severity", m.LogSeverity),
-		zap.String("file", d.File()), zap.Int("line", d.Line()),
-	)
-	return nil
-}
-
-func (m *Middleware) parseBlacklistFile(d *caddyfile.Dispenser, isIP bool) error {
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing blacklist file path", d.File(), d.Line())
-	}
-	if isIP {
-		m.IPBlacklistFile = d.Val()
-	} else {
-		m.DNSBlacklistFile = d.Val()
-	}
-	m.logger.Info("Blacklist file loaded", zap.String("file", d.Val()), zap.Bool("is_ip", isIP))
-	return nil
-}
-
-func (m *Middleware) parseAnomalyThreshold(d *caddyfile.Dispenser) error {
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing threshold value", d.File(), d.Line())
-	}
-	threshold, err := strconv.Atoi(d.Val())
-	if err != nil {
-		return fmt.Errorf("File: %s, Line: %d: invalid threshold: %v", d.File(), d.Line(), err)
-	}
-	m.AnomalyThreshold = threshold
-	m.logger.Debug("Anomaly threshold set", zap.Int("threshold", threshold))
-	return nil
-}
-
-func (m *Middleware) validateConfig() error {
-	if m.RateLimit.Requests <= 0 || m.RateLimit.Window <= 0 {
-		return fmt.Errorf("invalid rate limit configuration: requests and window must be greater than zero")
-	}
-	if m.CountryBlock.Enabled && m.CountryBlock.GeoIPDBPath == "" {
-		return fmt.Errorf("country block is enabled but no GeoIP database path specified")
-	}
-	if len(m.RuleFiles) == 0 {
-		return fmt.Errorf("no rule files specified")
-	}
-	return nil
-}
-
-// Option for configuring the Middleware
-type MiddlewareOption func(*Middleware)
-
-// WithGeoIPCache enables GeoIP lookup caching.
-func WithGeoIPCache(ttl time.Duration) MiddlewareOption {
-	return func(m *Middleware) {
-		m.geoIPCache = make(map[string]GeoIPRecord)
-		m.geoIPCacheTTL = ttl
-	}
-}
-
-// WithGeoIPLookupFallbackBehavior configures the fallback behavior for GeoIP lookups.
-func WithGeoIPLookupFallbackBehavior(behavior string) MiddlewareOption {
-	return func(m *Middleware) {
-		m.geoIPLookupFallbackBehavior = behavior
-	}
-}
-
-// NewMiddleware creates a new Middleware with options.
-func NewMiddleware(logger *zap.Logger, options ...MiddlewareOption) *Middleware {
-	m := &Middleware{
-		logger: logger,
-	}
-	for _, option := range options {
-		option(m)
-	}
-	return m
-}
-
-func (m *Middleware) extractIPFromRemoteAddr(remoteAddr string) (string, error) {
-	host, _, err := net.SplitHostPort(remoteAddr)
-	if err != nil {
-		return remoteAddr, nil // If it's not in host:port format, assume it's just the IP
-	}
-	return host, nil
-}
-
-// isCountryInList function with improvements
 func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, geoIP *maxminddb.Reader) (bool, error) {
-	if geoIP == nil {
-		return false, fmt.Errorf("geoip database not loaded")
+	if m.geoIPHandler == nil {
+		return false, fmt.Errorf("geoip handler not initialized")
 	}
+	return m.geoIPHandler.IsCountryInList(remoteAddr, countryList, geoIP)
+}
 
-	ip, err := m.extractIPFromRemoteAddr(remoteAddr)
-	if err != nil {
-		return false, err
+func (m *Middleware) getCountryCode(remoteAddr string, geoIP *maxminddb.Reader) string {
+	if m.geoIPHandler == nil {
+		return "N/A"
 	}
-
-	parsedIP := net.ParseIP(ip)
-	if parsedIP == nil {
-		m.logger.Error("invalid IP address", zap.String("ip", ip))
-		return false, fmt.Errorf("invalid IP address: %s", ip)
-	}
-
-	// Easy: Add caching of GeoIP lookups for performance.
-	if m.geoIPCache != nil {
-		m.geoIPCacheMutex.RLock()
-		if record, ok := m.geoIPCache[ip]; ok {
-			m.geoIPCacheMutex.RUnlock()
-			for _, country := range countryList {
-				if strings.EqualFold(record.Country.ISOCode, country) {
-					return true, nil
-				}
-			}
-			return false, nil
-		}
-		m.geoIPCacheMutex.RUnlock()
-	}
-
-	var record GeoIPRecord
-	err = geoIP.Lookup(parsedIP, &record)
-	if err != nil {
-		m.logger.Error("geoip lookup failed", zap.String("ip", ip), zap.Error(err))
-
-		// Critical: Handle cases where the GeoIP database lookup fails more gracefully.
-		switch m.geoIPLookupFallbackBehavior {
-		case "default":
-			// Log and treat as not in the list
-			return false, nil
-		case "none":
-			return false, fmt.Errorf("geoip lookup failed: %w", err)
-		case "": // No fallback configured, maintain existing behavior
-			return false, fmt.Errorf("geoip lookup failed: %w", err)
-		default:
-			// Configurable fallback country code
-			for _, country := range countryList {
-				if strings.EqualFold(m.geoIPLookupFallbackBehavior, country) {
-					return true, nil
-				}
-			}
-			return false, nil
-		}
-	}
-
-	// Easy: Add caching of GeoIP lookups for performance.
-	if m.geoIPCache != nil {
-		m.geoIPCacheMutex.Lock()
-		m.geoIPCache[ip] = record
-		m.geoIPCacheMutex.Unlock()
-
-		// Invalidate cache entry after TTL (basic implementation)
-		if m.geoIPCacheTTL > 0 {
-			time.AfterFunc(m.geoIPCacheTTL, func() {
-				m.geoIPCacheMutex.Lock()
-				delete(m.geoIPCache, ip)
-				m.geoIPCacheMutex.Unlock()
-			})
-		}
-	}
-
-	for _, country := range countryList {
-		if strings.EqualFold(record.Country.ISOCode, country) {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return m.geoIPHandler.GetCountryCode(remoteAddr, geoIP)
 }
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
@@ -876,27 +484,6 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	return err
 }
 
-// getCountryCode extracts the country code for logging purposes
-func (m *Middleware) getCountryCode(remoteAddr string, geoIP *maxminddb.Reader) string {
-	if geoIP == nil {
-		return "N/A"
-	}
-	ip, err := m.extractIPFromRemoteAddr(remoteAddr)
-	if err != nil {
-		return "N/A"
-	}
-	parsedIP := net.ParseIP(ip)
-	if parsedIP == nil {
-		return "N/A"
-	}
-	var record GeoIPRecord
-	err = geoIP.Lookup(parsedIP, &record)
-	if err != nil {
-		return "N/A"
-	}
-	return record.Country.ISOCode
-}
-
 func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, fields ...zap.Field) {
 	// Critical: Ensure that WriteHeader is called only once.
 	if !state.ResponseWritten {
@@ -975,6 +562,10 @@ func extractIP(remoteAddr string) string {
 	}
 
 	return ""
+}
+
+func extractPath(r *http.Request) string {
+	return r.URL.Path
 }
 
 type responseRecorder struct {
@@ -1613,7 +1204,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	// Default log file path (fallback)
 	logFilePath := m.LogFilePath
 	if logFilePath == "" {
-		logFilePath = "/var/log/caddy/waf.json"
+		logFilePath = "log.json"
 	}
 
 	// Set logging level based on severity
@@ -1734,6 +1325,37 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		}
 		if m.CountryWhitelist.Enabled {
 			m.CountryWhitelist.geoIP = geoIPReader
+		}
+	}
+
+	m.configLoader = NewConfigLoader(m.logger)
+	m.blacklistLoader = NewBlacklistLoader(m.logger)
+	m.geoIPHandler = NewGeoIPHandler(m.logger)
+	m.requestValueExtractor = NewRequestValueExtractor(m.logger, m.RedactSensitiveData)
+
+	// GeoIP configuration must be set before loading the database
+	m.geoIPHandler.WithGeoIPCache(m.geoIPCacheTTL)
+	m.geoIPHandler.WithGeoIPLookupFallbackBehavior(m.geoIPLookupFallbackBehavior)
+
+	dispenser := caddyfile.NewDispenser([]caddyfile.Token{})
+	err = m.configLoader.UnmarshalCaddyfile(dispenser, m)
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	//Blacklist Loading
+	m.ipBlacklist = make(map[string]bool)
+	if m.IPBlacklistFile != "" {
+		err = m.blacklistLoader.LoadIPBlacklistFromFile(m.IPBlacklistFile, m.ipBlacklist)
+		if err != nil {
+			return fmt.Errorf("failed to load IP blacklist: %w", err)
+		}
+	}
+	m.dnsBlacklist = make(map[string]bool)
+	if m.DNSBlacklistFile != "" {
+		err = m.blacklistLoader.LoadDNSBlacklistFromFile(m.DNSBlacklistFile, m.dnsBlacklist)
+		if err != nil {
+			return fmt.Errorf("failed to load DNS blacklist: %w", err)
 		}
 	}
 
@@ -1974,302 +1596,15 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 }
 
 func (m *Middleware) extractValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
-	target = strings.TrimSpace(target)
-	if target == "" {
-		return "", fmt.Errorf("empty extraction target")
-	}
-
-	// If target is a comma separated list, extract values and return them separated by commas.
-	if strings.Contains(target, ",") {
-		var values []string
-		targets := strings.Split(target, ",")
-		for _, t := range targets {
-			t = strings.TrimSpace(t)
-			v, err := m.extractSingleValue(t, r, w)
-			if err == nil {
-				values = append(values, v)
-			} else {
-				m.logger.Debug("Failed to extract single value from multiple targets.", zap.String("target", t), zap.Error(err))
-				// if one extraction fails we continue and don't return an error.
-			}
-		}
-		return strings.Join(values, ","), nil // Returning concatenated values
-	}
-	return m.extractSingleValue(target, r, w)
-}
-
-func (m *Middleware) extractSingleValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
-	target = strings.ToUpper(strings.TrimSpace(target))
-	var unredactedValue string
-	var err error
-
-	// Basic Cases (Keep as Before)
-	switch {
-	case target == "METHOD":
-		unredactedValue = r.Method
-	case target == "REMOTE_IP":
-		unredactedValue = r.RemoteAddr
-	case target == "PROTOCOL":
-		unredactedValue = r.Proto
-	case target == "HOST":
-		unredactedValue = r.Host
-	case target == "ARGS":
-		if r.URL.RawQuery == "" {
-			m.logger.Debug("Query string is empty", zap.String("target", target))
-			return "", fmt.Errorf("query string is empty for target: %s", target)
-		}
-		unredactedValue = r.URL.RawQuery
-	case target == "USER_AGENT":
-		unredactedValue = r.UserAgent()
-		if unredactedValue == "" {
-			m.logger.Debug("User-Agent is empty", zap.String("target", target))
-		}
-	case target == "PATH":
-		unredactedValue = r.URL.Path
-		if unredactedValue == "" {
-			m.logger.Debug("Request path is empty", zap.String("target", target))
-		}
-	case target == "URI":
-		unredactedValue = r.URL.RequestURI()
-		if unredactedValue == "" {
-			m.logger.Debug("Request URI is empty", zap.String("target", target))
-		}
-
-	case target == "BODY":
-		if r.Body == nil {
-			m.logger.Warn("Request body is nil", zap.String("target", target))
-			return "", fmt.Errorf("request body is nil for target: %s", target)
-		}
-		if r.ContentLength == 0 {
-			m.logger.Debug("Request body is empty", zap.String("target", target))
-			return "", fmt.Errorf("request body is empty for target: %s", target)
-		}
-		var bodyBytes []byte
-		bodyBytes, err = io.ReadAll(r.Body)
-		if err != nil {
-			m.logger.Error("Failed to read request body", zap.Error(err))
-			return "", fmt.Errorf("failed to read request body for target %s: %w", target, err)
-		}
-		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
-		unredactedValue = string(bodyBytes)
-
-		// Full Header Dump (Request)
-	case target == "HEADERS", target == "REQUEST_HEADERS":
-		if len(r.Header) == 0 {
-			m.logger.Debug("Request headers are empty", zap.String("target", target))
-			return "", fmt.Errorf("request headers are empty for target: %s", target)
-		}
-		headers := make([]string, 0)
-		for name, values := range r.Header {
-			headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
-		}
-		unredactedValue = strings.Join(headers, "; ")
-
-	// Response Headers (Phase 3)
-	case target == "RESPONSE_HEADERS":
-		if w == nil {
-			return "", fmt.Errorf("response headers not accessible outside Phase 3 for target: %s", target)
-		}
-		headers := make([]string, 0)
-		for name, values := range w.Header() {
-			headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
-		}
-		unredactedValue = strings.Join(headers, "; ")
-
-	// Response Body (Phase 4)
-	case target == "RESPONSE_BODY":
-		if w == nil {
-			return "", fmt.Errorf("response body not accessible outside Phase 4 for target: %s", target)
-		}
-		if recorder, ok := w.(*responseRecorder); ok {
-			if recorder == nil {
-				return "", fmt.Errorf("response recorder is nil for target: %s", target)
-			}
-			if recorder.body.Len() == 0 {
-				m.logger.Debug("Response body is empty", zap.String("target", target))
-				return "", fmt.Errorf("response body is empty for target: %s", target)
-			}
-			unredactedValue = recorder.BodyString()
-		} else {
-			return "", fmt.Errorf("response recorder not available for target: %s", target)
-		}
-
-	// Dynamic Header Extraction (Request)
-	case strings.HasPrefix(target, "HEADERS:"), strings.HasPrefix(target, "REQUEST_HEADERS:"):
-		headerName := strings.TrimPrefix(strings.TrimPrefix(target, "HEADERS:"), "REQUEST_HEADERS:") // Trim both prefixes
-		headerValue := r.Header.Get(headerName)
-		if headerValue == "" {
-			m.logger.Debug("Header not found", zap.String("header", headerName))
-			return "", fmt.Errorf("header '%s' not found for target: %s", headerName, target)
-		}
-		unredactedValue = headerValue
-	// Dynamic Response Header Extraction (Phase 3)
-	case strings.HasPrefix(target, "RESPONSE_HEADERS:"):
-		if w == nil {
-			return "", fmt.Errorf("response headers not available during this phase for target: %s", target)
-		}
-		headerName := strings.TrimPrefix(target, "RESPONSE_HEADERS:")
-		headerValue := w.Header().Get(headerName)
-		if headerValue == "" {
-			m.logger.Debug("Response header not found", zap.String("header", headerName))
-			return "", fmt.Errorf("response header '%s' not found for target: %s", headerName, target)
-		}
-		unredactedValue = headerValue
-
-	// Cookies Extraction
-	case target == "COOKIES":
-		cookies := make([]string, 0)
-		for _, c := range r.Cookies() {
-			cookies = append(cookies, fmt.Sprintf("%s=%s", c.Name, c.Value))
-		}
-		if len(cookies) == 0 {
-			m.logger.Debug("No cookies found", zap.String("target", target))
-			return "", fmt.Errorf("no cookies found for target: %s", target)
-		}
-		unredactedValue = strings.Join(cookies, "; ")
-
-	case strings.HasPrefix(target, "COOKIES:"):
-		cookieName := strings.TrimPrefix(target, "COOKIES:")
-		cookie, err := r.Cookie(cookieName)
-		if err != nil {
-			m.logger.Debug("Cookie not found", zap.String("cookie", cookieName))
-			return "", fmt.Errorf("cookie '%s' not found for target: %s", cookieName, target)
-		}
-		unredactedValue = cookie.Value
-
-		// URL Parameter Extraction
-	case strings.HasPrefix(target, "URL_PARAM:"):
-		paramName := strings.TrimPrefix(target, "URL_PARAM:")
-		if paramName == "" {
-			return "", fmt.Errorf("URL parameter name is empty for target: %s", target)
-		}
-		if r.URL.Query().Get(paramName) == "" {
-			m.logger.Debug("URL parameter not found", zap.String("parameter", paramName))
-			return "", fmt.Errorf("url parameter '%s' not found for target: %s", paramName, target)
-		}
-		unredactedValue = r.URL.Query().Get(paramName)
-
-		// JSON Path Extraction from Body
-	case strings.HasPrefix(target, "JSON_PATH:"):
-		jsonPath := strings.TrimPrefix(target, "JSON_PATH:")
-		if r.Body == nil {
-			m.logger.Warn("Request body is nil", zap.String("target", target))
-			return "", fmt.Errorf("request body is nil for target: %s", target)
-		}
-		if r.ContentLength == 0 {
-			m.logger.Debug("Request body is empty", zap.String("target", target))
-			return "", fmt.Errorf("request body is empty for target: %s", target)
-		}
-
-		bodyBytes, err := io.ReadAll(r.Body)
-		if err != nil {
-			m.logger.Error("Failed to read request body", zap.Error(err))
-			return "", fmt.Errorf("failed to read request body for JSON_PATH target %s: %w", target, err)
-		}
-		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
-
-		// Use helper method to dynamically extract value based on JSON path (e.g., 'data.items.0.name').
-		unredactedValue, err = m.extractJSONPath(string(bodyBytes), jsonPath)
-		if err != nil {
-			m.logger.Debug("Failed to extract value from JSON path", zap.String("target", target), zap.String("path", jsonPath), zap.Error(err))
-			return "", fmt.Errorf("failed to extract from JSON path '%s': %w", jsonPath, err)
-		}
-	// New cases start here:
-	case target == "CONTENT_TYPE":
-		unredactedValue = r.Header.Get("Content-Type")
-		if unredactedValue == "" {
-			m.logger.Debug("Content-Type header not found", zap.String("target", target))
-			return "", fmt.Errorf("content-type header not found for target: %s", target)
-		}
-	case target == "URL":
-		unredactedValue = r.URL.String()
-		if unredactedValue == "" {
-			m.logger.Debug("URL could not be extracted", zap.String("target", target))
-			return "", fmt.Errorf("url could not be extracted for target: %s", target)
-		}
-
-	case target == "REQUEST_COOKIES":
-		cookies := make([]string, 0)
-		for _, c := range r.Cookies() {
-			cookies = append(cookies, fmt.Sprintf("%s=%s", c.Name, c.Value))
-		}
-		unredactedValue = strings.Join(cookies, "; ")
-		if len(cookies) == 0 {
-			m.logger.Debug("No cookies found", zap.String("target", target))
-			return "", fmt.Errorf("no cookies found for target: %s", target)
-		}
-
-	default:
-		m.logger.Warn("Unknown extraction target", zap.String("target", target))
-		return "", fmt.Errorf("unknown extraction target: %s", target)
-	}
-
-	// Redact sensitive fields (unchanged)
-	value := unredactedValue
-	if m.RedactSensitiveData {
-		sensitiveTargets := []string{"password", "token", "apikey", "authorization", "secret"}
-		for _, sensitive := range sensitiveTargets {
-			if strings.Contains(strings.ToLower(target), sensitive) {
-				value = "REDACTED"
-				break
-			}
-		}
-	}
-
-	m.logger.Debug("Extracted value",
-		zap.String("rule_id", r.Context().Value("rule_id").(string)),
-		zap.String("target", target),
-		zap.String("value", value), // Now logging the potentially redacted value
-	)
-
-	return unredactedValue, nil // Return the unredacted value for rule matching
+	return m.requestValueExtractor.ExtractValue(target, r, w)
 }
 
 // Helper function for JSON path extraction.
 func (m *Middleware) extractJSONPath(jsonStr string, jsonPath string) (string, error) {
-	if jsonStr == "" {
-		return "", fmt.Errorf("json string is empty")
+	if m.requestValueExtractor == nil {
+		return "", fmt.Errorf("requestValueExtractor is not initialized")
 	}
-
-	var jsonData interface{}
-	if err := json.Unmarshal([]byte(jsonStr), &jsonData); err != nil {
-		return "", fmt.Errorf("failed to unmarshal JSON: %w", err)
-	}
-
-	// If jsonData is nil or not a valid JSON, return empty string or error.
-	if jsonData == nil {
-		return "", fmt.Errorf("invalid json data")
-	}
-
-	pathParts := strings.Split(jsonPath, ".")
-	current := jsonData
-
-	for _, part := range pathParts {
-		if current == nil {
-			return "", fmt.Errorf("invalid json path, not found '%s'", part)
-		}
-
-		switch value := current.(type) {
-		case map[string]interface{}:
-			if next, ok := value[part]; ok {
-				current = next
-			} else {
-				return "", fmt.Errorf("invalid json path, not found '%s'", part)
-			}
-		case []interface{}:
-			index, err := strconv.Atoi(part)
-			if err != nil || index < 0 || index >= len(value) {
-				return "", fmt.Errorf("invalid json path, not found '%s'", part)
-			}
-			current = value[index]
-		default:
-			return "", fmt.Errorf("invalid path '%s'", part)
-		}
-	}
-	if current == nil {
-		return "", fmt.Errorf("invalid path, value is nil '%s'", jsonPath)
-	}
-	return fmt.Sprintf("%v", current), nil // Convert value to string (if possible)
+	return m.requestValueExtractor.extractJSONPath(jsonStr, jsonPath)
 }
 
 // validateRule checks if a rule is valid

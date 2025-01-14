@@ -42,17 +42,4 @@
 			respond "Hello world!" 200
 		}
 	}
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-		X-Frame-Options "DENY"
-		X-Content-Type-Options "nosniff"
-		Referrer-Policy "no-referrer"
-		Permissions-Policy "geolocation=(), microphone=(), camera=()"
-		Content-Security-Policy "default-src 'self'; script-src 'self'; object-src 'none'"
-		X-Permitted-Cross-Domain-Policies "none"
-		Clear-Site-Data "\"cache\", \"cookies\", \"storage\""
-		Cross-Origin-Embedder-Policy "require-corp"
-		Cross-Origin-Opener-Policy "same-origin"
-		Cross-Origin-Resource-Policy "same-origin"
-	}
 }
