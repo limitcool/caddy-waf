@@ -1,0 +1,8 @@
+{"level":"INFO","ts":"2025/01/15 00:24:41.155","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/15 00:24:41.155","msg":"Starting caddy-waf","version":"v0.0.0-20250113222957-aab3402b71d8"}
+{"level":"INFO","ts":"2025/01/15 00:24:41.155","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/15 00:24:41.155","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"INFO","ts":"2025/01/15 00:30:31.636","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/15 00:30:31.636","msg":"Starting caddy-waf","version":"v0.0.0-20250113222957-aab3402b71d8"}
+{"level":"INFO","ts":"2025/01/15 00:30:31.636","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/15 00:30:31.636","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
