@@ -1,17 +1,16 @@
-name: Build and test Caddy with WAF (test)
+name: Build and test Caddy with WAF (all branches except main)
 
 permissions:
   contents: read
   pull-requests: write
 
-  
 on:
   push:
-    branches:
-      - test
+    branches-ignore:
+      - main
   pull_request:
-    branches:
-      - test
+    branches-ignore:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -41,9 +40,9 @@ jobs:
             exit 1
           fi
 
-      - name: Clone caddy-waf Repository (test)
+      - name: Clone caddy-waf Repository
         run: |
-          git clone --branch test https://github.com/fabriziosalmi/caddy-waf.git
+          git clone --branch ${{ github.ref_name }} https://github.com/fabriziosalmi/caddy-waf.git
           cd caddy-waf
 
       - name: Validate Repository Cloning
@@ -85,7 +84,7 @@ jobs:
             echo "Caddy build failed"
             exit 1
           fi
-          
+
       - name: Test Caddy Run and Validate WAF Provisioning
         run: |
           cd caddy-waf
@@ -106,6 +105,16 @@ jobs:
           fi
           
           echo "Caddy WAF build and run successful with WAF middleware provisioned"
+
+      - name: Run Additional Tests
+        run: |
+          cd caddy-waf
+          # Example: Test WAF functionality with a simple HTTP request
+          curl -s http://localhost:8080 -o /dev/null -w "%{http_code}"
+          if [ $? -ne 0 ]; then
+            echo "HTTP request to Caddy failed"
+            exit 1
+          fi
 
       - name: Clean Up
         if: always()
