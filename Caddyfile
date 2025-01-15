@@ -22,7 +22,7 @@
 			block_countries GeoLite2-Country.mmdb RU CN KP
 			# whitelist_countries GeoLite2-Country.mmdb US
             rate_limit {
-                requests 10
+                requests 1000
                 window 10s
                 cleanup_interval 5m
             }
