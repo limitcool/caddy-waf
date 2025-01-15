@@ -21,6 +21,9 @@ type RequestValueExtractor struct {
 	redactSensitiveData bool // Add this field
 }
 
+// Define a custom type for context keys
+type ContextKeyLogId string
+
 // NewRequestValueExtractor creates a new RequestValueExtractor with a given logger
 func NewRequestValueExtractor(logger *zap.Logger, redactSensitiveData bool) *RequestValueExtractor {
 	return &RequestValueExtractor{logger: logger, redactSensitiveData: redactSensitiveData}
@@ -323,7 +326,8 @@ func (rve *RequestValueExtractor) extractJSONPath(jsonStr string, jsonPath strin
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	logID := uuid.New().String()
-	ctx := context.WithValue(r.Context(), "logID", logID)
+	// Use the custom type as the key
+	ctx := context.WithValue(r.Context(), ContextKeyLogId("logID"), logID)
 	r = r.WithContext(ctx)
 
 	// Increment total requests
