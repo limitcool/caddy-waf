@@ -16,7 +16,7 @@ A robust and flexible **Web Application Firewall (WAF)** middleware for the Cadd
 *   **Anomaly Scoring:** Detect threats by scoring rule matches and blocking when thresholds are exceeded.
 *   **Multi-Phase Inspection:** Analyze traffic across request/response phases for deeper protection.
 *   **Request Redaction:** Redact sensitive data (e.g., passwords, tokens) from logs.
-*   **Metrics:** JSON endpoint to analyze rule performance and optimize your WAF.
+*   **Metrics:** JSON endpoint to analyze rules performances and optimize your WAF.
 
 ## 🚀 Quick Start
 
