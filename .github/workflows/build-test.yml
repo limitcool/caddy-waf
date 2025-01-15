@@ -98,40 +98,46 @@ jobs:
             exit 1
           fi
 
-          # Validate logs in debug.json
-          if [ ! -f "debug.json" ]; then
-            echo "debug.json file not found"
+          # Validate logs in caddy_output.log
+          if [ ! -f "caddy_output.log" ]; then
+            echo "caddy_output.log file not found"
             exit 1
           fi
 
-          # Check initial lines of debug.json for critical log messages
-          if ! head -n 100 debug.json | grep -q '"msg":"Provisioning WAF middleware"'; then
-            echo "WAF middleware provisioning log not found in debug.json"
+          # Check for critical log messages in stdout
+          if ! grep -q '"msg":"Provisioning WAF middleware"' caddy_output.log; then
+            echo "WAF middleware provisioning log not found in stdout"
+            cat caddy_output.log
             exit 1
           fi
 
-          if ! head -n 100 debug.json | grep -q '"msg":"GeoIP database loaded successfully"'; then
-            echo "GeoIP database loading log not found in debug.json"
+          if ! grep -q '"msg":"GeoIP database loaded successfully"' caddy_output.log; then
+            echo "GeoIP database loading log not found in stdout"
+            cat caddy_output.log
             exit 1
           fi
 
-          if ! head -n 100 debug.json | grep -q '"msg":"IP blacklist loaded successfully"'; then
-            echo "IP blacklist loading log not found in debug.json"
+          if ! grep -q '"msg":"IP blacklist loaded successfully"' caddy_output.log; then
+            echo "IP blacklist loading log not found in stdout"
+            cat caddy_output.log
             exit 1
           fi
 
-          if ! head -n 100 debug.json | grep -q '"msg":"DNS blacklist loaded successfully"'; then
-            echo "DNS blacklist loading log not found in debug.json"
+          if ! grep -q '"msg":"DNS blacklist loaded successfully"' caddy_output.log; then
+            echo "DNS blacklist loading log not found in stdout"
+            cat caddy_output.log
             exit 1
           fi
 
-          if ! head -n 100 debug.json | grep -q '"msg":"Rules loaded"'; then
-            echo "Rules loading log not found in debug.json"
+          if ! grep -q '"msg":"Rules loaded"' caddy_output.log; then
+            echo "Rules loading log not found in stdout"
+            cat caddy_output.log
             exit 1
           fi
 
-          if ! head -n 100 debug.json | grep -q '"msg":"WAF middleware provisioned successfully"'; then
-            echo "WAF middleware provisioning success log not found in debug.json"
+          if ! grep -q '"msg":"WAF middleware provisioned successfully"' caddy_output.log; then
+            echo "WAF middleware provisioning success log not found in stdout"
+            cat caddy_output.log
             exit 1
           fi
 
