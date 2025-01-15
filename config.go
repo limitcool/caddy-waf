@@ -69,7 +69,13 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 					return d.Err("rate_limit specified multiple times")
 				}
 
-				rl := RateLimit{}
+				rl := RateLimit{
+					Requests:        100,               // Default requests
+					Window:          10 * time.Second,  // Default window
+					CleanupInterval: 300 * time.Second, // Default cleanup interval
+					MatchAllPaths:   false,             // Default to false
+				}
+
 				for nesting := d.Nesting(); d.NextBlock(nesting); {
 					switch d.Val() {
 					case "requests":
@@ -81,6 +87,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 							return d.Errf("invalid requests value: %v", err)
 						}
 						rl.Requests = reqs
+						cl.logger.Debug("Rate limit requests set", zap.Int("requests", rl.Requests))
 
 					case "window":
 						if !d.NextArg() {
@@ -91,6 +98,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 							return d.Errf("invalid window value: %v", err)
 						}
 						rl.Window = window
+						cl.logger.Debug("Rate limit window set", zap.Duration("window", rl.Window))
 
 					case "cleanup_interval":
 						if !d.NextArg() {
@@ -101,10 +109,15 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 							return d.Errf("invalid cleanup_interval value: %v", err)
 						}
 						rl.CleanupInterval = interval
+						cl.logger.Debug("Rate limit cleanup interval set", zap.Duration("cleanup_interval", rl.CleanupInterval))
 
 					case "paths":
-						// Use d.RemainingArgs() to get all remaining arguments as a list of strings
-						rl.Paths = d.RemainingArgs()
+						paths := d.RemainingArgs()
+						if len(paths) == 0 {
+							return d.Err("paths requires at least one argument")
+						}
+						rl.Paths = paths
+						cl.logger.Debug("Rate limit paths set", zap.Strings("paths", rl.Paths))
 
 					case "match_all_paths":
 						if !d.NextArg() {
@@ -115,6 +128,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 							return d.Errf("invalid match_all_paths value: %v", err)
 						}
 						rl.MatchAllPaths = matchAllPaths
+						cl.logger.Debug("Rate limit match_all_paths set", zap.Bool("match_all_paths", rl.MatchAllPaths))
 
 					default:
 						return d.Errf("invalid rate_limit option: %s", d.Val())
@@ -126,7 +140,8 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 				}
 
 				m.RateLimit = rl
-				cl.logger.Debug("Rate limit parsed", zap.Any("rate_limit", m.RateLimit))
+				cl.logger.Debug("Rate limit configuration applied", zap.Any("rate_limit", m.RateLimit))
+
 			case "block_countries":
 				if err := cl.parseCountryBlock(d, m, true); err != nil {
 					return err

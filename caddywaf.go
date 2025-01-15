@@ -206,13 +206,15 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	m.startFileWatcher([]string{m.IPBlacklistFile, m.DNSBlacklistFile})
 
 	if m.RateLimit.Requests > 0 {
-		if m.RateLimit.Window <= 0 {
-			return fmt.Errorf("invalid rate limit configuration: requests and window must be greater than zero")
+		if m.RateLimit.Window <= 0 || m.RateLimit.CleanupInterval <= 0 {
+			return fmt.Errorf("invalid rate limit configuration: requests, window, and cleanup_interval must be greater than zero")
 		}
 		m.logger.Info("Rate limit configuration",
 			zap.Int("requests", m.RateLimit.Requests),
 			zap.Duration("window", m.RateLimit.Window),
 			zap.Duration("cleanup_interval", m.RateLimit.CleanupInterval),
+			zap.Strings("paths", m.RateLimit.Paths),
+			zap.Bool("match_all_paths", m.RateLimit.MatchAllPaths),
 		)
 		m.rateLimiter = NewRateLimiter(m.RateLimit)
 		m.rateLimiter.startCleanup()
@@ -278,8 +280,8 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		}
 	}
 
-	if err := m.loadRules(m.RuleFiles, m.IPBlacklistFile, m.DNSBlacklistFile); err != nil {
-		return fmt.Errorf("failed to load rules and blacklists: %w", err)
+	if err := m.loadRules(m.RuleFiles); err != nil {
+		return fmt.Errorf("failed to load rules: %w", err)
 	}
 
 	m.logger.Info("WAF middleware provisioned successfully")
@@ -363,7 +365,6 @@ func (m *Middleware) logVersion() {
 		moduleVersion = "unknown"
 	}
 
-	m.logger.Info("Starting caddy-waf", zap.String("version", moduleVersion))
 }
 
 func (m *Middleware) startFileWatcher(filePaths []string) {

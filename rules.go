@@ -4,7 +4,6 @@ package caddywaf
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -160,11 +159,11 @@ func validateRule(rule *Rule) error {
 	return nil
 }
 
-func (m *Middleware) loadRules(paths []string, ipBlacklistPath string, dnsBlacklistPath string) error {
+func (m *Middleware) loadRules(paths []string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.logger.Debug("Loading rules and blacklists from files", zap.Strings("rule_files", paths), zap.String("ip_blacklist", ipBlacklistPath), zap.String("dns_blacklist", dnsBlacklistPath))
+	m.logger.Debug("Loading rules from files", zap.Strings("rule_files", paths))
 
 	m.Rules = make(map[int][]Rule)
 	totalRules := 0
@@ -223,72 +222,6 @@ func (m *Middleware) loadRules(paths []string, ipBlacklistPath string, dnsBlackl
 		m.logger.Info("Rules loaded", zap.String("file", path), zap.Int("total_rules", len(rules)), zap.Int("invalid_rules", len(invalidRulesInFile)))
 	}
 
-	m.ipBlacklist = make(map[string]struct{}) // Changed to map[string]struct{}
-	if ipBlacklistPath != "" {
-		content, err := os.ReadFile(ipBlacklistPath)
-		if err != nil {
-			m.logger.Warn("Failed to read IP blacklist file", zap.String("file", ipBlacklistPath), zap.Error(err))
-		} else {
-			lines := strings.Split(string(content), "\n")
-			validEntries := 0
-			for i, line := range lines {
-				line = strings.TrimSpace(line)
-				if line == "" || strings.HasPrefix(line, "#") {
-					continue
-				}
-
-				if _, _, err := net.ParseCIDR(line); err == nil {
-					m.ipBlacklist[line] = struct{}{} // Changed to struct{}{}
-					validEntries++
-					m.logger.Debug("Added CIDR range to blacklist", zap.String("cidr", line))
-					continue
-				}
-
-				if ip := net.ParseIP(line); ip != nil {
-					m.ipBlacklist[line] = struct{}{} // Changed to struct{}{}
-					validEntries++
-					m.logger.Debug("Added IP to blacklist", zap.String("ip", line))
-					continue
-				}
-
-				m.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
-					zap.String("file", ipBlacklistPath),
-					zap.Int("line", i+1),
-					zap.String("entry", line),
-				)
-			}
-			m.logger.Info("IP blacklist loaded successfully",
-				zap.String("file", ipBlacklistPath),
-				zap.Int("valid_entries", validEntries),
-				zap.Int("total_lines", len(lines)),
-			)
-		}
-	}
-
-	m.dnsBlacklist = make(map[string]struct{}) // Changed to map[string]struct{}
-	if dnsBlacklistPath != "" {
-		content, err := os.ReadFile(dnsBlacklistPath)
-		if err != nil {
-			m.logger.Warn("Failed to read DNS blacklist file", zap.String("file", dnsBlacklistPath), zap.Error(err))
-		} else {
-			lines := strings.Split(string(content), "\n")
-			validEntriesCount := 0
-			for _, line := range lines {
-				line = strings.ToLower(strings.TrimSpace(line))
-				if line == "" || strings.HasPrefix(line, "#") {
-					continue
-				}
-				m.dnsBlacklist[line] = struct{}{} // Changed to struct{}{}
-				validEntriesCount++
-			}
-			m.logger.Info("DNS blacklist loaded successfully",
-				zap.String("file", dnsBlacklistPath),
-				zap.Int("valid_entries", validEntriesCount),
-				zap.Int("total_lines", len(lines)),
-			)
-		}
-	}
-
 	if len(invalidFiles) > 0 {
 		m.logger.Warn("Some rule files could not be loaded", zap.Strings("invalid_files", invalidFiles))
 	}
@@ -299,7 +232,7 @@ func (m *Middleware) loadRules(paths []string, ipBlacklistPath string, dnsBlackl
 	if totalRules == 0 && len(invalidFiles) > 0 {
 		return fmt.Errorf("no valid rules were loaded from any file")
 	}
-	m.logger.Debug("Rules and Blacklists loaded successfully", zap.Int("total_rules", totalRules))
+	m.logger.Debug("Rules loaded successfully", zap.Int("total_rules", totalRules))
 
 	return nil
 }
