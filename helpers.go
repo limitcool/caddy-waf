@@ -2,7 +2,6 @@ package caddywaf
 
 import (
 	"net"
-	"net/http"
 	"os"
 	"strings"
 )
@@ -30,11 +29,6 @@ func extractIP(remoteAddr string) string {
 	}
 
 	return ""
-}
-
-// extractPath extracts the path from a http.Request
-func extractPath(r *http.Request) string {
-	return r.URL.Path
 }
 
 // fileExists checks if a file exists and is readable.

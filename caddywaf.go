@@ -116,9 +116,9 @@ type Middleware struct {
 	isShuttingDown   bool // Basic flag for rudimentary graceful shutdown
 
 	// Added for caching
-	geoIPCache      map[string]GeoIPRecord
-	geoIPCacheMutex sync.RWMutex
-	geoIPCacheTTL   time.Duration // Configurable TTL for cache
+	// geoIPCache      map[string]GeoIPRecord
+	// geoIPCacheMutex sync.RWMutex
+	geoIPCacheTTL time.Duration // Configurable TTL for cache
 
 	// Added for configurable fallback
 	geoIPLookupFallbackBehavior string // "default", "none", or a specific country code
@@ -249,13 +249,6 @@ func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, ge
 		return false, fmt.Errorf("geoip handler not initialized")
 	}
 	return m.geoIPHandler.IsCountryInList(remoteAddr, countryList, geoIP)
-}
-
-func (m *Middleware) getCountryCode(remoteAddr string, geoIP *maxminddb.Reader) string {
-	if m.geoIPHandler == nil {
-		return "N/A"
-	}
-	return m.geoIPHandler.GetCountryCode(remoteAddr, geoIP)
 }
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
@@ -1092,130 +1085,6 @@ func (m *Middleware) extractValue(target string, r *http.Request, w http.Respons
 	return m.requestValueExtractor.ExtractValue(target, r, w)
 }
 
-// Helper function for JSON path extraction.
-func (m *Middleware) extractJSONPath(jsonStr string, jsonPath string) (string, error) {
-	if m.requestValueExtractor == nil {
-		return "", fmt.Errorf("requestValueExtractor is not initialized")
-	}
-	return m.requestValueExtractor.extractJSONPath(jsonStr, jsonPath)
-}
-
-func (m *Middleware) loadIPBlacklistFromFile(path string) error {
-	// Acquire a write lock to protect shared state
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	// Initialize the IP blacklist
-	m.ipBlacklist = make(map[string]bool)
-
-	// Log the attempt to load the IP blacklist file
-	m.logger.Debug("Loading IP blacklist from file",
-		zap.String("file", path),
-	)
-
-	// Attempt to read the file
-	content, err := os.ReadFile(path)
-	if err != nil {
-		m.logger.Warn("Failed to read IP blacklist file",
-			zap.String("file", path),
-			zap.Error(err),
-		)
-		return nil // Continue with an empty blacklist
-	}
-
-	// Split the file content into lines
-	lines := strings.Split(string(content), "\n")
-	validEntries := 0
-
-	for i, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue // Skip empty lines and comments
-		}
-
-		// Check if the line is a valid IP or CIDR range
-		if _, _, err := net.ParseCIDR(line); err == nil {
-			// It's a valid CIDR range
-			m.ipBlacklist[line] = true
-			validEntries++
-			m.logger.Debug("Added CIDR range to blacklist",
-				zap.String("cidr", line),
-			)
-			continue
-		}
-
-		if ip := net.ParseIP(line); ip != nil {
-			// It's a valid IP address
-			m.ipBlacklist[line] = true
-			validEntries++
-			m.logger.Debug("Added IP to blacklist",
-				zap.String("ip", line),
-			)
-			continue
-		}
-
-		// Log invalid entries for debugging
-		m.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
-			zap.String("file", path),
-			zap.Int("line", i+1),
-			zap.String("entry", line),
-		)
-	}
-
-	m.logger.Info("IP blacklist loaded successfully",
-		zap.String("file", path),
-		zap.Int("valid_entries", validEntries),
-		zap.Int("total_lines", len(lines)),
-	)
-	return nil
-}
-
-func (m *Middleware) loadDNSBlacklistFromFile(path string) error {
-	// Acquire a write lock to protect shared state
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	// Initialize an empty DNS blacklist map
-	m.dnsBlacklist = make(map[string]bool)
-
-	// Log the attempt to load the DNS blacklist file
-	m.logger.Debug("Loading DNS blacklist from file",
-		zap.String("file", path),
-	)
-
-	// Attempt to read the file
-	content, err := os.ReadFile(path)
-	if err != nil {
-		m.logger.Warn("Failed to read DNS blacklist file",
-			zap.String("file", path),
-			zap.Error(err),
-		)
-		return nil // Continue with an empty blacklist
-	}
-
-	// Convert all entries to lowercase and trim whitespace and add to the map
-	lines := strings.Split(string(content), "\n")
-	validEntriesCount := 0
-
-	for _, line := range lines {
-		line = strings.ToLower(strings.TrimSpace(line))
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue // Skip empty lines and comments
-		}
-		m.dnsBlacklist[line] = true
-		validEntriesCount++
-	}
-
-	// Log the successful loading of the DNS blacklist
-	m.logger.Info("DNS blacklist loaded successfully",
-		zap.String("file", path),
-		zap.Int("valid_entries", validEntriesCount),
-		zap.Int("total_lines", len(lines)),
-	)
-
-	return nil
-}
-
 func (m *Middleware) ReloadConfig() error {
 	// Acquire a write lock to protect shared state during reload
 	m.mu.Lock()
@@ -1292,7 +1161,7 @@ func (m *Middleware) loadRulesIntoMap(rulesMap map[int][]Rule) error {
 				zap.String("file", file),
 				zap.Error(err),
 			)
-			return fmt.Errorf("failed to unmarshal rules from file: %s, error: %v. Ensure valid JSON.", file, err)
+			return fmt.Errorf("failed to unmarshal rules from file: %s, error: %v. Ensure valid JSON", file, err)
 		}
 
 		for _, rule := range rules {
