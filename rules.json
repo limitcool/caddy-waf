@@ -10,7 +10,7 @@
         "description": "Allow and log traffic from legitimate browsers and search engine crawlers."
     },
     {
-        "id": "log-legit-tools",
+        "id": "allow-legit-tools",
         "phase": 1,
         "pattern": "(?i)(wget|curl|libwww-perl|python-requests|Go-http-client|Java|HttpClient|axios|PostmanRuntime|Paw|Insomnia|Fiddler|Charles)",
         "targets": ["HEADERS:User-Agent"],
@@ -492,5 +492,295 @@
         "action": "block",
         "score": 9,
         "description": "Block requests containing potential Java serialized objects."
+    },
+    {
+        "id": "wordpress-xmlrpc-abuse",
+        "phase": 1,
+        "pattern": "(?i)/xmlrpc\\.php$",
+        "targets": ["URI"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 7,
+        "description": "Block abuse of WordPress XML-RPC endpoint, often used for brute force attacks or DDoS."
+    },
+    {
+        "id": "wordpress-admin-ajax-abuse",
+        "phase": 1,
+        "pattern": "(?i)/wp-admin/admin-ajax\\.php$",
+        "targets": ["URI"],
+        "severity": "MEDIUM",
+        "action": "log",
+        "score": 5,
+        "description": "Log requests to WordPress admin-ajax.php, often abused for enumeration or exploitation."
+    },
+    {
+        "id": "wordpress-theme-editor-exploit",
+        "phase": 1,
+        "pattern": "(?i)/wp-admin/theme-editor\\.php$",
+        "targets": ["URI"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block access to WordPress theme editor, which can be abused to inject malicious code."
+    },
+    {
+        "id": "wordpress-plugin-install-exploit",
+        "phase": 1,
+        "pattern": "(?i)/wp-admin/plugin-install\\.php$",
+        "targets": ["URI"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block access to WordPress plugin installer, which can be abused to upload malicious plugins."
+    },
+    {
+        "id": "joomla-admin-exploit",
+        "phase": 1,
+        "pattern": "(?i)/administrator/",
+        "targets": ["URI"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block access to Joomla administrator panel, often targeted for brute force or exploitation."
+    },
+    {
+        "id": "joomla-config-leak",
+        "phase": 1,
+        "pattern": "(?i)/configuration\\.php(-dist|-bak)?$",
+        "targets": ["URI"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block access to Joomla configuration files, which may leak sensitive database credentials."
+    },
+    {
+        "id": "drupal-admin-exploit",
+        "phase": 1,
+        "pattern": "(?i)/user/login$",
+        "targets": ["URI"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block access to Drupal login page, often targeted for brute force attacks."
+    },
+    {
+        "id": "drupal-module-exploit",
+        "phase": 1,
+        "pattern": "(?i)/modules/",
+        "targets": ["URI"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block access to Drupal modules directory, which can be abused to upload malicious modules."
+    },
+    {
+        "id": "nextcloud-config-leak",
+        "phase": 1,
+        "pattern": "(?i)/config/config\\.php$",
+        "targets": ["URI"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block access to Nextcloud configuration files, which may leak sensitive credentials."
+    },
+    {
+        "id": "nextcloud-login-brute-force",
+        "phase": 1,
+        "pattern": "(?i)/login$",
+        "targets": ["URI"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block access to Nextcloud login page, often targeted for brute force attacks."
+    },
+    {
+        "id": "gitlab-api-exploit",
+        "phase": 1,
+        "pattern": "(?i)/api/v[0-9]+/",
+        "targets": ["URI"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block access to GitLab API endpoints, which can be abused for enumeration or exploitation."
+    },
+    {
+        "id": "gitlab-config-leak",
+        "phase": 1,
+        "pattern": "(?i)/etc/gitlab/gitlab-secrets\\.json$",
+        "targets": ["URI"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block access to GitLab secrets file, which may leak sensitive credentials."
+    },
+    {
+        "id": "phpmyadmin-exploit",
+        "phase": 1,
+        "pattern": "(?i)/phpmyadmin/",
+        "targets": ["URI"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block access to phpMyAdmin, often targeted for SQL injection or credential theft."
+    },
+    {
+        "id": "cpanel-exploit",
+        "phase": 1,
+        "pattern": "(?i)/cpanel/",
+        "targets": ["URI"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block access to cPanel, often targeted for brute force or exploitation."
+    },
+    {
+        "id": "webdav-exploit",
+        "phase": 1,
+        "pattern": "(?i)/webdav/",
+        "targets": ["URI"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block access to WebDAV directories, which can be abused for file uploads or directory traversal."
+    },
+    {
+        "id": "sensitive-cms-files",
+        "phase": 1,
+        "pattern": "(?i)(?:/\\.git/|/\\.env|/\\.htaccess|/\\.htpasswd|/\\.svn/|/\\.DS_Store$|/wp-config\\.php$|/configuration\\.php$|/config/config\\.php$|/settings\\.php$)",
+        "targets": ["URI"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block access to sensitive files commonly found in CMS platforms."
+    },
+    {
+        "id": "api-abuse-rate-limit",
+        "phase": 1,
+        "pattern": "(?i)/api/v[0-9]+/",
+        "targets": ["URI"],
+        "severity": "MEDIUM",
+        "action": "log",
+        "score": 5,
+        "description": "Log requests to API endpoints, which may indicate abuse or excessive usage."
+    },
+    {
+        "id": "insecure-deserialization-json",
+        "phase": 2,
+        "pattern": "(?i)(?:\\{\\s*\"@type\"\\s*:|\\{\\s*\"\\$type\"\\s*:)",
+        "targets": ["BODY"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block requests with potential insecure deserialization payloads in JSON."
+    },
+    {
+        "id": "command-injection-windows",
+        "phase": 2,
+        "pattern": "(?i)(?:cmd\\.exe|powershell\\.exe|\\|\\||&&|%[0-9a-fA-F]{2}|\\^)",
+        "targets": ["ARGS", "BODY", "HEADERS"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block common Windows command injection patterns in request parameters."
+    },
+    {
+        "id": "file-upload-exploit",
+        "phase": 2,
+        "pattern": "(?i)(?:\\.php|\\.jsp|\\.asp|\\.aspx|\\.pl|\\.py|\\.sh|\\.exe|\\.dll|\\.bat|\\.cmd|\\.jar|\\.war|\\.ear|\\.rb|\\.cgi|\\.phtml)",
+        "targets": ["FILE_NAME"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block file uploads with dangerous extensions that could lead to remote code execution."
+    },
+    {
+        "id": "file-upload-mime-type-bypass",
+        "phase": 2,
+        "pattern": "(?i)(?:image/jpeg|image/png|text/plain|application/octet-stream)",
+        "targets": ["FILE_MIME_TYPE"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block file uploads with mismatched MIME types, often used to bypass security checks."
+    },
+    {
+        "id": "misconfigured-services",
+        "phase": 1,
+        "pattern": "(?i)(?:/server-status|/phpinfo\\.php|/info\\.php|/test\\.php|/debug\\.php|/status|/health|/metrics)",
+        "targets": ["URI"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block access to misconfigured service endpoints that leak sensitive information."
+    },
+    {
+        "id": "open-redirect-attempt",
+        "phase": 2,
+        "pattern": "(?i)(?:https?://(?:[^/]+@)?[^/]+\\.[^/]+/|\\b(?:redirect|url|next|return|r|u)\\b\\s*=\\s*(?:https?://|//))",
+        "targets": ["ARGS", "BODY", "HEADERS"],
+        "severity": "MEDIUM",
+        "action": "block",
+        "score": 6,
+        "description": "Block potential open redirect attempts in request parameters."
+    },
+    {
+        "id": "xml-external-entity-xxe",
+        "phase": 2,
+        "pattern": "(?i)(?:<!ENTITY\\s+[^>]+\\s+SYSTEM\\s+['\"])",
+        "targets": ["BODY"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block potential XXE (XML External Entity) injection attempts in XML payloads."
+    },
+    {
+        "id": "graphql-introspection-abuse",
+        "phase": 2,
+        "pattern": "(?i)(?:__schema|__type|__typename|introspection)",
+        "targets": ["BODY"],
+        "severity": "MEDIUM",
+        "action": "log",
+        "score": 5,
+        "description": "Log potential abuse of GraphQL introspection queries, which can leak sensitive schema information."
+    },
+    {
+        "id": "webshell-detection",
+        "phase": 2,
+        "pattern": "(?i)(?:eval\\(|base64_decode\\(|system\\(|shell_exec\\(|passthru\\(|exec\\(|popen\\(|proc_open\\(|assert\\(|create_function\\(|phpinfo\\(\\))",
+        "targets": ["ARGS", "BODY", "HEADERS"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 9,
+        "description": "Block potential webshell payloads in request parameters or headers."
+    },
+    {
+        "id": "jwt-tampering",
+        "phase": 2,
+        "pattern": "(?i)(?:eyJ[A-Za-z0-9-_=]+\\.[A-Za-z0-9-_=]+\\.?[A-Za-z0-9-_.+/=]*)",
+        "targets": ["HEADERS:Authorization", "COOKIES"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block potential JWT tampering attempts in Authorization headers or cookies."
+    },
+    {
+        "id": "oauth-token-leak",
+        "phase": 2,
+        "pattern": "(?i)(?:access_token|refresh_token|id_token|oauth_token)\\s*=\\s*[^&]+",
+        "targets": ["ARGS", "BODY", "HEADERS"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block potential OAuth token leaks in request parameters or headers."
+    },
+    {
+        "id": "cors-misconfiguration",
+        "phase": 2,
+        "pattern": "(?i)(?:Origin:\\s*(?:https?://[^/]+\\.[^/]+|null))",
+        "targets": ["HEADERS:Origin"],
+        "severity": "MEDIUM",
+        "action": "log",
+        "score": 5,
+        "description": "Log potential CORS misconfigurations that could allow unauthorized cross-origin requests."
     }
 ]

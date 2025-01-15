@@ -20,6 +20,115 @@ func NewConfigLoader(logger *zap.Logger) *ConfigLoader {
 	return &ConfigLoader{logger: logger}
 }
 
+// parseMetricsEndpoint parses the metrics_endpoint directive.
+func (cl *ConfigLoader) parseMetricsEndpoint(d *caddyfile.Dispenser, m *Middleware) error {
+	if !d.NextArg() {
+		return fmt.Errorf("file: %s, line: %d: missing value for metrics_endpoint", d.File(), d.Line())
+	}
+	m.MetricsEndpoint = d.Val()
+	cl.logger.Debug("Metrics endpoint set from Caddyfile",
+		zap.String("metrics_endpoint", m.MetricsEndpoint),
+		zap.String("file", d.File()),
+		zap.Int("line", d.Line()),
+	)
+	return nil
+}
+
+// parseLogPath parses the log_path directive.
+func (cl *ConfigLoader) parseLogPath(d *caddyfile.Dispenser, m *Middleware) error {
+	if !d.NextArg() {
+		return fmt.Errorf("file: %s, line: %d: missing value for log_path", d.File(), d.Line())
+	}
+	m.LogFilePath = d.Val()
+	cl.logger.Debug("Log path set from Caddyfile",
+		zap.String("log_path", m.LogFilePath),
+		zap.String("file", d.File()),
+		zap.Int("line", d.Line()),
+	)
+	return nil
+}
+
+// parseRateLimit parses the rate_limit directive.
+func (cl *ConfigLoader) parseRateLimit(d *caddyfile.Dispenser, m *Middleware) error {
+	if m.RateLimit.Requests > 0 {
+		return d.Err("rate_limit specified multiple times")
+	}
+
+	rl := RateLimit{
+		Requests:        100,               // Default requests
+		Window:          10 * time.Second,  // Default window
+		CleanupInterval: 300 * time.Second, // Default cleanup interval
+		MatchAllPaths:   false,             // Default to false
+	}
+
+	for nesting := d.Nesting(); d.NextBlock(nesting); {
+		switch d.Val() {
+		case "requests":
+			if !d.NextArg() {
+				return d.Err("requests requires an argument")
+			}
+			reqs, err := strconv.Atoi(d.Val())
+			if err != nil {
+				return d.Errf("invalid requests value: %v", err)
+			}
+			rl.Requests = reqs
+			cl.logger.Debug("Rate limit requests set", zap.Int("requests", rl.Requests))
+
+		case "window":
+			if !d.NextArg() {
+				return d.Err("window requires an argument")
+			}
+			window, err := time.ParseDuration(d.Val())
+			if err != nil {
+				return d.Errf("invalid window value: %v", err)
+			}
+			rl.Window = window
+			cl.logger.Debug("Rate limit window set", zap.Duration("window", rl.Window))
+
+		case "cleanup_interval":
+			if !d.NextArg() {
+				return d.Err("cleanup_interval requires an argument")
+			}
+			interval, err := time.ParseDuration(d.Val())
+			if err != nil {
+				return d.Errf("invalid cleanup_interval value: %v", err)
+			}
+			rl.CleanupInterval = interval
+			cl.logger.Debug("Rate limit cleanup interval set", zap.Duration("cleanup_interval", rl.CleanupInterval))
+
+		case "paths":
+			paths := d.RemainingArgs()
+			if len(paths) == 0 {
+				return d.Err("paths requires at least one argument")
+			}
+			rl.Paths = paths
+			cl.logger.Debug("Rate limit paths set", zap.Strings("paths", rl.Paths))
+
+		case "match_all_paths":
+			if !d.NextArg() {
+				return d.Err("match_all_paths requires an argument")
+			}
+			matchAllPaths, err := strconv.ParseBool(d.Val())
+			if err != nil {
+				return d.Errf("invalid match_all_paths value: %v", err)
+			}
+			rl.MatchAllPaths = matchAllPaths
+			cl.logger.Debug("Rate limit match_all_paths set", zap.Bool("match_all_paths", rl.MatchAllPaths))
+
+		default:
+			return d.Errf("invalid rate_limit option: %s", d.Val())
+		}
+	}
+
+	if rl.Requests <= 0 || rl.Window <= 0 {
+		return d.Err("requests and window must be greater than zero")
+	}
+
+	m.RateLimit = rl
+	cl.logger.Debug("Rate limit configuration applied", zap.Any("rate_limit", m.RateLimit))
+	return nil
+}
+
 func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware) error {
 	if cl.logger == nil {
 		cl.logger = zap.NewNop()
@@ -27,14 +136,14 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 
 	cl.logger.Debug("WAF UnmarshalCaddyfile Called", zap.String("file", d.File()), zap.Int("line", d.Line()))
 
-	// Explicitly set default values
+	// Set default values
 	m.LogSeverity = "info"
 	m.LogJSON = false
 	m.AnomalyThreshold = 5
 	m.CountryBlock.Enabled = false
 	m.CountryWhitelist.Enabled = false
 	m.LogFilePath = "debug.json"
-	m.RedactSensitiveData = false // Initialize with default value
+	m.RedactSensitiveData = false
 
 	for d.Next() {
 		for d.NextBlock(0) {
@@ -43,104 +152,19 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 
 			switch directive {
 			case "metrics_endpoint":
-				if !d.NextArg() {
-					return fmt.Errorf("file: %s, line: %d: missing value for metrics_endpoint", d.File(), d.Line())
+				if err := cl.parseMetricsEndpoint(d, m); err != nil {
+					return err
 				}
-				m.MetricsEndpoint = d.Val()
-				cl.logger.Debug("Metrics endpoint set from Caddyfile",
-					zap.String("metrics_endpoint", m.MetricsEndpoint),
-					zap.String("file", d.File()),
-					zap.Int("line", d.Line()),
-				)
 
 			case "log_path":
-				if !d.NextArg() {
-					return fmt.Errorf("file: %s, line: %d: missing value for log_path", d.File(), d.Line())
+				if err := cl.parseLogPath(d, m); err != nil {
+					return err
 				}
-				m.LogFilePath = d.Val()
-				cl.logger.Debug("Log path set from Caddyfile",
-					zap.String("log_path", m.LogFilePath),
-					zap.String("file", d.File()),
-					zap.Int("line", d.Line()),
-				)
 
 			case "rate_limit":
-				if m.RateLimit.Requests > 0 {
-					return d.Err("rate_limit specified multiple times")
+				if err := cl.parseRateLimit(d, m); err != nil {
+					return err
 				}
-
-				rl := RateLimit{
-					Requests:        100,               // Default requests
-					Window:          10 * time.Second,  // Default window
-					CleanupInterval: 300 * time.Second, // Default cleanup interval
-					MatchAllPaths:   false,             // Default to false
-				}
-
-				for nesting := d.Nesting(); d.NextBlock(nesting); {
-					switch d.Val() {
-					case "requests":
-						if !d.NextArg() {
-							return d.Err("requests requires an argument")
-						}
-						reqs, err := strconv.Atoi(d.Val())
-						if err != nil {
-							return d.Errf("invalid requests value: %v", err)
-						}
-						rl.Requests = reqs
-						cl.logger.Debug("Rate limit requests set", zap.Int("requests", rl.Requests))
-
-					case "window":
-						if !d.NextArg() {
-							return d.Err("window requires an argument")
-						}
-						window, err := time.ParseDuration(d.Val())
-						if err != nil {
-							return d.Errf("invalid window value: %v", err)
-						}
-						rl.Window = window
-						cl.logger.Debug("Rate limit window set", zap.Duration("window", rl.Window))
-
-					case "cleanup_interval":
-						if !d.NextArg() {
-							return d.Err("cleanup_interval requires an argument")
-						}
-						interval, err := time.ParseDuration(d.Val())
-						if err != nil {
-							return d.Errf("invalid cleanup_interval value: %v", err)
-						}
-						rl.CleanupInterval = interval
-						cl.logger.Debug("Rate limit cleanup interval set", zap.Duration("cleanup_interval", rl.CleanupInterval))
-
-					case "paths":
-						paths := d.RemainingArgs()
-						if len(paths) == 0 {
-							return d.Err("paths requires at least one argument")
-						}
-						rl.Paths = paths
-						cl.logger.Debug("Rate limit paths set", zap.Strings("paths", rl.Paths))
-
-					case "match_all_paths":
-						if !d.NextArg() {
-							return d.Err("match_all_paths requires an argument")
-						}
-						matchAllPaths, err := strconv.ParseBool(d.Val())
-						if err != nil {
-							return d.Errf("invalid match_all_paths value: %v", err)
-						}
-						rl.MatchAllPaths = matchAllPaths
-						cl.logger.Debug("Rate limit match_all_paths set", zap.Bool("match_all_paths", rl.MatchAllPaths))
-
-					default:
-						return d.Errf("invalid rate_limit option: %s", d.Val())
-					}
-				}
-
-				if rl.Requests <= 0 || rl.Window <= 0 {
-					return d.Err("requests and window must be greater than zero")
-				}
-
-				m.RateLimit = rl
-				cl.logger.Debug("Rate limit configuration applied", zap.Any("rate_limit", m.RateLimit))
 
 			case "block_countries":
 				if err := cl.parseCountryBlock(d, m, true); err != nil {

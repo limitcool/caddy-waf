@@ -112,6 +112,8 @@ type Middleware struct {
 	ruleHitsByPhase map[int]int64
 	geoIPStats      map[string]int64 // Key: country code, Value: count
 	muMetrics       sync.RWMutex     // Mutex for metrics synchronization
+
+	Tor TorConfig `json:"tor,omitempty"`
 }
 
 // WAFState struct
@@ -213,6 +215,11 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		zap.Bool("log_json", m.LogJSON),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
+
+	// Provision Tor blocking
+	if err := m.Tor.Provision(ctx); err != nil {
+		return err
+	}
 
 	m.ruleHits = sync.Map{}
 	m.logVersion()
