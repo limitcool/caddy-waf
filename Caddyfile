@@ -1,49 +1,54 @@
 {
-	auto_https off
-	admin localhost:2019
+    auto_https off
+    admin localhost:2019
 }
 
 :8080 {
-	log {
-		output stdout
-		format console
-		level INFO
-	}
+    log {
+        output stdout
+        format console
+        level INFO
+    }
 
-	handle {
-		header -Server
-	}
+    handle {
+        header -Server
+    }
 
-	route {
-		# WAF Plugin runs on all requests first
-		waf {
-			metrics_endpoint /waf_metrics
-			anomaly_threshold 10
-			block_countries GeoLite2-Country.mmdb RU CN KP
-			# whitelist_countries GeoLite2-Country.mmdb US
-            rate_limit {
-                requests 1000
-                window 10s
-                cleanup_interval 5m
-            }
-			rule_file rules.json
-			# rule_file rules/wordpress.json
-			ip_blacklist_file ip_blacklist.txt
-			dns_blacklist_file dns_blacklist.txt
-			log_severity info
-			log_json
-			log_path debug.json
-			# redact_sensitive_data
-		}
-		# Match the waf metrics endpoint specifically and stop processing
-		@wafmetrics path /waf_metrics
-		handle @wafmetrics {
-			#Do not respond here so it goes to the WAF plugin
-		}
+    route {
+        # WAF Plugin runs on all requests first
+        waf {
+            metrics_endpoint /waf_metrics
+            anomaly_threshold 10
+            block_countries GeoLite2-Country.mmdb RU CN KP
+            # whitelist_countries GeoLite2-Country.mmdb US
 
-		# All other requests, respond with "Hello World"
-		handle {
-			respond "Hello world!" 200
-		}
-	}
+			# rate limiter
+			rate_limit {
+				requests 100
+				window 10s
+				cleanup_interval 5m
+				paths /api/v1/.* /admin/.*  # List of individual regex patterns
+				match_all_paths false
+			}
+            rule_file rules.json
+            # rule_file rules/wordpress.json
+            ip_blacklist_file ip_blacklist.txt
+            dns_blacklist_file dns_blacklist.txt
+            log_severity info
+            log_json
+            log_path debug.json
+            # redact_sensitive_data
+        }
+
+        # Match the waf metrics endpoint specifically and stop processing
+        @wafmetrics path /waf_metrics
+        handle @wafmetrics {
+            # Do not respond here so it goes to the WAF plugin
+        }
+
+        # All other requests, respond with "Hello World"
+        handle {
+            respond "Hello world!" 200
+        }
+    }
 }

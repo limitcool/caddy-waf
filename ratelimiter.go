@@ -26,31 +26,62 @@ type RateLimit struct {
 // RateLimiter struct
 type RateLimiter struct {
 	sync.RWMutex
-	requests    map[string]*requestCounter
+	requests    map[string]map[string]*requestCounter // New: nested map for path-based rate limiting
 	config      RateLimit
 	stopCleanup chan struct{} // Channel to signal cleanup goroutine to stop
 }
 
-// NewRateLimiter creates a new RateLimiter
 func NewRateLimiter(config RateLimit) *RateLimiter {
+	// Compile path regexes if paths are provided
+	if len(config.Paths) > 0 {
+		config.PathRegexes = make([]*regexp.Regexp, len(config.Paths))
+		for i, path := range config.Paths {
+			var err error
+			config.PathRegexes[i], err = regexp.Compile(path)
+			if err != nil {
+				log.Fatalf("failed to compile regex for path %s: %v", path, err)
+			}
+		}
+	}
+
 	return &RateLimiter{
-		requests: make(map[string]*requestCounter),
+		requests: make(map[string]map[string]*requestCounter),
 		config:   config,
 	}
 }
 
-// isRateLimited checks if a given IP is rate limited.
-func (rl *RateLimiter) isRateLimited(ip string) bool {
+// isRateLimited checks if a given IP is rate limited for a specific path.
+func (rl *RateLimiter) isRateLimited(ip, path string) bool {
 	now := time.Now()
 
 	rl.Lock()
 	defer rl.Unlock()
 
-	counter, exists := rl.requests[ip]
+	// Initialize the nested map if it doesn't exist
+	if _, exists := rl.requests[ip]; !exists {
+		rl.requests[ip] = make(map[string]*requestCounter)
+	}
+
+	// Check if the path matches any of the configured paths
+	if len(rl.config.PathRegexes) > 0 {
+		matched := false
+		for _, regex := range rl.config.PathRegexes {
+			if regex.MatchString(path) {
+				matched = true
+				break
+			}
+		}
+		if !matched && !rl.config.MatchAllPaths {
+			return false // Path does not match any configured paths, no rate limiting
+		}
+	}
+
+	// Get or create the counter for the specific path
+	counter, exists := rl.requests[ip][path]
 	if exists {
 		if now.Sub(counter.window) > rl.config.Window {
 			// Window expired, reset the counter
-			rl.requests[ip] = &requestCounter{count: 1, window: now}
+			rl.requests[ip][path] = &requestCounter{count: 1, window: now}
 			return false
 		}
 
@@ -59,8 +90,8 @@ func (rl *RateLimiter) isRateLimited(ip string) bool {
 		return counter.count > rl.config.Requests
 	}
 
-	// IP doesn't exist, add it
-	rl.requests[ip] = &requestCounter{count: 1, window: now}
+	// IP and path combination doesn't exist, add it
+	rl.requests[ip][path] = &requestCounter{count: 1, window: now}
 	return false
 }
 
@@ -71,8 +102,14 @@ func (rl *RateLimiter) cleanupExpiredEntries() {
 
 	// Collect expired IPs to delete (read lock)
 	rl.RLock()
-	for ip, counter := range rl.requests {
-		if now.Sub(counter.window) > rl.config.Window {
+	for ip, pathCounters := range rl.requests {
+		for path, counter := range pathCounters {
+			if now.Sub(counter.window) > rl.config.Window {
+				expiredIPs = append(expiredIPs, ip)
+				delete(pathCounters, path)
+			}
+		}
+		if len(pathCounters) == 0 {
 			expiredIPs = append(expiredIPs, ip)
 		}
 	}

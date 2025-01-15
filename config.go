@@ -35,6 +35,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 	m.CountryWhitelist.Enabled = false
 	m.LogFilePath = "debug.json"
 	m.RedactSensitiveData = false // Initialize with default value
+
 	for d.Next() {
 		for d.NextBlock(0) {
 			directive := d.Val()
@@ -51,6 +52,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 					zap.String("file", d.File()),
 					zap.Int("line", d.Line()),
 				)
+
 			case "log_path":
 				if !d.NextArg() {
 					return fmt.Errorf("file: %s, line: %d: missing value for log_path", d.File(), d.Line())
@@ -61,6 +63,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 					zap.String("file", d.File()),
 					zap.Int("line", d.Line()),
 				)
+
 			case "rate_limit":
 				if m.RateLimit.Requests > 0 {
 					return d.Err("rate_limit specified multiple times")
@@ -78,6 +81,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 							return d.Errf("invalid requests value: %v", err)
 						}
 						rl.Requests = reqs
+
 					case "window":
 						if !d.NextArg() {
 							return d.Err("window requires an argument")
@@ -87,6 +91,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 							return d.Errf("invalid window value: %v", err)
 						}
 						rl.Window = window
+
 					case "cleanup_interval":
 						if !d.NextArg() {
 							return d.Err("cleanup_interval requires an argument")
@@ -96,75 +101,94 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 							return d.Errf("invalid cleanup_interval value: %v", err)
 						}
 						rl.CleanupInterval = interval
+
 					case "paths":
+						// Use d.RemainingArgs() to get all remaining arguments as a list of strings
 						rl.Paths = d.RemainingArgs()
+
 					case "match_all_paths":
-						rl.MatchAllPaths = true
+						if !d.NextArg() {
+							return d.Err("match_all_paths requires an argument")
+						}
+						matchAllPaths, err := strconv.ParseBool(d.Val())
+						if err != nil {
+							return d.Errf("invalid match_all_paths value: %v", err)
+						}
+						rl.MatchAllPaths = matchAllPaths
+
 					default:
 						return d.Errf("invalid rate_limit option: %s", d.Val())
 					}
 				}
+
 				if rl.Requests <= 0 || rl.Window <= 0 {
 					return d.Err("requests and window must be greater than zero")
 				}
-				// Create temporary RateLimit struct with basic fields only
-				m.RateLimit = RateLimit{
-					Requests:        rl.Requests,
-					Window:          rl.Window,
-					CleanupInterval: rl.CleanupInterval,
-					Paths:           rl.Paths,
-					MatchAllPaths:   rl.MatchAllPaths,
-				}
+
+				m.RateLimit = rl
 				cl.logger.Debug("Rate limit parsed", zap.Any("rate_limit", m.RateLimit))
 			case "block_countries":
 				if err := cl.parseCountryBlock(d, m, true); err != nil {
 					return err
 				}
+
 			case "whitelist_countries":
 				if err := cl.parseCountryBlock(d, m, false); err != nil {
 					return err
 				}
+
 			case "log_severity":
 				if err := cl.parseLogSeverity(d, m); err != nil {
 					return err
 				}
+
 			case "log_json":
 				m.LogJSON = true
 				cl.logger.Debug("Log JSON enabled", zap.String("file", d.File()), zap.Int("line", d.Line()))
+
 			case "rule_file":
 				if err := cl.parseRuleFile(d, m); err != nil {
 					return err
 				}
+
 			case "ip_blacklist_file":
 				if err := cl.parseBlacklistFile(d, m, true); err != nil {
 					return err
 				}
+
 			case "dns_blacklist_file":
 				if err := cl.parseBlacklistFile(d, m, false); err != nil {
 					return err
 				}
+
 			case "anomaly_threshold":
 				if err := cl.parseAnomalyThreshold(d, m); err != nil {
 					return err
 				}
+
 			case "custom_response":
 				if err := cl.parseCustomResponse(d, m); err != nil {
 					return err
 				}
+
 			case "redact_sensitive_data":
 				m.RedactSensitiveData = true
 				cl.logger.Debug("Redact sensitive data enabled", zap.String("file", d.File()), zap.Int("line", d.Line()))
+
 			default:
 				cl.logger.Warn("WAF Unrecognized SubDirective", zap.String("directive", directive), zap.String("file", d.File()), zap.Int("line", d.Line()))
 				return fmt.Errorf("file: %s, line: %d: unrecognized subdirective: %s", d.File(), d.Line(), d.Val())
 			}
 		}
 	}
+
 	if len(m.RuleFiles) == 0 {
 		return fmt.Errorf("no rule files specified")
 	}
+
 	return nil
 }
+
 func (cl *ConfigLoader) parseRuleFile(d *caddyfile.Dispenser, m *Middleware) error {
 	if !d.NextArg() {
 		return fmt.Errorf("file: %s, line: %d: missing path for rule_file", d.File(), d.Line())
@@ -175,6 +199,7 @@ func (cl *ConfigLoader) parseRuleFile(d *caddyfile.Dispenser, m *Middleware) err
 	if m.MetricsEndpoint != "" && !strings.HasPrefix(m.MetricsEndpoint, "/") {
 		return fmt.Errorf("metrics_endpoint must start with '/'")
 	}
+
 	cl.logger.Info("WAF Loading Rule File",
 		zap.String("file", ruleFile),
 		zap.String("caddyfile", d.File()),
