@@ -4,21 +4,18 @@ A robust and flexible **Web Application Firewall (WAF)** middleware for the Cadd
 
 [![Go](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/go.yml/badge.svg)](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/go.yml) [![CodeQL](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/github-code-scanning/codeql) [![Build and test Caddy with WAF](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/build.yml/badge.svg)](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/build.yml) 
 
+---
+
 ## 🌟 Key Features
 
-*   **Rule-Based Filtering:** Flexible rule engine using regular expressions to inspect request components such as URL, arguments, body, headers, and cookies.
-*   **IP and DNS Blacklisting:** Block malicious traffic using IP address and DNS domain blacklists. Supports both single IPs and CIDR ranges in the IP blacklist.
-*   **Country-Based Blocking/Whitelisting:** Control access based on the geographic location of the client using MaxMind GeoIP2 databases.
-*   **Rate Limiting:** Protect against brute-force attacks and abusive behavior by setting limits on requests per IP address.
-*   **Anomaly Scoring System:** Detect suspicious activity by assigning scores to rule matches, triggering actions when a threshold is exceeded.
-*   **Multi-Phase Inspection:** Rules are evaluated across multiple request/response phases, offering in-depth traffic analysis.
-*   **Customizable Block Responses:** Customize block responses with custom status codes, headers, and body content, including static files.
-*   **Detailed Logging:** Comprehensive logging of WAF activities with configurable severity levels (debug, info, warn, error) and JSON format options.
-*   **Dynamic Configuration Reloading:** Changes to rules, blacklists, and most other configurations are applied without restarting Caddy, using file watchers.
-*   **Request Redaction:** Option to redact sensitive data in logs such as password, token, and API keys found in query parameters.
-*   **Graceful Shutdown:** Ensures that all resources like database connections and rate limiter are closed gracefully.
-*   **GeoIP Lookup Fallback**: Configurable behavior when GeoIP lookup fails, allowing for default allow, deny, or specific country code fallback.
-*   **Rules metrics**: JSON metrics endpoint to understand your best and worst rules and tune your WAF.
+*   **Rule-Based Filtering:** Regex-based rules to inspect URLs, arguments, body, headers, and cookies.
+*   **IP/DNS Blacklisting:** Block traffic using IP or domain blacklists, including CIDR ranges.
+*   **Country Blocking/Whitelisting:** Restrict or allow access by client location using GeoIP2 databases.
+*   **Rate Limiting:** Prevent abuse with request limits per IP or specific paths.
+*   **Anomaly Scoring:** Detect threats by scoring rule matches and blocking when thresholds are exceeded.
+*   **Multi-Phase Inspection:** Analyze traffic across request/response phases for deeper protection.
+*   **Request Redaction:** Redact sensitive data (e.g., passwords, tokens) from logs.
+*   **Metrics:** JSON endpoint to analyze rule performance and optimize your WAF.
 
 ## 🚀 Quick Start
 
@@ -121,58 +118,57 @@ caddy fmt --overwrite
 ```caddyfile
 {
     auto_https off
-    admin off
+    admin localhost:2019
 }
 
 :8080 {
     log {
         output stdout
         format console
-        level DEBUG
+        level INFO
+    }
+
+    handle {
+        header -Server
     }
 
     route {
+        # WAF Plugin runs on all requests first
         waf {
-            # JSON metrics endpoint
             metrics_endpoint /waf_metrics
-
-            # Anomaly threshold to block request if the score is >= the threshold
             anomaly_threshold 10
-
-            # Rate limiting: 1000 requests per 1 minute
-            rate_limit 1000 1m 5m
-
-            # Rules and blacklists
-            rule_file rules.json
-            ip_blacklist_file ip_blacklist.txt
-            dns_blacklist_file dns_blacklist.txt
-
-            # Country blocking (requires MaxMind GeoIP2 database)
             block_countries GeoLite2-Country.mmdb RU CN KP
-
-            # Whitelist countries (requires MaxMind GeoIP2 database)
             # whitelist_countries GeoLite2-Country.mmdb US
 
-            # Set Log Severity Level
+            # Rate Limiting Configuration
+            rate_limit {
+                requests 100
+                window 10s
+                cleanup_interval 5m
+                paths /api/v1/.* /admin/.*  # List of individual regex patterns
+                match_all_paths false
+            }
+
+            rule_file rules.json
+            # rule_file rules/wordpress.json
+            ip_blacklist_file ip_blacklist.txt
+            dns_blacklist_file dns_blacklist.txt
             log_severity info
-
-            # Enable JSON log output
             log_json
-
-            # Set the log file path
             log_path debug.json
-
-            # Redact sensitive data from the query parameters in the logs
             # redact_sensitive_data
-
-             # Example custom response for a 403 status code
-             custom_response 403 text/html "<h1>Access Denied</h1><p>Your request has been blocked by the WAF.</p>"
-              
-             # Example custom response for a 401 status code using a file
-              # custom_response 401 application/json error.json
-              
         }
-        respond "Hello, world! This is caddy-waf" 200
+
+        # Match the waf metrics endpoint specifically and stop processing
+        @wafmetrics path /waf_metrics
+        handle @wafmetrics {
+            # Do not respond here so it goes to the WAF plugin
+        }
+
+        # All other requests, respond with "Hello World"
+        handle {
+            respond "Hello world!" 200
+        }
     }
 }
 ```
@@ -322,22 +318,22 @@ evil.example.org
 
 ## ⏱️ Rate Limiting
 
-Configure rate limits using requests count and time window, and optional cleanup interval:
+Configure rate limits using requests count, time window, and optional cleanup interval. You can also specify paths to apply rate limiting selectively:
 
 ```caddyfile
-# 100 requests per minute with a 5 minute cleanup interval
-rate_limit 100 1m 5m
-
-# 10 requests per second with a 1 minute cleanup interval
-rate_limit 10 1s 1m
-
-# 1000 requests per hour with a 5 minute cleanup interval
-rate_limit 1000 1h 5m
+rate_limit {
+    requests 100
+    window 10s
+    cleanup_interval 5m
+    paths /api/v1/.* /admin/.*  # List of individual regex patterns
+    match_all_paths false
+}
 ```
 
 *   The rate limiter is based on the client IP address.
-* The cleanup interval controls how frequently the rate limiter clears expired entries from memory.
-*   When the requests count is greater than the specified value for the defined period, then the request will be blocked.
+*   The cleanup interval controls how frequently the rate limiter clears expired entries from memory.
+*   When the requests count is greater than the specified value for the defined period, the request will be blocked.
+*   Use `paths` to specify regex patterns for selective rate limiting. If `match_all_paths` is `false`, only the specified paths will be rate-limited.
 
 ---
 
