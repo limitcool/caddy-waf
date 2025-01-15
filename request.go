@@ -150,6 +150,36 @@ func (rve *RequestValueExtractor) extractSingleValue(target string, r *http.Requ
 			return "", fmt.Errorf("response recorder not available for target: %s", target)
 		}
 
+	case target == "FILE_NAME":
+		// Extract file name from multipart form data
+		if r.MultipartForm != nil && r.MultipartForm.File != nil {
+			for _, files := range r.MultipartForm.File {
+				for _, file := range files {
+					unredactedValue = file.Filename
+					break
+				}
+			}
+		}
+		if unredactedValue == "" {
+			rve.logger.Debug("File name not found", zap.String("target", target))
+			return "", fmt.Errorf("file name not found for target: %s", target)
+		}
+
+	case target == "FILE_MIME_TYPE":
+		// Extract MIME type from multipart form data
+		if r.MultipartForm != nil && r.MultipartForm.File != nil {
+			for _, files := range r.MultipartForm.File {
+				for _, file := range files {
+					unredactedValue = file.Header.Get("Content-Type")
+					break
+				}
+			}
+		}
+		if unredactedValue == "" {
+			rve.logger.Debug("File MIME type not found", zap.String("target", target))
+			return "", fmt.Errorf("file MIME type not found for target: %s", target)
+		}
+
 	// Dynamic Header Extraction (Request)
 	case strings.HasPrefix(target, "HEADERS:"), strings.HasPrefix(target, "REQUEST_HEADERS:"):
 		headerName := strings.TrimPrefix(strings.TrimPrefix(target, "HEADERS:"), "REQUEST_HEADERS:") // Trim both prefixes
