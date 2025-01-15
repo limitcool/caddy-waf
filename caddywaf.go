@@ -105,6 +105,13 @@ type Middleware struct {
 
 	RateLimit   RateLimit
 	rateLimiter *RateLimiter
+
+	totalRequests   int64
+	blockedRequests int64
+	allowedRequests int64
+	ruleHitsByPhase map[int]int64
+	geoIPStats      map[string]int64 // Key: country code, Value: count
+	muMetrics       sync.RWMutex     // Mutex for metrics synchronization
 }
 
 // WAFState struct
@@ -222,6 +229,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		m.logger.Info("Rate limiting is disabled")
 	}
 
+	m.geoIPStats = make(map[string]int64)
 	var geoIPReader *maxminddb.Reader
 	if m.CountryBlock.Enabled || m.CountryWhitelist.Enabled {
 		geoIPPath := m.CountryBlock.GeoIPDBPath
@@ -571,16 +579,24 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 	m.logger.Debug("Handling metrics request", zap.String("path", r.URL.Path))
 	w.Header().Set("Content-Type", "application/json")
 
-	stats := m.getRuleHitStats()
-
-	jsonStats, err := json.Marshal(stats)
-	if err != nil {
-		m.logger.Error("Failed to marshal rule hit stats to JSON", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return fmt.Errorf("failed to marshal rule hit stats to JSON: %v", err)
+	// Collect all metrics
+	metrics := map[string]interface{}{
+		"total_requests":     m.totalRequests,
+		"blocked_requests":   m.blockedRequests,
+		"allowed_requests":   m.allowedRequests,
+		"rule_hits":          m.getRuleHitStats(),
+		"rule_hits_by_phase": m.ruleHitsByPhase,
+		"geoip_stats":        m.geoIPStats,
 	}
 
-	_, err = w.Write(jsonStats)
+	jsonMetrics, err := json.Marshal(metrics)
+	if err != nil {
+		m.logger.Error("Failed to marshal metrics to JSON", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return fmt.Errorf("failed to marshal metrics to JSON: %v", err)
+	}
+
+	_, err = w.Write(jsonMetrics)
 	if err != nil {
 		m.logger.Error("Failed to write metrics response", zap.Error(err))
 		return fmt.Errorf("failed to write metrics response: %v", err)

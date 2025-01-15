@@ -20,59 +20,6 @@ func NewBlacklistLoader(logger *zap.Logger) *BlacklistLoader {
 	return &BlacklistLoader{logger: logger}
 }
 
-// LoadIPBlacklistFromFile loads IP addresses from a file into the provided map.
-func (bl *BlacklistLoader) LoadIPBlacklistFromFile(path string, ipBlacklist map[string]struct{}) error {
-	if bl.logger == nil {
-		bl.logger = zap.NewNop()
-	}
-	bl.logger.Debug("Loading IP blacklist from file", zap.String("file", path))
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		bl.logger.Warn("Failed to read IP blacklist file", zap.String("file", path), zap.Error(err))
-		return fmt.Errorf("failed to read IP blacklist file: %w", err)
-	}
-
-	lines := strings.Split(string(content), "\n")
-	validEntries := 0
-
-	for i, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue // Skip empty lines and comments
-		}
-
-		if _, _, err := net.ParseCIDR(line); err == nil {
-			// Valid CIDR range
-			ipBlacklist[line] = struct{}{}
-			validEntries++
-			bl.logger.Debug("Added CIDR range to blacklist", zap.String("cidr", line))
-			continue
-		}
-
-		if ip := net.ParseIP(line); ip != nil {
-			// Valid IP address
-			ipBlacklist[line] = struct{}{}
-			validEntries++
-			bl.logger.Debug("Added IP to blacklist", zap.String("ip", line))
-			continue
-		}
-
-		bl.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
-			zap.String("file", path),
-			zap.Int("line", i+1),
-			zap.String("entry", line),
-		)
-	}
-
-	bl.logger.Info("IP blacklist loaded successfully",
-		zap.String("file", path),
-		zap.Int("valid_entries", validEntries),
-		zap.Int("total_lines", len(lines)),
-	)
-	return nil
-}
-
 // LoadDNSBlacklistFromFile loads DNS entries from a file into the provided map.
 func (bl *BlacklistLoader) LoadDNSBlacklistFromFile(path string, dnsBlacklist map[string]struct{}) error {
 	if bl.logger == nil {
@@ -180,4 +127,57 @@ func extractIP(remoteAddr string) string {
 		return remoteAddr // Assume the input is already an IP address
 	}
 	return host
+}
+
+// LoadIPBlacklistFromFile loads IP addresses from a file into the provided map.
+func (bl *BlacklistLoader) LoadIPBlacklistFromFile(path string, ipBlacklist map[string]struct{}) error {
+	if bl.logger == nil {
+		bl.logger = zap.NewNop()
+	}
+	bl.logger.Debug("Loading IP blacklist from file", zap.String("file", path))
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		bl.logger.Warn("Failed to read IP blacklist file", zap.String("file", path), zap.Error(err))
+		return fmt.Errorf("failed to read IP blacklist file: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	validEntries := 0
+
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue // Skip empty lines and comments
+		}
+
+		if _, _, err := net.ParseCIDR(line); err == nil {
+			// Valid CIDR range
+			ipBlacklist[line] = struct{}{}
+			validEntries++
+			bl.logger.Debug("Added CIDR range to blacklist", zap.String("cidr", line))
+			continue
+		}
+
+		if ip := net.ParseIP(line); ip != nil {
+			// Valid IP address
+			ipBlacklist[line] = struct{}{}
+			validEntries++
+			bl.logger.Debug("Added IP to blacklist", zap.String("ip", line))
+			continue
+		}
+
+		bl.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
+			zap.String("file", path),
+			zap.Int("line", i+1),
+			zap.String("entry", line),
+		)
+	}
+
+	bl.logger.Info("IP blacklist loaded successfully",
+		zap.String("file", path),
+		zap.Int("valid_entries", validEntries),
+		zap.Int("total_lines", len(lines)),
+	)
+	return nil
 }
