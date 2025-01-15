@@ -55,7 +55,7 @@ func (bl *BlacklistLoader) LoadDNSBlacklistFromFile(path string, dnsBlacklist ma
 
 // isIPBlacklisted checks if the given IP address is in the blacklist.
 func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
-	ipStr := extractIP(remoteAddr)
+	ipStr := extractIP(remoteAddr, m.logger) // Pass the logger here
 	if ipStr == "" {
 		return false
 	}
@@ -121,9 +121,13 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 }
 
 // extractIP extracts the IP address from a remote address string.
-func extractIP(remoteAddr string) string {
+func extractIP(remoteAddr string, logger *zap.Logger) string {
 	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
+		logger.Debug("Failed to extract IP from remote address, using full address",
+			zap.String("remoteAddr", remoteAddr),
+			zap.Error(err),
+		)
 		return remoteAddr // Assume the input is already an IP address
 	}
 	return host

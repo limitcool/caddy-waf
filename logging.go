@@ -2,6 +2,7 @@
 package caddywaf
 
 import (
+	"net/http"
 	"strings"
 	"time"
 
@@ -10,10 +11,15 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.Field) {
+func (m *Middleware) logRequest(level zapcore.Level, msg string, r *http.Request, fields ...zap.Field) {
 	if m.logger == nil {
 		return
 	}
+
+	// Debug: Print the incoming fields
+	m.logger.Debug("Incoming fields to logRequest",
+		zap.Any("fields", fields),
+	)
 
 	// Extract log ID or generate a new one
 	var logID string
@@ -36,9 +42,32 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 	// Append log_id explicitly to newFields
 	newFields = append(newFields, zap.String("log_id", logID))
 
-	// Attach common request metadata
-	commonFields := m.getCommonLogFields(newFields)
-	newFields = append(newFields, commonFields...)
+	// Debug: Print the newFields before calling getCommonLogFields
+	m.logger.Debug("New fields before getCommonLogFields",
+		zap.Any("newFields", newFields),
+	)
+
+	// Attach common request metadata only if not already set
+	commonFields := m.getCommonLogFields(r, newFields)
+	for _, commonField := range commonFields {
+		// Check if the field is already set in newFields
+		fieldExists := false
+		for _, existingField := range newFields {
+			if existingField.Key == commonField.Key {
+				fieldExists = true
+				break
+			}
+		}
+		// Add the common field only if it doesn't already exist
+		if !fieldExists {
+			newFields = append(newFields, commonField)
+		}
+	}
+
+	// Debug: Print the newFields after calling getCommonLogFields
+	m.logger.Debug("New fields after getCommonLogFields",
+		zap.Any("newFields", newFields),
+	)
 
 	// Determine the log level if unset
 	if m.logLevel == 0 {
@@ -68,11 +97,21 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, fields ...zap.F
 	}
 }
 
-func (m *Middleware) getCommonLogFields(fields []zap.Field) []zap.Field {
+func (m *Middleware) getCommonLogFields(r *http.Request, fields []zap.Field) []zap.Field {
+	// Debug: Print the incoming fields
+	m.logger.Debug("Incoming fields to getCommonLogFields",
+		zap.Any("fields", fields),
+	)
+
 	// Extract or assign default values for metadata fields
-	var sourceIP, userAgent, requestMethod, requestPath, queryParams string
+	var sourceIP string
+	var userAgent string
+	var requestMethod string
+	var requestPath string
+	var queryParams string
 	var statusCode int
 
+	// Extract values from the incoming fields
 	for _, field := range fields {
 		switch field.Key {
 		case "source_ip":
@@ -90,6 +129,33 @@ func (m *Middleware) getCommonLogFields(fields []zap.Field) []zap.Field {
 		}
 	}
 
+	// If values are not provided in the fields, extract them from the request
+	if sourceIP == "" && r != nil {
+		sourceIP = r.RemoteAddr
+	}
+	if userAgent == "" && r != nil {
+		userAgent = r.UserAgent()
+	}
+	if requestMethod == "" && r != nil {
+		requestMethod = r.Method
+	}
+	if requestPath == "" && r != nil {
+		requestPath = r.URL.Path
+	}
+	if queryParams == "" && r != nil {
+		queryParams = r.URL.RawQuery
+	}
+
+	// Debug: Print the extracted values
+	m.logger.Debug("Extracted values in getCommonLogFields",
+		zap.String("source_ip", sourceIP),
+		zap.String("user_agent", userAgent),
+		zap.String("request_method", requestMethod),
+		zap.String("request_path", requestPath),
+		zap.String("query_params", queryParams),
+		zap.Int("status_code", statusCode),
+	)
+
 	// Default values for missing fields
 	if sourceIP == "" {
 		sourceIP = "unknown"
@@ -103,6 +169,16 @@ func (m *Middleware) getCommonLogFields(fields []zap.Field) []zap.Field {
 	if requestPath == "" {
 		requestPath = "unknown"
 	}
+
+	// Debug: Print the final values after applying defaults
+	m.logger.Debug("Final values after applying defaults",
+		zap.String("source_ip", sourceIP),
+		zap.String("user_agent", userAgent),
+		zap.String("request_method", requestMethod),
+		zap.String("request_path", requestPath),
+		zap.String("query_params", queryParams),
+		zap.Int("status_code", statusCode),
+	)
 
 	// Redact query parameters if required
 	if m.RedactSensitiveData {

@@ -651,7 +651,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		blocked, err := m.isCountryInList(r.RemoteAddr, m.CountryBlock.CountryList, m.CountryBlock.geoIP)
 		if err != nil {
 			m.logRequest(zapcore.ErrorLevel, "Failed to check country block",
-				zap.String("ip", r.RemoteAddr),
+				r,
 				zap.Error(err),
 			)
 			m.blockRequest(w, r, state, http.StatusForbidden,
@@ -673,8 +673,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 
 	if phase == 1 && m.rateLimiter != nil {
 		m.logger.Debug("Starting rate limiting phase")
-		ip := extractIP(r.RemoteAddr)
-		path := r.URL.Path // Get the request path
+		ip := extractIP(r.RemoteAddr, m.logger) // Pass the logger here
+		path := r.URL.Path                      // Get the request path
 		if m.rateLimiter.isRateLimited(ip, path) {
 			m.blockRequest(w, r, state, http.StatusTooManyRequests,
 				zap.String("message", "Request blocked by rate limit"),

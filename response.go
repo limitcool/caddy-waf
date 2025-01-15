@@ -11,15 +11,21 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// blockRequest handles blocking a request and writing the response.
 func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, fields ...zap.Field) {
-	// Critical: Ensure that WriteHeader is called only once.
+	// Debug log to verify request details
+	m.logger.Debug("Verifying request details in blockRequest",
+		zap.String("source_ip", r.RemoteAddr),
+		zap.String("user_agent", r.UserAgent()),
+		zap.String("request_method", r.Method),
+		zap.String("request_path", r.URL.Path),
+	)
+
 	if !state.ResponseWritten {
 		state.Blocked = true
 		state.StatusCode = statusCode
 		state.ResponseWritten = true
 
-		// Awesome: Allow customization of the blocking response (e.g., custom error pages).
+		// Custom response handling
 		if resp, ok := m.CustomResponses[statusCode]; ok {
 			for key, value := range resp.Headers {
 				w.Header().Set(key, value)
@@ -32,15 +38,14 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 			return
 		}
 
-		// Default blocking behavior if no custom response is configured.
-		// Extract or generate log ID from request context
+		// Default blocking behavior
 		logID, _ := r.Context().Value("logID").(string)
 		if logID == "" {
 			logID = uuid.New().String()
 		}
 
 		// Prepare standard fields for logging
-		blockFields := append(fields,
+		blockFields := []zap.Field{
 			zap.String("log_id", logID),
 			zap.String("source_ip", r.RemoteAddr),
 			zap.String("user_agent", r.UserAgent()),
@@ -49,20 +54,28 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 			zap.String("query_params", r.URL.RawQuery),
 			zap.Int("status_code", statusCode),
 			zap.Time("timestamp", time.Now()),
+		}
+
+		// Debug: Print the blockFields to verify they are correct
+		m.logger.Debug("Block fields being passed to logRequest",
+			zap.Any("blockFields", blockFields),
 		)
 
+		// Append additional fields if any
+		blockFields = append(blockFields, fields...)
+
 		// Log the blocked request at WARN level
-		m.logRequest(zapcore.WarnLevel, "Request blocked", blockFields...)
+		m.logRequest(zapcore.WarnLevel, "Request blocked", r, blockFields...)
 
 		// Respond with the status code
 		w.WriteHeader(statusCode)
 	} else {
-		// Easy: Add more context to the debug logging when blocking is skipped.
+		// Debug log when response is already written
 		m.logger.Debug("blockRequest called but response already written",
 			zap.Int("intended_status_code", statusCode),
 			zap.String("path", r.URL.Path),
 			zap.String("log_id", r.Context().Value("logID").(string)),
-			zap.Int("current_status_code", state.StatusCode), // Add current status code
+			zap.Int("current_status_code", state.StatusCode),
 		)
 	}
 }
