@@ -13,6 +13,7 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // RequestValueExtractor struct
@@ -158,6 +159,7 @@ func (rve *RequestValueExtractor) extractSingleValue(target string, r *http.Requ
 			return "", fmt.Errorf("header '%s' not found for target: %s", headerName, target)
 		}
 		unredactedValue = headerValue
+
 	// Dynamic Response Header Extraction (Phase 3)
 	case strings.HasPrefix(target, "RESPONSE_HEADERS:"):
 		if w == nil {
@@ -229,6 +231,7 @@ func (rve *RequestValueExtractor) extractSingleValue(target string, r *http.Requ
 			rve.logger.Debug("Failed to extract value from JSON path", zap.String("target", target), zap.String("path", jsonPath), zap.Error(err))
 			return "", fmt.Errorf("failed to extract from JSON path '%s': %w", jsonPath, err)
 		}
+
 	// New cases start here:
 	case target == "CONTENT_TYPE":
 		unredactedValue = r.Header.Get("Content-Type")
@@ -259,7 +262,7 @@ func (rve *RequestValueExtractor) extractSingleValue(target string, r *http.Requ
 		return "", fmt.Errorf("unknown extraction target: %s", target)
 	}
 
-	// Redact sensitive fields (unchanged)
+	// Redact sensitive fields before returning the value
 	value := unredactedValue
 	if rve.redactSensitiveData {
 		sensitiveTargets := []string{"password", "token", "apikey", "authorization", "secret"}
@@ -270,62 +273,98 @@ func (rve *RequestValueExtractor) extractSingleValue(target string, r *http.Requ
 			}
 		}
 	}
+
+	// Log the extracted value (redacted if necessary)
 	rve.logger.Debug("Extracted value",
 		zap.String("target", target),
-		zap.String("value", value), // Now logging the potentially redacted value
+		zap.String("value", value), // Log the potentially redacted value
 	)
-	return unredactedValue, nil // Return the unredacted value for rule matching
+
+	// Return the unredacted value for rule matching
+	return unredactedValue, nil
 }
 
 // Helper function for JSON path extraction.
 func (rve *RequestValueExtractor) extractJSONPath(jsonStr string, jsonPath string) (string, error) {
+	// Validate input JSON string
 	if jsonStr == "" {
 		return "", fmt.Errorf("json string is empty")
 	}
 
+	// Validate JSON path
+	if jsonPath == "" {
+		return "", fmt.Errorf("json path is empty")
+	}
+
+	// Unmarshal JSON string into an interface{}
 	var jsonData interface{}
 	if err := json.Unmarshal([]byte(jsonStr), &jsonData); err != nil {
 		return "", fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 
-	// If jsonData is nil or not a valid JSON, return empty string or error.
+	// Check if JSON data is valid
 	if jsonData == nil {
 		return "", fmt.Errorf("invalid json data")
 	}
 
+	// Split JSON path into parts (e.g., "data.items.0.name" -> ["data", "items", "0", "name"])
 	pathParts := strings.Split(jsonPath, ".")
 	current := jsonData
 
+	// Traverse the JSON structure using the path parts
 	for _, part := range pathParts {
 		if current == nil {
-			return "", fmt.Errorf("invalid json path, not found '%s'", part)
+			return "", fmt.Errorf("invalid json path: part '%s' not found in path '%s'", part, jsonPath)
 		}
 
 		switch value := current.(type) {
 		case map[string]interface{}:
+			// If the current value is a map, look for the key
 			if next, ok := value[part]; ok {
 				current = next
 			} else {
-				return "", fmt.Errorf("invalid json path, not found '%s'", part)
+				return "", fmt.Errorf("invalid json path: key '%s' not found in path '%s'", part, jsonPath)
 			}
 		case []interface{}:
+			// If the current value is an array, parse the index
 			index, err := strconv.Atoi(part)
 			if err != nil || index < 0 || index >= len(value) {
-				return "", fmt.Errorf("invalid json path, not found '%s'", part)
+				return "", fmt.Errorf("invalid json path: index '%s' is out of bounds or invalid in path '%s'", part, jsonPath)
 			}
 			current = value[index]
 		default:
-			return "", fmt.Errorf("invalid path '%s'", part)
+			// If the current value is neither a map nor an array, the path is invalid
+			return "", fmt.Errorf("invalid json path: unexpected type at part '%s' in path '%s'", part, jsonPath)
 		}
 	}
+
+	// Check if the final value is nil
 	if current == nil {
-		return "", fmt.Errorf("invalid path, value is nil '%s'", jsonPath)
+		return "", fmt.Errorf("invalid json path: value is nil at path '%s'", jsonPath)
 	}
-	return fmt.Sprintf("%v", current), nil // Convert value to string (if possible)
+
+	// Convert the final value to a string
+	switch v := current.(type) {
+	case string:
+		return v, nil
+	case int, int64, float64, bool:
+		return fmt.Sprintf("%v", v), nil
+	default:
+		// For complex types (e.g., maps, arrays), marshal them back to JSON
+		jsonBytes, err := json.Marshal(v)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal JSON value at path '%s': %w", jsonPath, err)
+		}
+		return string(jsonBytes), nil
+	}
 }
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	logID := uuid.New().String()
+
+	// Log the request with common fields
+	m.logRequest(zapcore.InfoLevel, "WAF evaluation started", r, zap.String("log_id", logID))
+
 	// Use the custom type as the key
 	ctx := context.WithValue(r.Context(), ContextKeyLogId("logID"), logID)
 	r = r.WithContext(ctx)

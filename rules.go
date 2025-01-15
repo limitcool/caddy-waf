@@ -23,8 +23,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	}
 
 	// Log that a rule was matched
-	m.logRequest(zapcore.DebugLevel, "Rule matched during evaluation",
-		zap.String("log_id", logID),
+	m.logRequest(zapcore.DebugLevel, "Rule matched during evaluation", r,
 		zap.String("rule_id", rule.ID),
 		zap.String("target", strings.Join(rule.Targets, ",")),
 		zap.String("value", value),
@@ -51,7 +50,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	// Increase the total anomaly score
 	oldScore := state.TotalScore
 	state.TotalScore += rule.Score
-	m.logRequest(zapcore.DebugLevel, "Increased anomaly score",
+	m.logRequest(zapcore.DebugLevel, "Increased anomaly score", r,
 		zap.String("log_id", logID),
 		zap.String("rule_id", rule.ID),
 		zap.Int("score_increase", rule.Score),
@@ -89,7 +88,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		w.WriteHeader(state.StatusCode)
 		state.ResponseWritten = true
 
-		m.logRequest(zapcore.WarnLevel, "Request blocked",
+		m.logRequest(zapcore.WarnLevel, "Request blocked", r,
 			zap.String("log_id", logID),
 			zap.String("rule_id", rule.ID),
 			zap.Int("status_code", state.StatusCode),
@@ -102,13 +101,13 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 
 	// Handle the rule's defined action (log) if not blocked
 	if rule.Action == "log" {
-		m.logRequest(zapcore.InfoLevel, "Rule action is 'log', request allowed but logged",
+		m.logRequest(zapcore.InfoLevel, "Rule action is 'log', request allowed but logged", r,
 			zap.String("log_id", logID),
 			zap.String("rule_id", rule.ID),
 		)
 	} else if !shouldBlock && !state.ResponseWritten {
 		// Log when a rule matches but doesn't lead to blocking
-		m.logRequest(zapcore.DebugLevel, "Rule matched, no blocking action taken",
+		m.logRequest(zapcore.DebugLevel, "Rule matched, no blocking action taken", r,
 			zap.String("log_id", logID),
 			zap.String("rule_id", rule.ID),
 			zap.String("action", rule.Action),
