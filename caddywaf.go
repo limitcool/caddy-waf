@@ -27,39 +27,15 @@ import (
 	"runtime/debug"
 )
 
-func (m *Middleware) logVersion() {
-	buildInfo, ok := debug.ReadBuildInfo()
-	if !ok {
-		m.logger.Warn("Failed to read build info, version unavailable")
-		return
-	}
-
-	var moduleVersion string
-	for _, mod := range buildInfo.Deps {
-		if mod.Path == "github.com/fabriziosalmi/caddy-waf" {
-			moduleVersion = mod.Version
-			break
-		}
-	}
-
-	if moduleVersion == "" {
-		moduleVersion = "unknown"
-	}
-
-	m.logger.Info("Starting caddy-waf", zap.String("version", moduleVersion))
-}
-
-func init() {
-	// Register the module and directive without logging
-	caddy.RegisterModule(&Middleware{})
-	httpcaddyfile.RegisterHandlerDirective("waf", parseCaddyfile)
-}
+// ==================== Constants and Globals ====================
 
 var (
 	_ caddy.Provisioner           = (*Middleware)(nil)
 	_ caddyhttp.MiddlewareHandler = (*Middleware)(nil)
 	_ caddyfile.Unmarshaler       = (*Middleware)(nil)
 )
+
+// ==================== Struct Definitions ====================
 
 // CountryAccessFilter struct
 type CountryAccessFilter struct {
@@ -89,15 +65,15 @@ type Rule struct {
 	regex       *regexp.Regexp
 }
 
-// Awesome: Structure to represent a custom block response.
+// CustomBlockResponse struct
 type CustomBlockResponse struct {
 	StatusCode int
 	Headers    map[string]string
 	Body       string
 }
 
+// Middleware struct
 type Middleware struct {
-	// Add a RWMutex to protect shared state
 	mu sync.RWMutex
 
 	RuleFiles        []string            `json:"rule_files"`
@@ -107,42 +83,34 @@ type Middleware struct {
 	CountryBlock     CountryAccessFilter `json:"country_block"`
 	CountryWhitelist CountryAccessFilter `json:"country_whitelist"`
 	Rules            map[int][]Rule      `json:"-"`
-	ipBlacklist      map[string]bool     `json:"-"` // Changed type here
+	ipBlacklist      map[string]bool     `json:"-"`
 	dnsBlacklist     map[string]bool     `json:"-"`
 	logger           *zap.Logger
 	LogSeverity      string `json:"log_severity,omitempty"`
 	LogJSON          bool   `json:"log_json,omitempty"`
 	logLevel         zapcore.Level
-	isShuttingDown   bool // Basic flag for rudimentary graceful shutdown
+	isShuttingDown   bool
 
-	// Added for caching
-	// geoIPCache      map[string]GeoIPRecord
-	// geoIPCacheMutex sync.RWMutex
-	geoIPCacheTTL time.Duration // Configurable TTL for cache
+	geoIPCacheTTL               time.Duration
+	geoIPLookupFallbackBehavior string
 
-	// Added for configurable fallback
-	geoIPLookupFallbackBehavior string // "default", "none", or a specific country code
-
-	CustomResponses map[int]CustomBlockResponse `json:"custom_responses,omitempty"`
-
-	LogFilePath string // New field for configurable log path
-
+	CustomResponses     map[int]CustomBlockResponse `json:"custom_responses,omitempty"`
+	LogFilePath         string
 	RedactSensitiveData bool `json:"redact_sensitive_data,omitempty"`
 
-	// rules hits stats
-	ruleHits        sync.Map `json:"-"` // Use sync.Map for concurrent access, don't serialize
+	ruleHits        sync.Map `json:"-"`
 	MetricsEndpoint string   `json:"metrics_endpoint,omitempty"`
 
-	configLoader          *ConfigLoader          `json:"-"`
-	blacklistLoader       *BlacklistLoader       `json:"-"`
-	geoIPHandler          *GeoIPHandler          `json:"-"`
-	requestValueExtractor *RequestValueExtractor `json:"-"`
+	configLoader          *ConfigLoader
+	blacklistLoader       *BlacklistLoader
+	geoIPHandler          *GeoIPHandler
+	requestValueExtractor *RequestValueExtractor
 
-	RateLimit   RateLimit    `json:"rate_limit,omitempty"`
-	rateLimiter *RateLimiter `json:"-"`
+	RateLimit   RateLimit
+	rateLimiter *RateLimiter
 }
 
-// WAFState struct: Used to maintain state between phases
+// WAFState struct
 type WAFState struct {
 	TotalScore      int
 	Blocked         bool
@@ -150,7 +118,14 @@ type WAFState struct {
 	ResponseWritten bool
 }
 
-func (*Middleware) CaddyModule() caddy.ModuleInfo {
+// ==================== Initialization and Setup ====================
+
+func init() {
+	caddy.RegisterModule(&Middleware{})
+	httpcaddyfile.RegisterHandlerDirective("waf", parseCaddyfile)
+}
+
+func (m *Middleware) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.waf",
 		New: func() caddy.Module { return &Middleware{} },
@@ -158,18 +133,12 @@ func (*Middleware) CaddyModule() caddy.ModuleInfo {
 }
 
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
-	logger := zap.L().Named("caddyfile_parser") // Naming the logger can be helpful
-
+	logger := zap.L().Named("caddyfile_parser")
 	logger.Info("Starting to parse Caddyfile", zap.String("file", h.Dispenser.File()))
 
 	var m Middleware
-	// dispenser := h.Dispenser
-
-	logger.Debug("Creating dispenser", zap.String("file", h.Dispenser.File()))
-
 	err := m.UnmarshalCaddyfile(h.Dispenser)
 	if err != nil {
-		// Improve error message by including file and line number
 		return nil, fmt.Errorf("caddyfile parse error: %w", err)
 	}
 
@@ -177,11 +146,153 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 	return &m, nil
 }
 
+// ==================== Middleware Lifecycle Methods ====================
+
+func (m *Middleware) Provision(ctx caddy.Context) error {
+	m.logger = ctx.Logger(m)
+
+	if m.LogSeverity == "" {
+		m.LogSeverity = "info"
+	}
+
+	logFilePath := m.LogFilePath
+	if logFilePath == "" {
+		logFilePath = "log.json"
+	}
+
+	var logLevel zapcore.Level
+	switch strings.ToLower(m.LogSeverity) {
+	case "debug":
+		logLevel = zapcore.DebugLevel
+	case "warn":
+		logLevel = zapcore.WarnLevel
+	case "error":
+		logLevel = zapcore.ErrorLevel
+	default:
+		logLevel = zapcore.InfoLevel
+	}
+
+	consoleCfg := zap.NewProductionConfig()
+	consoleCfg.EncoderConfig.EncodeTime = caddyTimeEncoder
+	consoleCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	consoleEncoder := zapcore.NewConsoleEncoder(consoleCfg.EncoderConfig)
+	consoleSync := zapcore.AddSync(os.Stdout)
+
+	fileCfg := zap.NewProductionConfig()
+	fileCfg.EncoderConfig.EncodeTime = caddyTimeEncoder
+	fileCfg.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	fileEncoder := zapcore.NewJSONEncoder(fileCfg.EncoderConfig)
+
+	fileSync, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		m.logger.Warn("Failed to open log file, logging only to console", zap.String("path", logFilePath), zap.Error(err))
+		m.logger = zap.New(zapcore.NewCore(consoleEncoder, consoleSync, logLevel))
+		return nil
+	}
+
+	core := zapcore.NewTee(
+		zapcore.NewCore(consoleEncoder, consoleSync, logLevel),
+		zapcore.NewCore(fileEncoder, zapcore.AddSync(fileSync), zap.DebugLevel),
+	)
+
+	m.logger = zap.New(core)
+	m.logger.Info("Provisioning WAF middleware",
+		zap.String("log_level", m.LogSeverity),
+		zap.String("log_path", logFilePath),
+		zap.Bool("log_json", m.LogJSON),
+		zap.Int("anomaly_threshold", m.AnomalyThreshold),
+	)
+
+	m.ruleHits = sync.Map{}
+	m.logVersion()
+	m.startFileWatcher(m.RuleFiles)
+	m.startFileWatcher([]string{m.IPBlacklistFile, m.DNSBlacklistFile})
+
+	if m.RateLimit.Requests > 0 {
+		if m.RateLimit.Window <= 0 {
+			return fmt.Errorf("invalid rate limit configuration: requests and window must be greater than zero")
+		}
+		m.logger.Info("Rate limit configuration",
+			zap.Int("requests", m.RateLimit.Requests),
+			zap.Duration("window", m.RateLimit.Window),
+			zap.Duration("cleanup_interval", m.RateLimit.CleanupInterval),
+		)
+		m.rateLimiter = NewRateLimiter(m.RateLimit)
+		m.rateLimiter.startCleanup()
+	} else {
+		m.logger.Info("Rate limiting is disabled")
+	}
+
+	var geoIPReader *maxminddb.Reader
+	if m.CountryBlock.Enabled || m.CountryWhitelist.Enabled {
+		geoIPPath := m.CountryBlock.GeoIPDBPath
+		if m.CountryWhitelist.Enabled && m.CountryWhitelist.GeoIPDBPath != "" {
+			geoIPPath = m.CountryWhitelist.GeoIPDBPath
+		}
+
+		if !fileExists(geoIPPath) {
+			m.logger.Warn("GeoIP database not found. Country blocking/whitelisting will be disabled", zap.String("path", geoIPPath))
+		} else {
+			reader, err := maxminddb.Open(geoIPPath)
+			if err != nil {
+				m.logger.Error("Failed to load GeoIP database", zap.String("path", geoIPPath), zap.Error(err))
+			} else {
+				m.logger.Info("GeoIP database loaded successfully", zap.String("path", geoIPPath))
+				geoIPReader = reader
+			}
+		}
+	}
+
+	if geoIPReader != nil {
+		if m.CountryBlock.Enabled {
+			m.CountryBlock.geoIP = geoIPReader
+		}
+		if m.CountryWhitelist.Enabled {
+			m.CountryWhitelist.geoIP = geoIPReader
+		}
+	}
+
+	m.configLoader = NewConfigLoader(m.logger)
+	m.blacklistLoader = NewBlacklistLoader(m.logger)
+	m.geoIPHandler = NewGeoIPHandler(m.logger)
+	m.requestValueExtractor = NewRequestValueExtractor(m.logger, m.RedactSensitiveData)
+
+	m.geoIPHandler.WithGeoIPCache(m.geoIPCacheTTL)
+	m.geoIPHandler.WithGeoIPLookupFallbackBehavior(m.geoIPLookupFallbackBehavior)
+
+	dispenser := caddyfile.NewDispenser([]caddyfile.Token{})
+	err = m.configLoader.UnmarshalCaddyfile(dispenser, m)
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	m.ipBlacklist = make(map[string]bool)
+	if m.IPBlacklistFile != "" {
+		err = m.blacklistLoader.LoadIPBlacklistFromFile(m.IPBlacklistFile, m.ipBlacklist)
+		if err != nil {
+			return fmt.Errorf("failed to load IP blacklist: %w", err)
+		}
+	}
+	m.dnsBlacklist = make(map[string]bool)
+	if m.DNSBlacklistFile != "" {
+		err = m.blacklistLoader.LoadDNSBlacklistFromFile(m.DNSBlacklistFile, m.dnsBlacklist)
+		if err != nil {
+			return fmt.Errorf("failed to load DNS blacklist: %w", err)
+		}
+	}
+
+	if err := m.loadRules(m.RuleFiles, m.IPBlacklistFile, m.DNSBlacklistFile); err != nil {
+		return fmt.Errorf("failed to load rules and blacklists: %w", err)
+	}
+
+	m.logger.Info("WAF middleware provisioned successfully")
+	return nil
+}
+
 func (m *Middleware) Shutdown(ctx context.Context) error {
 	m.logger.Info("Starting WAF middleware shutdown procedures")
-	m.isShuttingDown = true // Signal that shutdown is in progress
+	m.isShuttingDown = true
 
-	// Signal the rate limiter cleanup goroutine to stop
 	if m.rateLimiter != nil {
 		m.logger.Debug("Signaling rate limiter cleanup to stop...")
 		m.rateLimiter.signalStopCleanup()
@@ -190,9 +301,8 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 		m.logger.Debug("Rate limiter is nil, no cleanup signaling needed.")
 	}
 
-	var firstError error // Capture the first error encountered
+	var firstError error
 
-	// Close the GeoIP database for CountryBlock
 	if m.CountryBlock.geoIP != nil {
 		m.logger.Debug("Closing country block GeoIP database...")
 		err := m.CountryBlock.geoIP.Close()
@@ -204,12 +314,11 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 		} else {
 			m.logger.Debug("Country block GeoIP database closed successfully.")
 		}
-		m.CountryBlock.geoIP = nil // Ensure the reference is cleared
+		m.CountryBlock.geoIP = nil
 	} else {
 		m.logger.Debug("Country block GeoIP database was not open, skipping close.")
 	}
 
-	// Close the GeoIP database for CountryWhitelist
 	if m.CountryWhitelist.geoIP != nil {
 		m.logger.Debug("Closing country whitelist GeoIP database...")
 		err := m.CountryWhitelist.geoIP.Close()
@@ -221,38 +330,170 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 		} else {
 			m.logger.Debug("Country whitelist GeoIP database closed successfully.")
 		}
-		m.CountryWhitelist.geoIP = nil // Ensure the reference is cleared
+		m.CountryWhitelist.geoIP = nil
 	} else {
 		m.logger.Debug("Country whitelist GeoIP database was not open, skipping close.")
 	}
 
-	// Log rule hit statistics
 	m.logger.Info("Rule Hit Statistics:")
 	m.ruleHits.Range(func(key, value interface{}) bool {
 		m.logger.Info(fmt.Sprintf("Rule ID: %s, Hits: %d", key.(string), value.(int)))
-		return true // Continue iterating
+		return true
 	})
 
 	m.logger.Info("WAF middleware shutdown procedures completed")
-	return firstError // Return the first error encountered, if any
+	return firstError
 }
 
-func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
-	if m.configLoader == nil {
-		m.configLoader = NewConfigLoader(m.logger)
+// ==================== Rule and Blacklist Management ====================
+
+func (m *Middleware) loadRules(paths []string, ipBlacklistPath string, dnsBlacklistPath string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.logger.Debug("Loading rules and blacklists from files", zap.Strings("rule_files", paths), zap.String("ip_blacklist", ipBlacklistPath), zap.String("dns_blacklist", dnsBlacklistPath))
+
+	m.Rules = make(map[int][]Rule)
+	totalRules := 0
+	var invalidFiles []string
+	var allInvalidRules []string
+	ruleIDs := make(map[string]bool)
+
+	for _, path := range paths {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			m.logger.Error("Failed to read rule file", zap.String("file", path), zap.Error(err))
+			invalidFiles = append(invalidFiles, path)
+			continue
+		}
+
+		var rules []Rule
+		if err := json.Unmarshal(content, &rules); err != nil {
+			m.logger.Error("Failed to unmarshal rules from file", zap.String("file", path), zap.Error(err))
+			invalidFiles = append(invalidFiles, path)
+			continue
+		}
+
+		var invalidRulesInFile []string
+		for i, rule := range rules {
+			if err := validateRule(&rule); err != nil {
+				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule at index %d: %v", i, err))
+				continue
+			}
+
+			if _, exists := ruleIDs[rule.ID]; exists {
+				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Duplicate rule ID '%s' at index %d", rule.ID, i))
+				continue
+			}
+			ruleIDs[rule.ID] = true
+
+			regex, err := regexp.Compile(rule.Pattern)
+			if err != nil {
+				m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.Error(err))
+				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
+				continue
+			}
+			rule.regex = regex
+
+			if _, ok := m.Rules[rule.Phase]; !ok {
+				m.Rules[rule.Phase] = []Rule{}
+			}
+
+			m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rule)
+			totalRules++
+		}
+		if len(invalidRulesInFile) > 0 {
+			m.logger.Warn("Some rules failed validation", zap.String("file", path), zap.Strings("invalid_rules", invalidRulesInFile))
+			allInvalidRules = append(allInvalidRules, invalidRulesInFile...)
+		}
+
+		m.logger.Info("Rules loaded", zap.String("file", path), zap.Int("total_rules", len(rules)), zap.Int("invalid_rules", len(invalidRulesInFile)))
 	}
-	return m.configLoader.UnmarshalCaddyfile(d, m)
+
+	m.ipBlacklist = make(map[string]bool)
+	if ipBlacklistPath != "" {
+		content, err := os.ReadFile(ipBlacklistPath)
+		if err != nil {
+			m.logger.Warn("Failed to read IP blacklist file", zap.String("file", ipBlacklistPath), zap.Error(err))
+		} else {
+			lines := strings.Split(string(content), "\n")
+			validEntries := 0
+			for i, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+
+				if _, _, err := net.ParseCIDR(line); err == nil {
+					m.ipBlacklist[line] = true
+					validEntries++
+					m.logger.Debug("Added CIDR range to blacklist", zap.String("cidr", line))
+					continue
+				}
+
+				if ip := net.ParseIP(line); ip != nil {
+					m.ipBlacklist[line] = true
+					validEntries++
+					m.logger.Debug("Added IP to blacklist", zap.String("ip", line))
+					continue
+				}
+
+				m.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
+					zap.String("file", ipBlacklistPath),
+					zap.Int("line", i+1),
+					zap.String("entry", line),
+				)
+			}
+			m.logger.Info("IP blacklist loaded successfully",
+				zap.String("file", ipBlacklistPath),
+				zap.Int("valid_entries", validEntries),
+				zap.Int("total_lines", len(lines)),
+			)
+		}
+	}
+
+	m.dnsBlacklist = make(map[string]bool)
+	if dnsBlacklistPath != "" {
+		content, err := os.ReadFile(dnsBlacklistPath)
+		if err != nil {
+			m.logger.Warn("Failed to read DNS blacklist file", zap.String("file", dnsBlacklistPath), zap.Error(err))
+		} else {
+			lines := strings.Split(string(content), "\n")
+			validEntriesCount := 0
+			for _, line := range lines {
+				line = strings.ToLower(strings.TrimSpace(line))
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				m.dnsBlacklist[line] = true
+				validEntriesCount++
+			}
+			m.logger.Info("DNS blacklist loaded successfully",
+				zap.String("file", dnsBlacklistPath),
+				zap.Int("valid_entries", validEntriesCount),
+				zap.Int("total_lines", len(lines)),
+			)
+		}
+	}
+
+	if len(invalidFiles) > 0 {
+		m.logger.Warn("Some rule files could not be loaded", zap.Strings("invalid_files", invalidFiles))
+	}
+	if len(allInvalidRules) > 0 {
+		m.logger.Warn("Some rules across files failed validation", zap.Strings("invalid_rules", allInvalidRules))
+	}
+
+	if totalRules == 0 && len(invalidFiles) > 0 {
+		return fmt.Errorf("no valid rules were loaded from any file")
+	}
+	m.logger.Debug("Rules and Blacklists loaded successfully", zap.Int("total_rules", totalRules))
+
+	return nil
 }
 
-func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, geoIP *maxminddb.Reader) (bool, error) {
-	if m.geoIPHandler == nil {
-		return false, fmt.Errorf("geoip handler not initialized")
-	}
-	return m.geoIPHandler.IsCountryInList(remoteAddr, countryList, geoIP)
-}
+// ==================== Request Handling ====================
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	// Generate a unique log ID for this request
 	logID := uuid.New().String()
 	ctx := context.WithValue(r.Context(), "logID", logID)
 	r = r.WithContext(ctx)
@@ -275,7 +516,6 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		zap.String("query_params", r.URL.RawQuery),
 	)
 
-	// Helper function to handle blocking actions
 	block := func(statusCode int, reason string, fields ...zap.Field) error {
 		if !state.ResponseWritten {
 			m.blockRequest(w, r, state, statusCode, append(fields, zap.String("reason", reason))...)
@@ -285,7 +525,6 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		return nil
 	}
 
-	// Phase 1: Country Whitelist and Blacklist Check
 	if m.CountryWhitelist.Enabled {
 		whitelisted, err := m.isCountryInList(r.RemoteAddr, m.CountryWhitelist.CountryList, m.CountryWhitelist.geoIP)
 		if err != nil {
@@ -307,7 +546,6 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		}
 	}
 
-	// Phase 2: Request Body Handling
 	m.handlePhase(w, r, 1, state)
 	if state.Blocked {
 		w.WriteHeader(state.StatusCode)
@@ -320,18 +558,15 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		return nil
 	}
 
-	// Set up response recorder for Phase 3 and Phase 4
 	recorder := &responseRecorder{ResponseWriter: w, body: new(bytes.Buffer)}
 	err := next.ServeHTTP(recorder, r)
 
-	// Phase 3: Response Header Rules
 	m.handlePhase(recorder, r, 3, state)
 	if state.Blocked {
 		recorder.WriteHeader(state.StatusCode)
 		return nil
 	}
 
-	// Phase 4: Response Body Rules
 	if recorder.body != nil {
 		body := recorder.body.String()
 		m.logger.Debug("Response body captured", zap.String("body", body))
@@ -346,7 +581,6 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 			}
 		}
 
-		// If not blocked, write the body to the client
 		if !state.ResponseWritten {
 			_, writeErr := w.Write(recorder.body.Bytes())
 			if writeErr != nil {
@@ -355,7 +589,6 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		}
 	}
 
-	// Check if the request matches the metrics endpoint
 	if m.MetricsEndpoint != "" && r.URL.Path == m.MetricsEndpoint {
 		return m.handleMetricsRequest(w, r)
 	}
@@ -369,6 +602,297 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	return err
 }
 
+// ==================== Helper Functions ====================
+
+func (m *Middleware) logVersion() {
+	buildInfo, ok := debug.ReadBuildInfo()
+	if !ok {
+		m.logger.Warn("Failed to read build info, version unavailable")
+		return
+	}
+
+	var moduleVersion string
+	for _, mod := range buildInfo.Deps {
+		if mod.Path == "github.com/fabriziosalmi/caddy-waf" {
+			moduleVersion = mod.Version
+			break
+		}
+	}
+
+	if moduleVersion == "" {
+		moduleVersion = "unknown"
+	}
+
+	m.logger.Info("Starting caddy-waf", zap.String("version", moduleVersion))
+}
+
+func (m *Middleware) startFileWatcher(filePaths []string) {
+	for _, path := range filePaths {
+		go func(file string) {
+			watcher, err := fsnotify.NewWatcher()
+			if err != nil {
+				m.logger.Error("Failed to start file watcher", zap.Error(err))
+				return
+			}
+			defer watcher.Close()
+
+			err = watcher.Add(file)
+			if err != nil {
+				m.logger.Error("Failed to watch file", zap.String("file", file), zap.Error(err))
+				return
+			}
+
+			for {
+				select {
+				case event := <-watcher.Events:
+					if event.Op&fsnotify.Write == fsnotify.Write {
+						m.logger.Info("Detected configuration change. Reloading...", zap.String("file", file))
+						if strings.Contains(file, "rule") {
+							if err := m.ReloadRules(); err != nil {
+								m.logger.Error("Failed to reload rules after change", zap.String("file", file), zap.Error(err))
+							} else {
+								m.logger.Info("Rules reloaded successfully", zap.String("file", file))
+							}
+						} else {
+							err := m.ReloadConfig()
+							if err != nil {
+								m.logger.Error("Failed to reload config after change", zap.Error(err))
+							} else {
+								m.logger.Info("Configuration reloaded successfully")
+							}
+						}
+					}
+				case err := <-watcher.Errors:
+					m.logger.Error("File watcher error", zap.Error(err))
+				}
+			}
+		}(path)
+	}
+}
+
+func (m *Middleware) ReloadRules() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.logger.Info("Reloading WAF rules")
+
+	newRules := make(map[int][]Rule)
+
+	for _, file := range m.RuleFiles {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			m.logger.Error("Failed to read rule file", zap.String("file", file), zap.Error(err))
+			continue
+		}
+
+		var rules []Rule
+		if err := json.Unmarshal(content, &rules); err != nil {
+			m.logger.Error("Failed to unmarshal rules from file", zap.String("file", file), zap.Error(err))
+			continue
+		}
+
+		for _, rule := range rules {
+			if err := validateRule(&rule); err != nil {
+				m.logger.Warn("Invalid rule encountered", zap.String("file", file), zap.String("rule_id", rule.ID), zap.Error(err))
+				continue
+			}
+
+			rule.regex, err = regexp.Compile(rule.Pattern)
+			if err != nil {
+				m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", rule.ID), zap.Error(err))
+				continue
+			}
+
+			if _, exists := newRules[rule.Phase]; !exists {
+				newRules[rule.Phase] = []Rule{}
+			}
+			newRules[rule.Phase] = append(newRules[rule.Phase], rule)
+		}
+	}
+
+	m.Rules = newRules
+	m.logger.Info("WAF rules reloaded successfully")
+
+	return nil
+}
+
+func (m *Middleware) ReloadConfig() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.logger.Info("Reloading WAF configuration")
+
+	newRules := make(map[int][]Rule)
+	if err := m.loadRulesIntoMap(newRules); err != nil {
+		m.logger.Error("Failed to reload rules", zap.Error(err))
+		return fmt.Errorf("failed to reload rules: %v", err)
+	}
+
+	newIPBlacklist := make(map[string]bool)
+	if m.IPBlacklistFile != "" {
+		if err := m.loadIPBlacklistIntoMap(m.IPBlacklistFile, newIPBlacklist); err != nil {
+			m.logger.Error("Failed to reload IP blacklist", zap.String("file", m.IPBlacklistFile), zap.Error(err))
+			return fmt.Errorf("failed to reload IP blacklist: %v", err)
+		}
+	} else {
+		m.logger.Debug("No IP blacklist file specified, skipping reload")
+	}
+
+	newDNSBlacklist := make(map[string]bool)
+	if m.DNSBlacklistFile != "" {
+		if err := m.loadDNSBlacklistIntoMap(m.DNSBlacklistFile, newDNSBlacklist); err != nil {
+			m.logger.Error("Failed to reload DNS blacklist", zap.String("file", m.DNSBlacklistFile), zap.Error(err))
+			return fmt.Errorf("failed to reload DNS blacklist: %v", err)
+		}
+	} else {
+		m.logger.Debug("No DNS blacklist file specified, skipping reload")
+	}
+
+	m.Rules = newRules
+	m.ipBlacklist = newIPBlacklist
+	m.dnsBlacklist = newDNSBlacklist
+
+	m.logger.Info("WAF configuration reloaded successfully")
+
+	return nil
+}
+
+func (m *Middleware) loadRulesIntoMap(rulesMap map[int][]Rule) error {
+	for _, file := range m.RuleFiles {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			m.logger.Error("Failed to read rule file", zap.String("file", file), zap.Error(err))
+			return fmt.Errorf("failed to read rule file: %s, error: %v", file, err)
+		}
+
+		var rules []Rule
+		if err := json.Unmarshal(content, &rules); err != nil {
+			m.logger.Error("Failed to unmarshal rules from file", zap.String("file", file), zap.Error(err))
+			return fmt.Errorf("failed to unmarshal rules from file: %s, error: %v. Ensure valid JSON", file, err)
+		}
+
+		for _, rule := range rules {
+			if _, ok := rulesMap[rule.Phase]; !ok {
+				rulesMap[rule.Phase] = []Rule{}
+			}
+			rulesMap[rule.Phase] = append(rulesMap[rule.Phase], rule)
+		}
+	}
+	return nil
+}
+
+func (m *Middleware) loadIPBlacklistIntoMap(path string, blacklistMap map[string]bool) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read IP blacklist file: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		blacklistMap[line] = true
+	}
+	return nil
+}
+
+func (m *Middleware) loadDNSBlacklistIntoMap(path string, blacklistMap map[string]bool) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read DNS blacklist file: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.ToLower(strings.TrimSpace(line))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		blacklistMap[line] = true
+	}
+	return nil
+}
+
+// ==================== Metrics and Statistics ====================
+
+func (m *Middleware) getRuleHitStats() map[string]int {
+	stats := make(map[string]int)
+	m.ruleHits.Range(func(key, value interface{}) bool {
+		stats[key.(string)] = value.(int)
+		return true
+	})
+	return stats
+}
+
+func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request) error {
+	m.logger.Debug("Handling metrics request", zap.String("path", r.URL.Path))
+	w.Header().Set("Content-Type", "application/json")
+
+	stats := m.getRuleHitStats()
+
+	jsonStats, err := json.Marshal(stats)
+	if err != nil {
+		m.logger.Error("Failed to marshal rule hit stats to JSON", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return fmt.Errorf("failed to marshal rule hit stats to JSON: %v", err)
+	}
+
+	_, err = w.Write(jsonStats)
+	if err != nil {
+		m.logger.Error("Failed to write metrics response", zap.Error(err))
+		return fmt.Errorf("failed to write metrics response: %v", err)
+	}
+	return nil
+}
+
+// ==================== Utility Functions ====================
+
+func (m *Middleware) isDNSBlacklisted(host string) bool {
+	normalizedHost := strings.ToLower(strings.TrimSpace(host))
+	if normalizedHost == "" {
+		m.logger.Warn("Empty host provided for DNS blacklist check")
+		return false
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if _, exists := m.dnsBlacklist[normalizedHost]; exists {
+		m.logger.Info("Host is blacklisted",
+			zap.String("host", host),
+			zap.String("blacklisted_domain", normalizedHost),
+		)
+		return true
+	}
+
+	m.logger.Debug("Host is not blacklisted",
+		zap.String("host", host),
+	)
+	return false
+}
+
+func (m *Middleware) extractValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
+	return m.requestValueExtractor.ExtractValue(target, r, w)
+}
+
+// ==================== Unimplemented Functions ====================
+
+func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+	if m.configLoader == nil {
+		m.configLoader = NewConfigLoader(m.logger)
+	}
+	return m.configLoader.UnmarshalCaddyfile(d, m)
+}
+
+func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, geoIP *maxminddb.Reader) (bool, error) {
+	if m.geoIPHandler == nil {
+		return false, fmt.Errorf("geoip handler not initialized")
+	}
+	return m.geoIPHandler.IsCountryInList(remoteAddr, countryList, geoIP)
+}
+
 func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase int, state *WAFState) {
 	m.logger.Debug("Starting phase evaluation",
 		zap.Int("phase", phase),
@@ -376,7 +900,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		zap.String("user_agent", r.UserAgent()),
 	)
 
-	// Phase 1 - Country Blocking
 	if phase == 1 && m.CountryBlock.Enabled {
 		m.logger.Debug("Starting country blocking phase")
 		blocked, err := m.isCountryInList(r.RemoteAddr, m.CountryBlock.CountryList, m.CountryBlock.geoIP)
@@ -402,7 +925,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		m.logger.Debug("Country blocking phase completed - not blocked")
 	}
 
-	// Phase 1 - Rate Limiting
 	if phase == 1 && m.rateLimiter != nil {
 		m.logger.Debug("Starting rate limiting phase")
 		ip := extractIP(r.RemoteAddr)
@@ -417,7 +939,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		m.logger.Debug("Rate limiting phase completed - not blocked")
 	}
 
-	// Phase 1 - IP Blacklist
 	if phase == 1 && m.isIPBlacklisted(r.RemoteAddr) {
 		m.logger.Debug("Starting IP blacklist phase")
 		m.blockRequest(w, r, state, http.StatusForbidden,
@@ -428,7 +949,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		return
 	}
 
-	// Phase 1 - DNS Blacklist
 	if phase == 1 && m.isDNSBlacklisted(r.Host) {
 		m.logger.Debug("Starting DNS blacklist phase")
 		m.blockRequest(w, r, state, http.StatusForbidden,
@@ -440,12 +960,9 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		return
 	}
 
-	// Phase 1 to 4 - Rule Evaluation
 	rules, ok := m.Rules[phase]
 	if !ok {
-		m.logger.Debug("No rules found for phase",
-			zap.Int("phase", phase),
-		)
+		m.logger.Debug("No rules found for phase", zap.Int("phase", phase))
 		return
 	}
 
@@ -459,12 +976,10 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			var value string
 			var err error
 
-			// Correctly pass response recorder when available
 			if phase == 3 || phase == 4 {
 				if recorder, ok := w.(*responseRecorder); ok {
 					value, err = m.extractValue(target, r, recorder)
 				} else {
-					// Should not happen, but log it if we reach here
 					m.logger.Error("response recorder is not available in phase 3 or 4 when required")
 					value, err = m.extractValue(target, r, nil)
 				}
@@ -480,8 +995,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				)
 				continue
 			}
-
-			// Redact sensitive fields from being logged
 
 			m.logger.Debug("Extracted value",
 				zap.String("rule_id", rule.ID),
@@ -511,7 +1024,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 	}
 	m.logger.Debug("Rule evaluation completed for phase", zap.Int("phase", phase))
 
-	// Phase 3 - Response Headers
 	if phase == 3 {
 		m.logger.Debug("Starting response headers phase")
 		if recorder, ok := w.(*responseRecorder); ok {
@@ -538,7 +1050,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		m.logger.Debug("Response headers phase completed")
 	}
 
-	// Phase 4 - Response Body
 	if phase == 4 {
 		m.logger.Debug("Starting response body phase")
 		if recorder, ok := w.(*responseRecorder); ok {
@@ -573,458 +1084,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 	)
 }
 
-func (m *Middleware) startFileWatcher(filePaths []string) {
-	for _, path := range filePaths {
-		go func(file string) {
-			watcher, err := fsnotify.NewWatcher()
-			if err != nil {
-				m.logger.Error("Failed to start file watcher", zap.Error(err))
-				return
-			}
-			defer watcher.Close()
-
-			err = watcher.Add(file)
-			if err != nil {
-				m.logger.Error("Failed to watch file", zap.String("file", file), zap.Error(err))
-				return
-			}
-
-			for {
-				select {
-				case event := <-watcher.Events:
-					if event.Op&fsnotify.Write == fsnotify.Write {
-						m.logger.Info("Detected configuration change. Reloading...",
-							zap.String("file", file),
-						)
-						if strings.Contains(file, "rule") { // Detect rule file changes
-							if err := m.ReloadRules(); err != nil {
-								m.logger.Error("Failed to reload rules after change",
-									zap.String("file", file),
-									zap.Error(err),
-								)
-							} else {
-								m.logger.Info("Rules reloaded successfully",
-									zap.String("file", file),
-								)
-							}
-						} else {
-							err := m.ReloadConfig()
-							if err != nil {
-								m.logger.Error("Failed to reload config after change",
-									zap.Error(err),
-								)
-							} else {
-								m.logger.Info("Configuration reloaded successfully")
-							}
-						}
-					}
-				case err := <-watcher.Errors:
-					m.logger.Error("File watcher error", zap.Error(err))
-				}
-			}
-		}(path)
-	}
-}
-
-func (m *Middleware) ReloadRules() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.logger.Info("Reloading WAF rules")
-
-	// Temporary map for new rules
-	newRules := make(map[int][]Rule)
-
-	// Load rules into temporary map
-	for _, file := range m.RuleFiles {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			m.logger.Error("Failed to read rule file",
-				zap.String("file", file),
-				zap.Error(err),
-			)
-			continue
-		}
-
-		var rules []Rule
-		if err := json.Unmarshal(content, &rules); err != nil {
-			m.logger.Error("Failed to unmarshal rules from file",
-				zap.String("file", file),
-				zap.Error(err),
-			)
-			continue
-		}
-
-		for _, rule := range rules {
-			// Validate and compile rule
-			if err := validateRule(&rule); err != nil {
-				m.logger.Warn("Invalid rule encountered",
-					zap.String("file", file),
-					zap.String("rule_id", rule.ID),
-					zap.Error(err),
-				)
-				continue
-			}
-
-			// Compile regex
-			rule.regex, err = regexp.Compile(rule.Pattern)
-			if err != nil {
-				m.logger.Error("Failed to compile regex for rule",
-					zap.String("rule_id", rule.ID),
-					zap.Error(err),
-				)
-				continue
-			}
-
-			// Add to appropriate phase
-			if _, exists := newRules[rule.Phase]; !exists {
-				newRules[rule.Phase] = []Rule{}
-			}
-			newRules[rule.Phase] = append(newRules[rule.Phase], rule)
-		}
-	}
-
-	// Replace the old rules with the new rules
-	m.Rules = newRules
-	m.logger.Info("WAF rules reloaded successfully")
-
-	return nil
-}
-
-func (m *Middleware) Provision(ctx caddy.Context) error {
-	// Use Caddy's logger for console (default if custom logger fails)
-	m.logger = ctx.Logger(m)
-
-	if m.LogSeverity == "" {
-		m.LogSeverity = "info"
-	}
-
-	// Default log file path (fallback)
-	logFilePath := m.LogFilePath
-	if logFilePath == "" {
-		logFilePath = "log.json"
-	}
-
-	// Set logging level based on severity
-	var logLevel zapcore.Level
-	switch strings.ToLower(m.LogSeverity) {
-	case "debug":
-		logLevel = zapcore.DebugLevel
-	case "warn":
-		logLevel = zapcore.WarnLevel
-	case "error":
-		logLevel = zapcore.ErrorLevel
-	default:
-		logLevel = zapcore.InfoLevel
-	}
-
-	// Zap production config for console with colors
-	consoleCfg := zap.NewProductionConfig()
-	consoleCfg.EncoderConfig.EncodeTime = caddyTimeEncoder
-	consoleCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder // Keep colors for console
-	consoleCfg.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
-	consoleEncoder := zapcore.NewConsoleEncoder(consoleCfg.EncoderConfig)
-	consoleSync := zapcore.AddSync(os.Stdout)
-
-	// Zap production config for file logging without colors
-	fileCfg := zap.NewProductionConfig()
-	fileCfg.EncoderConfig.EncodeTime = caddyTimeEncoder
-	fileCfg.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder // No colors for file
-	fileCfg.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
-	fileEncoder := zapcore.NewJSONEncoder(fileCfg.EncoderConfig)
-
-	// Attempt to open the log file
-	fileSync, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		m.logger.Warn("Failed to open log file, logging only to console",
-			zap.String("path", logFilePath), zap.Error(err))
-		// Fall back to console-only logging with color
-		m.logger = zap.New(zapcore.NewCore(consoleEncoder, consoleSync, logLevel))
-		return nil
-	}
-
-	// Combine console (with color) and file (no color) logging
-	core := zapcore.NewTee(
-		zapcore.NewCore(consoleEncoder, consoleSync, logLevel),                  // Console with color (matches severity)
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(fileSync), zap.DebugLevel), // File without color (always logs Debug)
-	)
-
-	m.logger = zap.New(core)
-	m.logger.Info("Provisioning WAF middleware",
-		zap.String("log_level", m.LogSeverity),
-		zap.String("log_path", logFilePath),
-		zap.Bool("log_json", m.LogJSON),
-		zap.Int("anomaly_threshold", m.AnomalyThreshold),
-	)
-
-	// rules hits stats
-	m.ruleHits = sync.Map{}
-
-	// Log the dynamically fetched version
-	m.logVersion()
-
-	// Watch rule files for changes
-	m.startFileWatcher(m.RuleFiles)
-
-	// Watch IP and DNS blacklist files
-	m.startFileWatcher([]string{m.IPBlacklistFile, m.DNSBlacklistFile})
-
-	// Rate Limiter Setup
-	if m.RateLimit.Requests > 0 {
-		if m.RateLimit.Window <= 0 {
-			return fmt.Errorf("invalid rate limit configuration: requests and window must be greater than zero")
-		}
-		m.logger.Info("Rate limit configuration",
-			zap.Int("requests", m.RateLimit.Requests),
-			zap.Duration("window", m.RateLimit.Window),
-			zap.Duration("cleanup_interval", m.RateLimit.CleanupInterval),
-		)
-		m.rateLimiter = NewRateLimiter(m.RateLimit)
-		m.rateLimiter.startCleanup()
-	} else {
-		m.logger.Info("Rate limiting is disabled")
-	}
-
-	// GeoIP Loading
-	var geoIPReader *maxminddb.Reader
-	if m.CountryBlock.Enabled || m.CountryWhitelist.Enabled {
-		geoIPPath := m.CountryBlock.GeoIPDBPath
-		if m.CountryWhitelist.Enabled && m.CountryWhitelist.GeoIPDBPath != "" {
-			geoIPPath = m.CountryWhitelist.GeoIPDBPath
-		}
-
-		if !fileExists(geoIPPath) {
-			m.logger.Warn("GeoIP database not found. Country blocking/whitelisting will be disabled",
-				zap.String("path", geoIPPath),
-			)
-		} else {
-			m.logger.Debug("Attempting to load GeoIP database",
-				zap.String("path", geoIPPath),
-			)
-			reader, err := maxminddb.Open(geoIPPath)
-			if err != nil {
-				m.logger.Error("Failed to load GeoIP database",
-					zap.String("path", geoIPPath),
-					zap.Error(err),
-				)
-			} else {
-				m.logger.Info("GeoIP database loaded successfully",
-					zap.String("path", geoIPPath),
-				)
-				geoIPReader = reader
-			}
-		}
-	}
-
-	// Assign GeoIP Reader
-	if geoIPReader != nil {
-		if m.CountryBlock.Enabled {
-			m.CountryBlock.geoIP = geoIPReader
-		}
-		if m.CountryWhitelist.Enabled {
-			m.CountryWhitelist.geoIP = geoIPReader
-		}
-	}
-
-	m.configLoader = NewConfigLoader(m.logger)
-	m.blacklistLoader = NewBlacklistLoader(m.logger)
-	m.geoIPHandler = NewGeoIPHandler(m.logger)
-	m.requestValueExtractor = NewRequestValueExtractor(m.logger, m.RedactSensitiveData)
-
-	// GeoIP configuration must be set before loading the database
-	m.geoIPHandler.WithGeoIPCache(m.geoIPCacheTTL)
-	m.geoIPHandler.WithGeoIPLookupFallbackBehavior(m.geoIPLookupFallbackBehavior)
-
-	dispenser := caddyfile.NewDispenser([]caddyfile.Token{})
-	err = m.configLoader.UnmarshalCaddyfile(dispenser, m)
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	//Blacklist Loading
-	m.ipBlacklist = make(map[string]bool)
-	if m.IPBlacklistFile != "" {
-		err = m.blacklistLoader.LoadIPBlacklistFromFile(m.IPBlacklistFile, m.ipBlacklist)
-		if err != nil {
-			return fmt.Errorf("failed to load IP blacklist: %w", err)
-		}
-	}
-	m.dnsBlacklist = make(map[string]bool)
-	if m.DNSBlacklistFile != "" {
-		err = m.blacklistLoader.LoadDNSBlacklistFromFile(m.DNSBlacklistFile, m.dnsBlacklist)
-		if err != nil {
-			return fmt.Errorf("failed to load DNS blacklist: %w", err)
-		}
-	}
-
-	// Rule, Blacklists File Loading
-	if err := m.loadRules(m.RuleFiles, m.IPBlacklistFile, m.DNSBlacklistFile); err != nil {
-		return fmt.Errorf("failed to load rules and blacklists: %w", err)
-	}
-
-	m.logger.Info("WAF middleware provisioned successfully")
-	return nil
-}
-
-func (m *Middleware) loadRules(paths []string, ipBlacklistPath string, dnsBlacklistPath string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.logger.Debug("Loading rules and blacklists from files", zap.Strings("rule_files", paths), zap.String("ip_blacklist", ipBlacklistPath), zap.String("dns_blacklist", dnsBlacklistPath))
-
-	m.Rules = make(map[int][]Rule)
-	totalRules := 0
-	var invalidFiles []string
-	var allInvalidRules []string
-	ruleIDs := make(map[string]bool) // Track rule IDs across all files
-
-	// Load Rules
-	for _, path := range paths {
-		content, err := os.ReadFile(path)
-		if err != nil {
-			m.logger.Error("Failed to read rule file", zap.String("file", path), zap.Error(err))
-			invalidFiles = append(invalidFiles, path)
-			continue
-		}
-
-		var rules []Rule
-		if err := json.Unmarshal(content, &rules); err != nil {
-			m.logger.Error("Failed to unmarshal rules from file", zap.String("file", path), zap.Error(err))
-			invalidFiles = append(invalidFiles, path)
-			continue
-		}
-
-		var invalidRulesInFile []string
-		for i, rule := range rules {
-			// Validate rule structure
-			if err := validateRule(&rule); err != nil {
-				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule at index %d: %v", i, err))
-				continue
-			}
-
-			// Check for duplicate IDs across all files
-			if _, exists := ruleIDs[rule.ID]; exists {
-				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Duplicate rule ID '%s' at index %d", rule.ID, i))
-				continue
-			}
-			ruleIDs[rule.ID] = true
-
-			// Compile regex pattern
-			regex, err := regexp.Compile(rule.Pattern)
-			if err != nil {
-				m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.Error(err))
-				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
-				continue
-			}
-			rule.regex = regex
-
-			// Initialize phase if missing
-			if _, ok := m.Rules[rule.Phase]; !ok {
-				m.Rules[rule.Phase] = []Rule{}
-			}
-
-			// Add rule to appropriate phase
-			m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rule)
-			totalRules++
-		}
-		if len(invalidRulesInFile) > 0 {
-			m.logger.Warn("Some rules failed validation", zap.String("file", path), zap.Strings("invalid_rules", invalidRulesInFile))
-			allInvalidRules = append(allInvalidRules, invalidRulesInFile...)
-		}
-
-		m.logger.Info("Rules loaded", zap.String("file", path), zap.Int("total_rules", len(rules)), zap.Int("invalid_rules", len(invalidRulesInFile)))
-	}
-
-	// Load IP Blacklist
-	m.ipBlacklist = make(map[string]bool) // Initialize the IP blacklist map
-	if ipBlacklistPath != "" {
-		content, err := os.ReadFile(ipBlacklistPath)
-		if err != nil {
-			m.logger.Warn("Failed to read IP blacklist file", zap.String("file", ipBlacklistPath), zap.Error(err))
-		} else {
-			lines := strings.Split(string(content), "\n")
-			validEntries := 0
-			for i, line := range lines {
-				line = strings.TrimSpace(line)
-				if line == "" || strings.HasPrefix(line, "#") {
-					continue // Skip empty lines and comments
-				}
-
-				// Check if the line is a valid IP or CIDR range
-				if _, _, err := net.ParseCIDR(line); err == nil {
-					// It's a valid CIDR range
-					m.ipBlacklist[line] = true
-					validEntries++
-					m.logger.Debug("Added CIDR range to blacklist",
-						zap.String("cidr", line),
-					)
-					continue
-				}
-
-				if ip := net.ParseIP(line); ip != nil {
-					// It's a valid IP address
-					m.ipBlacklist[line] = true
-					validEntries++
-					m.logger.Debug("Added IP to blacklist",
-						zap.String("ip", line),
-					)
-					continue
-				}
-
-				// Log invalid entries for debugging
-				m.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
-					zap.String("file", ipBlacklistPath),
-					zap.Int("line", i+1),
-					zap.String("entry", line),
-				)
-			}
-			m.logger.Info("IP blacklist loaded successfully",
-				zap.String("file", ipBlacklistPath),
-				zap.Int("valid_entries", validEntries),
-				zap.Int("total_lines", len(lines)),
-			)
-		}
-	}
-	// Load DNS Blacklist
-	m.dnsBlacklist = make(map[string]bool) // Initialize DNS Blacklist
-	if dnsBlacklistPath != "" {
-		content, err := os.ReadFile(dnsBlacklistPath)
-		if err != nil {
-			m.logger.Warn("Failed to read DNS blacklist file", zap.String("file", dnsBlacklistPath), zap.Error(err))
-		} else {
-			lines := strings.Split(string(content), "\n")
-			validEntriesCount := 0
-			for _, line := range lines {
-				line = strings.ToLower(strings.TrimSpace(line))
-				if line == "" || strings.HasPrefix(line, "#") {
-					continue // Skip empty lines and comments
-				}
-				m.dnsBlacklist[line] = true
-				validEntriesCount++
-			}
-			m.logger.Info("DNS blacklist loaded successfully",
-				zap.String("file", dnsBlacklistPath),
-				zap.Int("valid_entries", validEntriesCount),
-				zap.Int("total_lines", len(lines)),
-			)
-		}
-	}
-
-	if len(invalidFiles) > 0 {
-		m.logger.Warn("Some rule files could not be loaded", zap.Strings("invalid_files", invalidFiles))
-	}
-	if len(allInvalidRules) > 0 {
-		m.logger.Warn("Some rules across files failed validation", zap.Strings("invalid_rules", allInvalidRules))
-	}
-
-	if totalRules == 0 && len(invalidFiles) > 0 {
-		return fmt.Errorf("no valid rules were loaded from any file")
-	}
-	m.logger.Debug("Rules and Blacklists loaded successfully", zap.Int("total_rules", totalRules))
-
-	return nil
-}
-
+// isIPBlacklisted checks if the given IP address is in the blacklist.
 func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 	ipStr := extractIP(remoteAddr)
 	if ipStr == "" {
@@ -1055,191 +1115,4 @@ func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
 	}
 
 	return false
-}
-
-func (m *Middleware) isDNSBlacklisted(host string) bool {
-	normalizedHost := strings.ToLower(strings.TrimSpace(host))
-	if normalizedHost == "" {
-		m.logger.Warn("Empty host provided for DNS blacklist check")
-		return false
-	}
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if _, exists := m.dnsBlacklist[normalizedHost]; exists {
-		m.logger.Info("Host is blacklisted",
-			zap.String("host", host),
-			zap.String("blacklisted_domain", normalizedHost),
-		)
-		return true
-	}
-
-	m.logger.Debug("Host is not blacklisted",
-		zap.String("host", host),
-	)
-	return false
-}
-
-func (m *Middleware) extractValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
-	return m.requestValueExtractor.ExtractValue(target, r, w)
-}
-
-func (m *Middleware) ReloadConfig() error {
-	// Acquire a write lock to protect shared state during reload
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	// Log the start of the reload process
-	m.logger.Info("Reloading WAF configuration")
-
-	// Create a temporary map to hold the new rules
-	newRules := make(map[int][]Rule)
-
-	// Reload rules into the temporary map
-	if err := m.loadRulesIntoMap(newRules); err != nil {
-		m.logger.Error("Failed to reload rules",
-			zap.Error(err),
-		)
-		return fmt.Errorf("failed to reload rules: %v", err)
-	}
-
-	// Reload IP blacklist into a temporary map
-	newIPBlacklist := make(map[string]bool)
-	if m.IPBlacklistFile != "" {
-		if err := m.loadIPBlacklistIntoMap(m.IPBlacklistFile, newIPBlacklist); err != nil {
-			m.logger.Error("Failed to reload IP blacklist",
-				zap.String("file", m.IPBlacklistFile),
-				zap.Error(err),
-			)
-			return fmt.Errorf("failed to reload IP blacklist: %v", err)
-		}
-	} else {
-		m.logger.Debug("No IP blacklist file specified, skipping reload")
-	}
-
-	// Reload DNS blacklist into a temporary map
-	newDNSBlacklist := make(map[string]bool)
-	if m.DNSBlacklistFile != "" {
-		if err := m.loadDNSBlacklistIntoMap(m.DNSBlacklistFile, newDNSBlacklist); err != nil {
-			m.logger.Error("Failed to reload DNS blacklist",
-				zap.String("file", m.DNSBlacklistFile),
-				zap.Error(err),
-			)
-			return fmt.Errorf("failed to reload DNS blacklist: %v", err)
-		}
-	} else {
-		m.logger.Debug("No DNS blacklist file specified, skipping reload")
-	}
-
-	// Swap the old configuration with the new one atomically
-	m.Rules = newRules
-	m.ipBlacklist = newIPBlacklist
-	m.dnsBlacklist = newDNSBlacklist
-
-	// Log the successful completion of the reload process
-	m.logger.Info("WAF configuration reloaded successfully")
-
-	return nil
-}
-
-// loadRulesIntoMap loads rules into a provided map instead of directly updating the middleware's rule set
-func (m *Middleware) loadRulesIntoMap(rulesMap map[int][]Rule) error {
-	for _, file := range m.RuleFiles {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			m.logger.Error("Failed to read rule file",
-				zap.String("file", file),
-				zap.Error(err),
-			)
-			return fmt.Errorf("failed to read rule file: %s, error: %v", file, err)
-		}
-
-		var rules []Rule
-		if err := json.Unmarshal(content, &rules); err != nil {
-			m.logger.Error("Failed to unmarshal rules from file",
-				zap.String("file", file),
-				zap.Error(err),
-			)
-			return fmt.Errorf("failed to unmarshal rules from file: %s, error: %v. Ensure valid JSON", file, err)
-		}
-
-		for _, rule := range rules {
-			if _, ok := rulesMap[rule.Phase]; !ok {
-				rulesMap[rule.Phase] = []Rule{}
-			}
-			rulesMap[rule.Phase] = append(rulesMap[rule.Phase], rule)
-		}
-	}
-	return nil
-}
-
-// loadIPBlacklistIntoMap loads IP blacklist entries into a provided map
-func (m *Middleware) loadIPBlacklistIntoMap(path string, blacklistMap map[string]bool) error {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("failed to read IP blacklist file: %v", err)
-	}
-
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		blacklistMap[line] = true
-	}
-	return nil
-}
-
-// loadDNSBlacklistIntoMap loads DNS blacklist entries into a provided map
-func (m *Middleware) loadDNSBlacklistIntoMap(path string, blacklistMap map[string]bool) error {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("failed to read DNS blacklist file: %v", err)
-	}
-
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		line = strings.ToLower(strings.TrimSpace(line))
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		blacklistMap[line] = true
-	}
-	return nil
-}
-
-// rules hits stats
-// logRuleHitStats logs the rule hit statistics
-func (m *Middleware) getRuleHitStats() map[string]int {
-	stats := make(map[string]int)
-	m.ruleHits.Range(func(key, value interface{}) bool {
-		stats[key.(string)] = value.(int)
-		return true
-	})
-	return stats
-}
-
-// handleMetricsRequest handles the request to the metrics endpoint.
-func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request) error {
-	m.logger.Debug("Handling metrics request", zap.String("path", r.URL.Path))
-	w.Header().Set("Content-Type", "application/json")
-
-	stats := m.getRuleHitStats()
-
-	// Convert stats to JSON
-	jsonStats, err := json.Marshal(stats)
-	if err != nil {
-		m.logger.Error("Failed to marshal rule hit stats to JSON", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return fmt.Errorf("failed to marshal rule hit stats to JSON: %v", err)
-	}
-
-	_, err = w.Write(jsonStats)
-	if err != nil {
-		m.logger.Error("Failed to write metrics response", zap.Error(err))
-		return fmt.Errorf("failed to write metrics response: %v", err)
-	}
-	return nil
 }
