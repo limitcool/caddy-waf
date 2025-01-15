@@ -849,30 +849,6 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 
 // ==================== Utility Functions ====================
 
-func (m *Middleware) isDNSBlacklisted(host string) bool {
-	normalizedHost := strings.ToLower(strings.TrimSpace(host))
-	if normalizedHost == "" {
-		m.logger.Warn("Empty host provided for DNS blacklist check")
-		return false
-	}
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if _, exists := m.dnsBlacklist[normalizedHost]; exists {
-		m.logger.Info("Host is blacklisted",
-			zap.String("host", host),
-			zap.String("blacklisted_domain", normalizedHost),
-		)
-		return true
-	}
-
-	m.logger.Debug("Host is not blacklisted",
-		zap.String("host", host),
-	)
-	return false
-}
-
 func (m *Middleware) extractValue(target string, r *http.Request, w http.ResponseWriter) (string, error) {
 	return m.requestValueExtractor.ExtractValue(target, r, w)
 }
@@ -884,13 +860,6 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		m.configLoader = NewConfigLoader(m.logger)
 	}
 	return m.configLoader.UnmarshalCaddyfile(d, m)
-}
-
-func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, geoIP *maxminddb.Reader) (bool, error) {
-	if m.geoIPHandler == nil {
-		return false, fmt.Errorf("geoip handler not initialized")
-	}
-	return m.geoIPHandler.IsCountryInList(remoteAddr, countryList, geoIP)
 }
 
 func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase int, state *WAFState) {
@@ -1082,37 +1051,4 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		zap.Int("total_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
-}
-
-// isIPBlacklisted checks if the given IP address is in the blacklist.
-func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
-	ipStr := extractIP(remoteAddr)
-	if ipStr == "" {
-		return false
-	}
-
-	// Check if the IP is directly blacklisted
-	if m.ipBlacklist[ipStr] {
-		return true
-	}
-
-	// Check if the IP falls within any CIDR range in the blacklist
-	ip := net.ParseIP(ipStr)
-	if ip == nil {
-		return false
-	}
-
-	for blacklistEntry := range m.ipBlacklist {
-		if strings.Contains(blacklistEntry, "/") {
-			_, ipNet, err := net.ParseCIDR(blacklistEntry)
-			if err != nil {
-				continue
-			}
-			if ipNet.Contains(ip) {
-				return true
-			}
-		}
-	}
-
-	return false
 }

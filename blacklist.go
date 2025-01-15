@@ -1,10 +1,12 @@
 package caddywaf
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"strings"
 
+	"github.com/oschwald/maxminddb-golang"
 	"go.uber.org/zap"
 )
 
@@ -127,4 +129,68 @@ func (bl *BlacklistLoader) LoadDNSBlacklistFromFile(path string, dnsBlacklist ma
 	)
 
 	return nil
+}
+
+// isIPBlacklisted checks if the given IP address is in the blacklist.
+func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
+	ipStr := extractIP(remoteAddr)
+	if ipStr == "" {
+		return false
+	}
+
+	// Check if the IP is directly blacklisted
+	if m.ipBlacklist[ipStr] {
+		return true
+	}
+
+	// Check if the IP falls within any CIDR range in the blacklist
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+
+	for blacklistEntry := range m.ipBlacklist {
+		if strings.Contains(blacklistEntry, "/") {
+			_, ipNet, err := net.ParseCIDR(blacklistEntry)
+			if err != nil {
+				continue
+			}
+			if ipNet.Contains(ip) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (m *Middleware) isCountryInList(remoteAddr string, countryList []string, geoIP *maxminddb.Reader) (bool, error) {
+	if m.geoIPHandler == nil {
+		return false, fmt.Errorf("geoip handler not initialized")
+	}
+	return m.geoIPHandler.IsCountryInList(remoteAddr, countryList, geoIP)
+}
+
+func (m *Middleware) isDNSBlacklisted(host string) bool {
+	normalizedHost := strings.ToLower(strings.TrimSpace(host))
+	if normalizedHost == "" {
+		m.logger.Warn("Empty host provided for DNS blacklist check")
+		return false
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if _, exists := m.dnsBlacklist[normalizedHost]; exists {
+		m.logger.Info("Host is blacklisted",
+			zap.String("host", host),
+			zap.String("blacklisted_domain", normalizedHost),
+		)
+		return true
+	}
+
+	m.logger.Debug("Host is not blacklisted",
+		zap.String("host", host),
+	)
+	return false
 }
