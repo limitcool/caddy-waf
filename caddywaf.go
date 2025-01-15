@@ -579,12 +579,15 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 	m.logger.Debug("Handling metrics request", zap.String("path", r.URL.Path))
 	w.Header().Set("Content-Type", "application/json")
 
+	// Collect rule hits using getRuleHitStats
+	ruleHits := m.getRuleHitStats()
+
 	// Collect all metrics
 	metrics := map[string]interface{}{
 		"total_requests":     m.totalRequests,
 		"blocked_requests":   m.blockedRequests,
 		"allowed_requests":   m.allowedRequests,
-		"rule_hits":          m.getRuleHitStats(),
+		"rule_hits":          ruleHits,
 		"rule_hits_by_phase": m.ruleHitsByPhase,
 		"geoip_stats":        m.geoIPStats,
 	}

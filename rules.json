@@ -1,5 +1,105 @@
 [
     {
+        "id": "allow-legit-browsers",
+        "phase": 1,
+        "pattern": "(?i)(Mozilla|Chrome|Safari|Edge|Firefox|Opera|AppleWebKit|Gecko|Trident|MSIE|Googlebot|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|facebot|facebookexternalhit)",
+        "targets": ["HEADERS:User-Agent"],
+        "severity": "LOW",
+        "action": "log",
+        "score": 0,
+        "description": "Allow and log traffic from legitimate browsers and search engine crawlers."
+    },
+    {
+        "id": "log-legit-tools",
+        "phase": 1,
+        "pattern": "(?i)(wget|curl|libwww-perl|python-requests|Go-http-client|Java|HttpClient|axios|PostmanRuntime|Paw|Insomnia|Fiddler|Charles)",
+        "targets": ["HEADERS:User-Agent"],
+        "severity": "MEDIUM",
+        "action": "log",
+        "score": 2,
+        "description": "Log traffic from legitimate tools like wget, curl, and API testing tools."
+    },
+    {
+        "id": "block-scanners",
+        "phase": 1,
+        "pattern": "(?i)(nikto|sqlmap|nmap|acunetix|nessus|openvas|wpscan|dirbuster|burpsuite|owasp zap|netsparker|appscan|arachni|skipfish|gobuster|wfuzz|hydra|metasploit|nessus|openvas|qualys|zap|w3af|openwebspider|netsparker|appspider|rapid7|nessus|qualys)",
+        "targets": ["HEADERS:User-Agent"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 10,
+        "description": "Block traffic from known vulnerability scanners and penetration testing tools."
+    },
+    {
+        "id": "block-bad-bots",
+        "phase": 1,
+        "pattern": "(?i)(ahrefsbot|semrushbot|mj12bot|dotbot|petalbot|blexbot|rogerbot|exabot|megaindex|linkdexbot|spbot|sistrix|xoviobot|yandeximages|baiduspider|yandexbot|sogou|exabot|facebot|facebookexternalhit|python-requests|Go-http-client|Java|HttpClient|axios|PostmanRuntime|masscan|zgrab|ja3|ja3s|badbot|evilbot|maliciousbot|spammerbot|scrapy|phantomjs|headlesschrome|headlessfirefox)",
+        "targets": ["HEADERS:User-Agent"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block traffic from known bad bots and automated scripts."
+    },
+    {
+        "id": "block-suspicious-user-agents",
+        "phase": 1,
+        "pattern": "(?i)(bot|crawl|spider|scan|hack|exploit|inject|sql|xss|bypass|brute|force|attack|malware|phishing|spyware|adware|ransomware|trojan|virus|worm|keylogger|backdoor|rootkit|shellcode|payload|exploit|vulnerability|scanner|harvest|scrape|collect|grab|fetch|extract|parse|analyze|monitor|track|log|record|report|submit|send|receive|execute|run|launch|start|stop|kill|terminate|restart|reboot|shutdown|suspend|resume|pause|wait|sleep|delay|timeout|retry|repeat|loop|cycle|iterate|recur|recurse|recurring|recurrent|recursive|recursion)",
+        "targets": ["HEADERS:User-Agent"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block traffic with suspicious or malicious User-Agent strings."
+    },
+    {
+        "id": "block-no-user-agent",
+        "phase": 1,
+        "pattern": "^$",
+        "targets": ["HEADERS:User-Agent"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block traffic with missing or empty User-Agent headers."
+    },
+    {
+        "id": "block-headless-browsers",
+        "phase": 1,
+        "pattern": "(?i)(headlesschrome|headlessfirefox|phantomjs|puppeteer|selenium|playwright|electron|chrome-lighthouse)",
+        "targets": ["HEADERS:User-Agent"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block traffic from headless browsers and automation frameworks."
+    },
+    {
+        "id": "block-suspicious-tools",
+        "phase": 1,
+        "pattern": "(?i)(sqlmap|hydra|metasploit|nmap|nikto|wpscan|dirbuster|burpsuite|owasp zap|netsparker|appscan|arachni|skipfish|gobuster|wfuzz|masscan|zgrab|ja3|ja3s)",
+        "targets": ["HEADERS:User-Agent"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 10,
+        "description": "Block traffic from suspicious tools commonly used for attacks."
+    },
+    {
+        "id": "block-unknown-bots",
+        "phase": 1,
+        "pattern": "(?i)(bot|crawler|spider|scanner|harvester|fetcher|grabber|collector|extractor|parser|analyzer|monitor|tracker|logger|recorder|reporter|submitter|sender|receiver|executor|runner|launcher|starter|stopper|killer|terminator|restarter|rebooter|shutdown|suspender|resumer|pauser|waiter|sleeper|delayer|timeouter|retrier|repeater|looper|cycler|iterator|recurrer|recurser|recurring|recurrent|recursive|recursion)",
+        "targets": ["HEADERS:User-Agent"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 8,
+        "description": "Block traffic from unknown or generic bots with suspicious behavior."
+    },
+    {
+        "id": "block-evasion-attempts",
+        "phase": 1,
+        "pattern": "(?i)(obfuscate|encode|decode|encrypt|decrypt|base64|hex|urlencode|urldecode|rot13|xor|aes|des|rc4|md5|sha1|sha256|sha512|hmac|jwt|token|bearer|oauth|api_key|secret|password|credential|auth|authentication|session|cookie|csrf|xss|sql|inject|payload|exploit|vulnerability|bypass|brute|force|attack|malware|phishing|spyware|adware|ransomware|trojan|virus|worm|keylogger|backdoor|rootkit|shellcode|payload|exploit|vulnerability|scanner|harvest|scrape|collect|grab|fetch|extract|parse|analyze|monitor|track|log|record|report|submit|send|receive|execute|run|launch|start|stop|kill|terminate|restart|reboot|shutdown|suspend|resume|pause|wait|sleep|delay|timeout|retry|repeat|loop|cycle|iterate|recur|recurse|recurring|recurrent|recursive|recursion)",
+        "targets": ["HEADERS:User-Agent"],
+        "severity": "CRITICAL",
+        "action": "block",
+        "score": 10,
+        "description": "Block traffic with User-Agent strings indicating evasion or attack attempts."
+    },
+    {
         "id": "932130",
         "phase": 2,
         "pattern": "@rx \\$(?:\\((?:.*|\\(.*\\))\\)|\\{.*\\}|\\[.*\\])|[<>]\\(.*\\)|/[0-9A-Z_a-z]*\\[!?.+\\]",
@@ -37,30 +137,6 @@
         "action": "log",
         "score": 1,
         "description": "No description provided."
-    },
-    {
-        "id": "malicious-referer-test",
-        "phase": 2,
-        "pattern": "(?i)malicious-referer",
-        "targets": [
-            "HEADERS"
-        ],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 5,
-        "description": "Block requests with malicious Referer headers (Target: HEADERS)"
-    },
-    {
-        "id": "scanner-detection",
-        "phase": 1,
-        "pattern": "(?i)(?:sqlmap|acunetix|nikto|nessus|netsparker|nmap|dirbuster|w3af|openvas|burpsuite|webinspect|qualys|commix|zap|arachni|gobuster|hydra|metasploit|zgrab|masscan|wfuzz|crackmapexec|nuclei|shodan|censys|dirsearch|ffuf|vega|skipfish|wpscan|whatweb|dirmap)",
-        "targets": [
-            "HEADERS"
-        ],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block requests from known security scanners based on User-Agent (Target: HEADERS)"
     },
     {
         "id": "sql-injection",
@@ -179,18 +255,6 @@
         "action": "block",
         "score": 7,
         "description": "Block requests to unusual or suspicious paths (Target: URI)."
-    },
-    {
-        "id": "block-bad-bots",
-        "phase": 1,
-        "pattern": "(?i)(?:sqlmap|acunetix|nikto|nessus|netsparker|dirbuster|burpsuite|wpscan|nuclei|qualys|arachni|openvas|zap|vega|skipfish|w3af|gobuster|owasp zap|webinspect|appscan|detectify|nessuscloud|retire\\.js|fortify|checkmarx|veracode|snyk|rapid7|nexpose|insightvm|hydra|medusa|ncrack|john the ripper|hashcat|patator|masscan|shodan|censys|whatweb|dirmap|nmap|amap|zmap|theharvester|recon-ng|fierce|metasploit|commix|crackmapexec|cobalt strike|empire|powersploit|httrack|wget|scrapy|beautifulsoup|phantomjs|headlesschrome|puppeteer|grabber|node-fetch|axios|bugcrowd|hackerone|intruder|selenium|openscap|ffuf|webscarab|sublist3r|dirsearch|sql ninja|eyewitness|gau|waybackurls|assetfinder|ahrefsbot|mj12bot|semrushbot|dotbot|rogerbot|exabot|yandexbot|baiduspider|googlebot-image|bingbot|go-http-client|python-requests|okhttp|lwp-request|libwww-perl|kube-hunter|cloudmapper|pacu|dirb|uniscan|vega|arachni|xsser|davtest|jexboss|joomscan|droopescan|cmsmap|xsstrike|thesprawl|cloudgoat|sqlmapapi|wpscanapi|impacket|responder|bloodhound|mimikatz|pupy|veil-framework|evilginx|mitmproxy|bettercap|playwright|nightmare|zombie\\.js|splash)",
-        "targets": [
-            "HEADERS"
-        ],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block requests from known security scanners and bad bots (Target: HEADERS)."
     },
     {
         "id": "mass-assignment-indicators",

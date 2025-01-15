@@ -8,20 +8,13 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-// processRuleMatch handles the logic when a rule is matched.
 func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) {
-	// Default action to "block" if empty
-	if rule.Action == "" {
-		rule.Action = "block"
-		m.logger.Debug("Rule action is empty, defaulting to 'block'", zap.String("rule_id", rule.ID))
-	}
 
 	// Extract log ID from request context
 	logID, _ := r.Context().Value("logID").(string)
@@ -41,9 +34,18 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 
 	// Increment rule hit counter
 	if count, ok := m.ruleHits.Load(rule.ID); ok {
-		m.ruleHits.Store(rule.ID, count.(int)+1)
+		newCount := count.(int) + 1
+		m.ruleHits.Store(rule.ID, newCount)
+		m.logger.Debug("Incremented rule hit count",
+			zap.String("rule_id", rule.ID),
+			zap.Int("new_count", newCount),
+		)
 	} else {
 		m.ruleHits.Store(rule.ID, 1)
+		m.logger.Debug("Initialized rule hit count",
+			zap.String("rule_id", rule.ID),
+			zap.Int("new_count", 1),
+		)
 	}
 
 	// Increase the total anomaly score
@@ -58,29 +60,6 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
 
-	// Capture detailed request and rule information for comprehensive logging
-	requestInfo := []zap.Field{
-		zap.String("log_id", logID),
-		zap.String("rule_id", rule.ID),
-		zap.String("target", strings.Join(rule.Targets, ",")),
-		zap.String("value", value), // Be cautious with logging sensitive data
-		zap.String("description", rule.Description),
-		zap.Int("score", rule.Score),
-		zap.Int("total_score", state.TotalScore),
-		zap.Int("anomaly_threshold", m.AnomalyThreshold),
-		zap.String("mode", rule.Action),
-		zap.String("severity", rule.Severity),
-		zap.String("source_ip", r.RemoteAddr),
-		zap.String("user_agent", r.UserAgent()),
-		zap.String("request_method", r.Method),
-		zap.String("request_path", r.URL.Path),
-		zap.String("query_params", r.URL.RawQuery),
-		zap.Time("timestamp", time.Now()),
-	}
-
-	// Log the rule match in detail with Info level
-	m.logRequest(zapcore.InfoLevel, "Detailed rule match information", requestInfo...)
-
 	// Determine if a blocking action should be taken
 	shouldBlock := false
 	blockReason := ""
@@ -92,13 +71,16 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		} else if rule.Action == "block" {
 			shouldBlock = true
 			blockReason = "Rule action is 'block'"
-		} else if rule.Action != "log" {
-			shouldBlock = true
-			blockReason = "Unknown rule action"
 		}
-	} else {
-		m.logger.Debug("Blocking actions skipped, response already written", zap.String("log_id", logID), zap.String("rule_id", rule.ID))
 	}
+
+	// Log the decision-making process
+	m.logger.Debug("Processing rule action",
+		zap.String("rule_id", rule.ID),
+		zap.String("action", rule.Action),
+		zap.Bool("should_block", shouldBlock),
+		zap.String("block_reason", blockReason),
+	)
 
 	// Perform blocking action if needed and response not already written
 	if shouldBlock && !state.ResponseWritten {
