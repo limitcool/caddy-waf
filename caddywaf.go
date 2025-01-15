@@ -105,6 +105,13 @@ type Middleware struct {
 
 	RateLimit   RateLimit
 	rateLimiter *RateLimiter
+
+	totalRequests   int64
+	blockedRequests int64
+	allowedRequests int64
+	ruleHitsByPhase map[int]int64
+	geoIPStats      map[string]int64 // Key: country code, Value: count
+	muMetrics       sync.RWMutex     // Mutex for metrics synchronization
 }
 
 // WAFState struct
@@ -206,13 +213,15 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	m.startFileWatcher([]string{m.IPBlacklistFile, m.DNSBlacklistFile})
 
 	if m.RateLimit.Requests > 0 {
-		if m.RateLimit.Window <= 0 {
-			return fmt.Errorf("invalid rate limit configuration: requests and window must be greater than zero")
+		if m.RateLimit.Window <= 0 || m.RateLimit.CleanupInterval <= 0 {
+			return fmt.Errorf("invalid rate limit configuration: requests, window, and cleanup_interval must be greater than zero")
 		}
 		m.logger.Info("Rate limit configuration",
 			zap.Int("requests", m.RateLimit.Requests),
 			zap.Duration("window", m.RateLimit.Window),
 			zap.Duration("cleanup_interval", m.RateLimit.CleanupInterval),
+			zap.Strings("paths", m.RateLimit.Paths),
+			zap.Bool("match_all_paths", m.RateLimit.MatchAllPaths),
 		)
 		m.rateLimiter = NewRateLimiter(m.RateLimit)
 		m.rateLimiter.startCleanup()
@@ -220,6 +229,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		m.logger.Info("Rate limiting is disabled")
 	}
 
+	m.geoIPStats = make(map[string]int64)
 	var geoIPReader *maxminddb.Reader
 	if m.CountryBlock.Enabled || m.CountryWhitelist.Enabled {
 		geoIPPath := m.CountryBlock.GeoIPDBPath
@@ -278,8 +288,8 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		}
 	}
 
-	if err := m.loadRules(m.RuleFiles, m.IPBlacklistFile, m.DNSBlacklistFile); err != nil {
-		return fmt.Errorf("failed to load rules and blacklists: %w", err)
+	if err := m.loadRules(m.RuleFiles); err != nil {
+		return fmt.Errorf("failed to load rules: %w", err)
 	}
 
 	m.logger.Info("WAF middleware provisioned successfully")
@@ -363,7 +373,6 @@ func (m *Middleware) logVersion() {
 		moduleVersion = "unknown"
 	}
 
-	m.logger.Info("Starting caddy-waf", zap.String("version", moduleVersion))
 }
 
 func (m *Middleware) startFileWatcher(filePaths []string) {
@@ -570,16 +579,24 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 	m.logger.Debug("Handling metrics request", zap.String("path", r.URL.Path))
 	w.Header().Set("Content-Type", "application/json")
 
-	stats := m.getRuleHitStats()
-
-	jsonStats, err := json.Marshal(stats)
-	if err != nil {
-		m.logger.Error("Failed to marshal rule hit stats to JSON", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return fmt.Errorf("failed to marshal rule hit stats to JSON: %v", err)
+	// Collect all metrics
+	metrics := map[string]interface{}{
+		"total_requests":     m.totalRequests,
+		"blocked_requests":   m.blockedRequests,
+		"allowed_requests":   m.allowedRequests,
+		"rule_hits":          m.getRuleHitStats(),
+		"rule_hits_by_phase": m.ruleHitsByPhase,
+		"geoip_stats":        m.geoIPStats,
 	}
 
-	_, err = w.Write(jsonStats)
+	jsonMetrics, err := json.Marshal(metrics)
+	if err != nil {
+		m.logger.Error("Failed to marshal metrics to JSON", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return fmt.Errorf("failed to marshal metrics to JSON: %v", err)
+	}
+
+	_, err = w.Write(jsonMetrics)
 	if err != nil {
 		m.logger.Error("Failed to write metrics response", zap.Error(err))
 		return fmt.Errorf("failed to write metrics response: %v", err)
