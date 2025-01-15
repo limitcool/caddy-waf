@@ -1,17 +1,16 @@
-name: Build and test Caddy with WAF (test)
+name: Build and test Caddy with WAF (all branches except main)
 
 permissions:
   contents: read
   pull-requests: write
 
-  
 on:
   push:
-    branches:
-      - test
+    branches-ignore:
+      - main
   pull_request:
-    branches:
-      - test
+    branches-ignore:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -41,9 +40,9 @@ jobs:
             exit 1
           fi
 
-      - name: Clone caddy-waf Repository (test)
+      - name: Clone caddy-waf Repository
         run: |
-          git clone --branch test https://github.com/fabriziosalmi/caddy-waf.git
+          git clone --branch ${{ github.ref_name }} https://github.com/fabriziosalmi/caddy-waf.git
           cd caddy-waf
 
       - name: Validate Repository Cloning
@@ -85,27 +84,74 @@ jobs:
             echo "Caddy build failed"
             exit 1
           fi
-          
+
       - name: Test Caddy Run and Validate WAF Provisioning
         run: |
           cd caddy-waf
           chmod +x caddy
           ./caddy run > caddy_output.log 2>&1 &
-          sleep 5
+          sleep 10  # Increased sleep time to ensure Caddy fully initializes
           
           if ! pgrep -f "caddy run"; then
             echo "Caddy run failed"
             cat caddy_output.log
             exit 1
           fi
-          
-          if ! grep -q "WAF middleware provisioned successfully" caddy_output.log; then
-            echo "WAF provisioning log not found"
+
+          # Validate logs in caddy_output.log
+          if [ ! -f "caddy_output.log" ]; then
+            echo "caddy_output.log file not found"
+            exit 1
+          fi
+
+          # Check for critical log messages in stdout
+          if ! grep -q '"msg":"Provisioning WAF middleware"' caddy_output.log; then
+            echo "WAF middleware provisioning log not found in stdout"
             cat caddy_output.log
             exit 1
           fi
-          
-          echo "Caddy WAF build and run successful with WAF middleware provisioned"
+
+          if ! grep -q '"msg":"GeoIP database loaded successfully"' caddy_output.log; then
+            echo "GeoIP database loading log not found in stdout"
+            cat caddy_output.log
+            exit 1
+          fi
+
+          if ! grep -q '"msg":"IP blacklist loaded successfully"' caddy_output.log; then
+            echo "IP blacklist loading log not found in stdout"
+            cat caddy_output.log
+            exit 1
+          fi
+
+          if ! grep -q '"msg":"DNS blacklist loaded successfully"' caddy_output.log; then
+            echo "DNS blacklist loading log not found in stdout"
+            cat caddy_output.log
+            exit 1
+          fi
+
+          if ! grep -q '"msg":"Rules loaded"' caddy_output.log; then
+            echo "Rules loading log not found in stdout"
+            cat caddy_output.log
+            exit 1
+          fi
+
+          if ! grep -q '"msg":"WAF middleware provisioned successfully"' caddy_output.log; then
+            echo "WAF middleware provisioning success log not found in stdout"
+            cat caddy_output.log
+            exit 1
+          fi
+
+          echo "Caddy WAF build and run successful with all components provisioned"
+
+      - name: Run Additional Tests
+        run: |
+          cd caddy-waf
+          # Test WAF functionality with a simple HTTP request
+          curl -s http://localhost:8080 -o /dev/null -w "%{http_code}"
+          if [ $? -ne 0 ]; then
+            echo "HTTP request to Caddy failed"
+            exit 1
+          fi
 
       - name: Clean Up
         if: always()

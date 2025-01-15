@@ -17,13 +17,12 @@ const (
 	torExitNodeURL = "https://check.torproject.org/torbulkexitlist"
 )
 
-// TorConfig holds configuration for Tor blocking.
 type TorConfig struct {
-	Enabled         bool   `json:"enabled,omitempty"`
-	IPBlacklistFile string `json:"ip_blacklist_file,omitempty"`
-	UpdateInterval  string `json:"update_interval,omitempty"` // e.g., "1h", "24h"
-	lastUpdated     time.Time
-	logger          *zap.Logger
+	Enabled            bool   `json:"enabled,omitempty"`
+	TORIPBlacklistFile string `json:"tor_ip_blacklist_file,omitempty"` // Renamed field
+	UpdateInterval     string `json:"update_interval,omitempty"`
+	lastUpdated        time.Time
+	logger             *zap.Logger
 }
 
 // Provision sets up the Tor blocking configuration.
@@ -92,7 +91,7 @@ func (t *TorConfig) scheduleUpdates() {
 
 // readExistingBlacklist reads the current IP blacklist file.
 func (t *TorConfig) readExistingBlacklist() ([]string, error) {
-	data, err := os.ReadFile(t.IPBlacklistFile)
+	data, err := os.ReadFile(t.TORIPBlacklistFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -105,7 +104,7 @@ func (t *TorConfig) readExistingBlacklist() ([]string, error) {
 // writeBlacklist writes the updated IP blacklist to the file.
 func (t *TorConfig) writeBlacklist(ips []string) error {
 	data := strings.Join(ips, "\n")
-	return os.WriteFile(t.IPBlacklistFile, []byte(data), 0644)
+	return os.WriteFile(t.TORIPBlacklistFile, []byte(data), 0644)
 }
 
 // unique removes duplicate entries from a slice of strings.

@@ -7,7 +7,7 @@
     log {
         output stdout
         format console
-        level WARN
+        level INFO
     }
 
     handle {
@@ -22,19 +22,27 @@
             block_countries GeoLite2-Country.mmdb RU CN KP
             # whitelist_countries GeoLite2-Country.mmdb US
 
-			# rate limiter
-			rate_limit {
-				requests 100
-				window 10s
-				cleanup_interval 5m
-				paths /api/v1/.* /admin/.*  # List of individual regex patterns
-				match_all_paths false
-			}
+            # rate limiter
+            rate_limit {
+                requests 100
+                window 10s
+                cleanup_interval 5m
+                paths /api/v1/.* /admin/.*  # List of individual regex patterns
+                match_all_paths false
+            }
+
+            # Tor blocking configuration
+            tor {
+                enabled true
+                tor_ip_blacklist_file tor_blacklist.txt  # Updated field name
+                update_interval 24h
+            }
+
             rule_file rules.json
             # rule_file rules/wordpress.json
             ip_blacklist_file ip_blacklist.txt
             dns_blacklist_file dns_blacklist.txt
-            log_severity warn
+            log_severity info
             log_json
             log_path debug.json
             # redact_sensitive_data
