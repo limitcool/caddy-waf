@@ -36,10 +36,10 @@ var (
 
 // CountryAccessFilter struct
 type CountryAccessFilter struct {
-	Enabled     bool     `json:"enabled"`
-	CountryList []string `json:"country_list"`
-	GeoIPDBPath string   `json:"geoip_db_path"`
-	geoIP       *maxminddb.Reader
+	Enabled     bool              `json:"enabled"`
+	CountryList []string          `json:"country_list"`
+	GeoIPDBPath string            `json:"geoip_db_path"`
+	geoIP       *maxminddb.Reader `json:"-"` // Explicitly mark as not serialized
 }
 
 // GeoIPRecord struct
@@ -121,6 +121,13 @@ type WAFState struct {
 	StatusCode      int
 	ResponseWritten bool
 }
+
+// Define a custom type for context keys
+type ContextKeyRule string
+
+// Define custom types for rule hits
+type RuleID string
+type HitCount int
 
 // ==================== Initialization and Setup ====================
 
@@ -230,7 +237,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	m.geoIPStats = make(map[string]int64)
-	var geoIPReader *maxminddb.Reader
+
 	if m.CountryBlock.Enabled || m.CountryWhitelist.Enabled {
 		geoIPPath := m.CountryBlock.GeoIPDBPath
 		if m.CountryWhitelist.Enabled && m.CountryWhitelist.GeoIPDBPath != "" {
@@ -245,17 +252,13 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 				m.logger.Error("Failed to load GeoIP database", zap.String("path", geoIPPath), zap.Error(err))
 			} else {
 				m.logger.Info("GeoIP database loaded successfully", zap.String("path", geoIPPath))
-				geoIPReader = reader
+				if m.CountryBlock.Enabled {
+					m.CountryBlock.geoIP = reader
+				}
+				if m.CountryWhitelist.Enabled {
+					m.CountryWhitelist.geoIP = reader
+				}
 			}
-		}
-	}
-
-	if geoIPReader != nil {
-		if m.CountryBlock.Enabled {
-			m.CountryBlock.geoIP = geoIPReader
-		}
-		if m.CountryWhitelist.Enabled {
-			m.CountryWhitelist.geoIP = geoIPReader
 		}
 	}
 
@@ -312,8 +315,7 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 
 	if m.CountryBlock.geoIP != nil {
 		m.logger.Debug("Closing country block GeoIP database...")
-		err := m.CountryBlock.geoIP.Close()
-		if err != nil {
+		if err := m.CountryBlock.geoIP.Close(); err != nil {
 			m.logger.Error("Error encountered while closing country block GeoIP database", zap.Error(err))
 			if firstError == nil {
 				firstError = fmt.Errorf("error closing country block GeoIP: %w", err)
@@ -321,7 +323,7 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 		} else {
 			m.logger.Debug("Country block GeoIP database closed successfully.")
 		}
-		m.CountryBlock.geoIP = nil
+		m.CountryBlock.geoIP = nil // Explicitly set to nil after closing
 	} else {
 		m.logger.Debug("Country block GeoIP database was not open, skipping close.")
 	}
@@ -344,7 +346,22 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 
 	m.logger.Info("Rule Hit Statistics:")
 	m.ruleHits.Range(func(key, value interface{}) bool {
-		m.logger.Info(fmt.Sprintf("Rule ID: %s, Hits: %d", key.(string), value.(int)))
+		ruleID, ok := key.(RuleID)
+		if !ok {
+			m.logger.Error("Invalid type for rule ID in ruleHits map", zap.Any("key", key))
+			return true // Continue iterating
+		}
+
+		hitCount, ok := value.(HitCount)
+		if !ok {
+			m.logger.Error("Invalid type for hit count in ruleHits map", zap.Any("value", value))
+			return true // Continue iterating
+		}
+
+		m.logger.Info("Rule Hit",
+			zap.String("rule_id", string(ruleID)),
+			zap.Int("hits", int(hitCount)),
+		)
 		return true
 	})
 
@@ -372,7 +389,7 @@ func (m *Middleware) logVersion() {
 	if moduleVersion == "" {
 		moduleVersion = "unknown"
 	}
-
+	m.logger.Info("WAF middleware version", zap.String("version", moduleVersion))
 }
 
 func (m *Middleware) startFileWatcher(filePaths []string) {
@@ -699,8 +716,11 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 	m.logger.Debug("Starting rule evaluation for phase", zap.Int("phase", phase), zap.Int("rule_count", len(rules)))
 	for _, rule := range rules {
 		m.logger.Debug("Processing rule", zap.String("rule_id", rule.ID), zap.Int("target_count", len(rule.Targets)))
-		ctx := context.WithValue(r.Context(), "rule_id", rule.ID)
+
+		// Use the custom type as the key
+		ctx := context.WithValue(r.Context(), ContextKeyRule("rule_id"), rule.ID)
 		r = r.WithContext(ctx)
+
 		for _, target := range rule.Targets {
 			m.logger.Debug("Extracting value for target", zap.String("target", target), zap.String("rule_id", rule.ID))
 			var value string
