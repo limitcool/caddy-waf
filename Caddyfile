@@ -7,7 +7,7 @@
     log {
         output stdout
         format console
-        level WARN
+        level INFO
     }
 
     handle {
@@ -42,7 +42,7 @@
             # rule_file rules/wordpress.json
             ip_blacklist_file ip_blacklist.txt
             dns_blacklist_file dns_blacklist.txt
-            log_severity warn
+            log_severity info
             log_json
             log_path debug.json
             # redact_sensitive_data
