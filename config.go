@@ -134,6 +134,13 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 		cl.logger = zap.NewNop()
 	}
 
+	// Initialize TorConfig with default values
+	m.Tor = TorConfig{
+		Enabled:            false,               // Default to disabled
+		TORIPBlacklistFile: "tor_blacklist.txt", // Default file
+		UpdateInterval:     "24h",               // Default interval
+	}
+
 	cl.logger.Debug("WAF UnmarshalCaddyfile Called", zap.String("file", d.File()), zap.Int("line", d.Line()))
 
 	// Set default values
@@ -214,11 +221,45 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 				m.RedactSensitiveData = true
 				cl.logger.Debug("Redact sensitive data enabled", zap.String("file", d.File()), zap.Int("line", d.Line()))
 
+			case "tor":
+				// Handle the tor block as a nested directive
+				for nesting := d.Nesting(); d.NextBlock(nesting); {
+					switch d.Val() {
+					case "enabled":
+						if !d.NextArg() {
+							return d.ArgErr()
+						}
+						enabled, err := strconv.ParseBool(d.Val())
+						if err != nil {
+							return d.Errf("invalid enabled value: %v", err)
+						}
+						m.Tor.Enabled = enabled
+						cl.logger.Debug("Tor blocking enabled", zap.Bool("enabled", m.Tor.Enabled))
+
+					case "tor_ip_blacklist_file": // Updated field name
+						if !d.NextArg() {
+							return d.ArgErr()
+						}
+						m.Tor.TORIPBlacklistFile = d.Val() // Updated field name
+						cl.logger.Debug("Tor IP blacklist file set", zap.String("tor_ip_blacklist_file", m.Tor.TORIPBlacklistFile))
+
+					case "update_interval":
+						if !d.NextArg() {
+							return d.ArgErr()
+						}
+						m.Tor.UpdateInterval = d.Val()
+						cl.logger.Debug("Tor update interval set", zap.String("update_interval", m.Tor.UpdateInterval))
+
+					default:
+						return d.Errf("unrecognized tor subdirective: %s", d.Val())
+					}
+				}
+
 			default:
 				cl.logger.Warn("WAF Unrecognized SubDirective", zap.String("directive", directive), zap.String("file", d.File()), zap.Int("line", d.Line()))
 				return fmt.Errorf("file: %s, line: %d: unrecognized subdirective: %s", d.File(), d.Line(), d.Val())
 			}
-		}
+		} // Closing brace for the outer for loop
 	}
 
 	if len(m.RuleFiles) == 0 {
