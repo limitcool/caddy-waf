@@ -637,7 +637,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 	if phase == 1 && m.rateLimiter != nil {
 		m.logger.Debug("Starting rate limiting phase")
 		ip := extractIP(r.RemoteAddr)
-		if m.rateLimiter.isRateLimited(ip) {
+		path := r.URL.Path // Get the request path
+		if m.rateLimiter.isRateLimited(ip, path) {
 			m.blockRequest(w, r, state, http.StatusTooManyRequests,
 				zap.String("message", "Request blocked by rate limit"),
 				zap.String("reason", "rate_limit"),
