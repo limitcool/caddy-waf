@@ -2,8 +2,12 @@
 package caddywaf
 
 import (
+	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -153,5 +157,149 @@ func validateRule(rule *Rule) error {
 	if rule.Action != "" && rule.Action != "block" && rule.Action != "log" {
 		return fmt.Errorf("rule '%s' has an invalid action: '%s'. Valid actions are 'block' or 'log'", rule.ID, rule.Action)
 	}
+	return nil
+}
+
+func (m *Middleware) loadRules(paths []string, ipBlacklistPath string, dnsBlacklistPath string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.logger.Debug("Loading rules and blacklists from files", zap.Strings("rule_files", paths), zap.String("ip_blacklist", ipBlacklistPath), zap.String("dns_blacklist", dnsBlacklistPath))
+
+	m.Rules = make(map[int][]Rule)
+	totalRules := 0
+	var invalidFiles []string
+	var allInvalidRules []string
+	ruleIDs := make(map[string]bool)
+
+	for _, path := range paths {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			m.logger.Error("Failed to read rule file", zap.String("file", path), zap.Error(err))
+			invalidFiles = append(invalidFiles, path)
+			continue
+		}
+
+		var rules []Rule
+		if err := json.Unmarshal(content, &rules); err != nil {
+			m.logger.Error("Failed to unmarshal rules from file", zap.String("file", path), zap.Error(err))
+			invalidFiles = append(invalidFiles, path)
+			continue
+		}
+
+		var invalidRulesInFile []string
+		for i, rule := range rules {
+			if err := validateRule(&rule); err != nil {
+				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule at index %d: %v", i, err))
+				continue
+			}
+
+			if _, exists := ruleIDs[rule.ID]; exists {
+				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Duplicate rule ID '%s' at index %d", rule.ID, i))
+				continue
+			}
+			ruleIDs[rule.ID] = true
+
+			regex, err := regexp.Compile(rule.Pattern)
+			if err != nil {
+				m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.Error(err))
+				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
+				continue
+			}
+			rule.regex = regex
+
+			if _, ok := m.Rules[rule.Phase]; !ok {
+				m.Rules[rule.Phase] = []Rule{}
+			}
+
+			m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rule)
+			totalRules++
+		}
+		if len(invalidRulesInFile) > 0 {
+			m.logger.Warn("Some rules failed validation", zap.String("file", path), zap.Strings("invalid_rules", invalidRulesInFile))
+			allInvalidRules = append(allInvalidRules, invalidRulesInFile...)
+		}
+
+		m.logger.Info("Rules loaded", zap.String("file", path), zap.Int("total_rules", len(rules)), zap.Int("invalid_rules", len(invalidRulesInFile)))
+	}
+
+	m.ipBlacklist = make(map[string]struct{}) // Changed to map[string]struct{}
+	if ipBlacklistPath != "" {
+		content, err := os.ReadFile(ipBlacklistPath)
+		if err != nil {
+			m.logger.Warn("Failed to read IP blacklist file", zap.String("file", ipBlacklistPath), zap.Error(err))
+		} else {
+			lines := strings.Split(string(content), "\n")
+			validEntries := 0
+			for i, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+
+				if _, _, err := net.ParseCIDR(line); err == nil {
+					m.ipBlacklist[line] = struct{}{} // Changed to struct{}{}
+					validEntries++
+					m.logger.Debug("Added CIDR range to blacklist", zap.String("cidr", line))
+					continue
+				}
+
+				if ip := net.ParseIP(line); ip != nil {
+					m.ipBlacklist[line] = struct{}{} // Changed to struct{}{}
+					validEntries++
+					m.logger.Debug("Added IP to blacklist", zap.String("ip", line))
+					continue
+				}
+
+				m.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
+					zap.String("file", ipBlacklistPath),
+					zap.Int("line", i+1),
+					zap.String("entry", line),
+				)
+			}
+			m.logger.Info("IP blacklist loaded successfully",
+				zap.String("file", ipBlacklistPath),
+				zap.Int("valid_entries", validEntries),
+				zap.Int("total_lines", len(lines)),
+			)
+		}
+	}
+
+	m.dnsBlacklist = make(map[string]struct{}) // Changed to map[string]struct{}
+	if dnsBlacklistPath != "" {
+		content, err := os.ReadFile(dnsBlacklistPath)
+		if err != nil {
+			m.logger.Warn("Failed to read DNS blacklist file", zap.String("file", dnsBlacklistPath), zap.Error(err))
+		} else {
+			lines := strings.Split(string(content), "\n")
+			validEntriesCount := 0
+			for _, line := range lines {
+				line = strings.ToLower(strings.TrimSpace(line))
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				m.dnsBlacklist[line] = struct{}{} // Changed to struct{}{}
+				validEntriesCount++
+			}
+			m.logger.Info("DNS blacklist loaded successfully",
+				zap.String("file", dnsBlacklistPath),
+				zap.Int("valid_entries", validEntriesCount),
+				zap.Int("total_lines", len(lines)),
+			)
+		}
+	}
+
+	if len(invalidFiles) > 0 {
+		m.logger.Warn("Some rule files could not be loaded", zap.Strings("invalid_files", invalidFiles))
+	}
+	if len(allInvalidRules) > 0 {
+		m.logger.Warn("Some rules across files failed validation", zap.Strings("invalid_rules", allInvalidRules))
+	}
+
+	if totalRules == 0 && len(invalidFiles) > 0 {
+		return fmt.Errorf("no valid rules were loaded from any file")
+	}
+	m.logger.Debug("Rules and Blacklists loaded successfully", zap.Int("total_rules", totalRules))
+
 	return nil
 }
