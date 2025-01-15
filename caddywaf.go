@@ -320,19 +320,20 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 
 	var firstError error
 
+	var errorOccurred bool // Add a flag
+
 	if m.CountryBlock.geoIP != nil {
 		m.logger.Debug("Closing country block GeoIP database...")
 		if err := m.CountryBlock.geoIP.Close(); err != nil {
 			m.logger.Error("Error encountered while closing country block GeoIP database", zap.Error(err))
-			if firstError == nil {
+			if !errorOccurred { // Check the flag instead
 				firstError = fmt.Errorf("error closing country block GeoIP: %w", err)
+				errorOccurred = true // Set the flag
 			}
 		} else {
 			m.logger.Debug("Country block GeoIP database closed successfully.")
 		}
 		m.CountryBlock.geoIP = nil // Explicitly set to nil after closing
-	} else {
-		m.logger.Debug("Country block GeoIP database was not open, skipping close.")
 	}
 
 	if m.CountryWhitelist.geoIP != nil {
