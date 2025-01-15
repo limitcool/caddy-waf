@@ -21,7 +21,11 @@
 			anomaly_threshold 10
 			block_countries GeoLite2-Country.mmdb RU CN KP
 			# whitelist_countries GeoLite2-Country.mmdb US
-			rate_limit 10000 1m 5m
+            rate_limit {
+                requests 10
+                window 10s
+                cleanup_interval 5m
+            }
 			rule_file rules.json
 			# rule_file rules/wordpress.json
 			ip_blacklist_file ip_blacklist.txt

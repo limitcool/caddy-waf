@@ -3,7 +3,6 @@ package caddywaf
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +19,7 @@ type ConfigLoader struct {
 func NewConfigLoader(logger *zap.Logger) *ConfigLoader {
 	return &ConfigLoader{logger: logger}
 }
+
 func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware) error {
 	if cl.logger == nil {
 		cl.logger = zap.NewNop()
@@ -62,9 +62,60 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 					zap.Int("line", d.Line()),
 				)
 			case "rate_limit":
-				if err := cl.parseRateLimit(d, m); err != nil {
-					return err
+				if m.RateLimit.Requests > 0 {
+					return d.Err("rate_limit specified multiple times")
 				}
+
+				rl := RateLimit{}
+				for nesting := d.Nesting(); d.NextBlock(nesting); {
+					switch d.Val() {
+					case "requests":
+						if !d.NextArg() {
+							return d.Err("requests requires an argument")
+						}
+						reqs, err := strconv.Atoi(d.Val())
+						if err != nil {
+							return d.Errf("invalid requests value: %v", err)
+						}
+						rl.Requests = reqs
+					case "window":
+						if !d.NextArg() {
+							return d.Err("window requires an argument")
+						}
+						window, err := time.ParseDuration(d.Val())
+						if err != nil {
+							return d.Errf("invalid window value: %v", err)
+						}
+						rl.Window = window
+					case "cleanup_interval":
+						if !d.NextArg() {
+							return d.Err("cleanup_interval requires an argument")
+						}
+						interval, err := time.ParseDuration(d.Val())
+						if err != nil {
+							return d.Errf("invalid cleanup_interval value: %v", err)
+						}
+						rl.CleanupInterval = interval
+					case "paths":
+						rl.Paths = d.RemainingArgs()
+					case "match_all_paths":
+						rl.MatchAllPaths = true
+					default:
+						return d.Errf("invalid rate_limit option: %s", d.Val())
+					}
+				}
+				if rl.Requests <= 0 || rl.Window <= 0 {
+					return d.Err("requests and window must be greater than zero")
+				}
+				// Create temporary RateLimit struct with basic fields only
+				m.RateLimit = RateLimit{
+					Requests:        rl.Requests,
+					Window:          rl.Window,
+					CleanupInterval: rl.CleanupInterval,
+					Paths:           rl.Paths,
+					MatchAllPaths:   rl.MatchAllPaths,
+				}
+				cl.logger.Debug("Rate limit parsed", zap.Any("rate_limit", m.RateLimit))
 			case "block_countries":
 				if err := cl.parseCountryBlock(d, m, true); err != nil {
 					return err
@@ -109,7 +160,10 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 			}
 		}
 	}
-	return cl.validateConfig(m)
+	if len(m.RuleFiles) == 0 {
+		return fmt.Errorf("no rule files specified")
+	}
+	return nil
 }
 func (cl *ConfigLoader) parseRuleFile(d *caddyfile.Dispenser, m *Middleware) error {
 	if !d.NextArg() {
@@ -197,74 +251,6 @@ func (cl *ConfigLoader) parseCustomResponse(d *caddyfile.Dispenser, m *Middlewar
 	}
 	return nil
 }
-func (cl *ConfigLoader) parseRateLimit(d *caddyfile.Dispenser, m *Middleware) error {
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing requests value for rate_limit", d.File(), d.Line())
-	}
-	requests, err := strconv.Atoi(d.Val())
-	if err != nil {
-		return fmt.Errorf("File: %s, Line: %d: invalid requests value for rate_limit: %v", d.File(), d.Line(), err)
-	}
-
-	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing window duration for rate_limit", d.File(), d.Line())
-	}
-	window, err := time.ParseDuration(d.Val())
-	if err != nil {
-		return fmt.Errorf("File: %s, Line: %d: invalid duration for rate_limit: %v", d.File(), d.Line(), err)
-	}
-
-	cleanupInterval := time.Minute
-	if d.NextArg() {
-		cleanupInterval, err = time.ParseDuration(d.Val())
-		if err != nil {
-			return fmt.Errorf("File: %s, Line: %d: invalid cleanup interval: %v", d.File(), d.Line(), err)
-		}
-	}
-
-	var paths []string
-	matchAllPaths := false
-	for d.NextArg() {
-		arg := d.Val()
-		if arg == "match_all_paths" {
-			matchAllPaths = true
-			cl.logger.Debug("Rate limiter match_all_paths enabled", zap.String("file", d.File()), zap.Int("line", d.Line()))
-			continue
-		}
-		paths = append(paths, arg)
-	}
-
-	// Compile path regexes for all given paths
-	var pathRegexes []*regexp.Regexp
-	for _, path := range paths {
-		compiledRegex, err := regexp.Compile(path)
-		if err != nil {
-			return fmt.Errorf("File: %s, Line: %d: invalid regex in rate limit paths: %v", d.File(), d.Line(), err)
-		}
-		pathRegexes = append(pathRegexes, compiledRegex)
-
-	}
-
-	m.RateLimit = RateLimit{
-		Requests:        requests,
-		Window:          window,
-		CleanupInterval: cleanupInterval,
-		Paths:           paths,
-		PathRegexes:     pathRegexes,
-		MatchAllPaths:   matchAllPaths,
-	}
-
-	cl.logger.Debug("Rate limit configured",
-		zap.Int("requests", requests),
-		zap.Duration("window", window),
-		zap.Duration("cleanup_interval", cleanupInterval),
-		zap.Strings("paths", paths),
-		zap.Bool("match_all_paths", matchAllPaths),
-		zap.String("file", d.File()),
-		zap.Int("line", d.Line()),
-	)
-	return nil
-}
 
 func (cl *ConfigLoader) parseCountryBlock(d *caddyfile.Dispenser, m *Middleware, isBlock bool) error {
 	target := &m.CountryBlock
@@ -328,18 +314,5 @@ func (cl *ConfigLoader) parseAnomalyThreshold(d *caddyfile.Dispenser, m *Middlew
 	}
 	m.AnomalyThreshold = threshold
 	cl.logger.Debug("Anomaly threshold set", zap.Int("threshold", threshold))
-	return nil
-}
-
-func (cl *ConfigLoader) validateConfig(m *Middleware) error {
-	if m.RateLimit.Requests <= 0 || m.RateLimit.Window <= 0 {
-		return fmt.Errorf("invalid rate limit configuration: requests and window must be greater than zero")
-	}
-	if m.CountryBlock.Enabled && m.CountryBlock.GeoIPDBPath == "" {
-		return fmt.Errorf("country block is enabled but no GeoIP database path specified")
-	}
-	if len(m.RuleFiles) == 0 {
-		return fmt.Errorf("no rule files specified")
-	}
 	return nil
 }
