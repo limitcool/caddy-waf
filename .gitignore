@@ -3,3 +3,4 @@ GeoLite2-Country.mmdb
 debug.json
 log.json
 waf_test_results.log
+tor_ip_blacklist.txt

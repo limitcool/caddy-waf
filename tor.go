@@ -19,8 +19,10 @@ const (
 
 type TorConfig struct {
 	Enabled            bool   `json:"enabled,omitempty"`
-	TORIPBlacklistFile string `json:"tor_ip_blacklist_file,omitempty"` // Renamed field
+	TORIPBlacklistFile string `json:"tor_ip_blacklist_file,omitempty"`
 	UpdateInterval     string `json:"update_interval,omitempty"`
+	RetryOnFailure     bool   `json:"retry_on_failure,omitempty"` // Enable/disable retries
+	RetryInterval      string `json:"retry_interval,omitempty"`   // Retry interval (e.g., "5m")
 	lastUpdated        time.Time
 	logger             *zap.Logger
 }
@@ -72,6 +74,7 @@ func (t *TorConfig) updateTorExitNodes() error {
 }
 
 // scheduleUpdates periodically updates the Tor exit node list.
+// scheduleUpdates periodically updates the Tor exit node list.
 func (t *TorConfig) scheduleUpdates() {
 	interval, err := time.ParseDuration(t.UpdateInterval)
 	if err != nil {
@@ -79,12 +82,28 @@ func (t *TorConfig) scheduleUpdates() {
 		return
 	}
 
+	var retryInterval time.Duration
+	if t.RetryOnFailure {
+		retryInterval, err = time.ParseDuration(t.RetryInterval)
+		if err != nil {
+			t.logger.Error("Invalid retry interval, disabling retries", zap.String("retry_interval", t.RetryInterval), zap.Error(err))
+			t.RetryOnFailure = false // Disable retries if the interval is invalid
+		}
+	}
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	// Use for range to iterate over the ticker channel
 	for range ticker.C {
 		if err := t.updateTorExitNodes(); err != nil {
-			t.logger.Error("Failed to update Tor exit nodes", zap.Error(err))
+			if t.RetryOnFailure {
+				t.logger.Error("Failed to update Tor exit nodes, retrying shortly", zap.Error(err))
+				time.Sleep(retryInterval)
+				continue
+			} else {
+				t.logger.Error("Failed to update Tor exit nodes, will retry at next scheduled interval", zap.Error(err))
+			}
 		}
 	}
 }

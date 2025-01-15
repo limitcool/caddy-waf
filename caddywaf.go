@@ -164,15 +164,18 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 func (m *Middleware) Provision(ctx caddy.Context) error {
 	m.logger = ctx.Logger(m)
 
+	// Set default log severity if not provided
 	if m.LogSeverity == "" {
 		m.LogSeverity = "info"
 	}
 
+	// Set default log file path if not provided
 	logFilePath := m.LogFilePath
 	if logFilePath == "" {
 		logFilePath = "log.json"
 	}
 
+	// Parse log severity level
 	var logLevel zapcore.Level
 	switch strings.ToLower(m.LogSeverity) {
 	case "debug":
@@ -185,12 +188,14 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		logLevel = zapcore.InfoLevel
 	}
 
+	// Configure console logging
 	consoleCfg := zap.NewProductionConfig()
 	consoleCfg.EncoderConfig.EncodeTime = caddyTimeEncoder
 	consoleCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	consoleEncoder := zapcore.NewConsoleEncoder(consoleCfg.EncoderConfig)
 	consoleSync := zapcore.AddSync(os.Stdout)
 
+	// Configure file logging
 	fileCfg := zap.NewProductionConfig()
 	fileCfg.EncoderConfig.EncodeTime = caddyTimeEncoder
 	fileCfg.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
@@ -203,6 +208,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		return nil
 	}
 
+	// Create a multi-core logger for both console and file
 	core := zapcore.NewTee(
 		zapcore.NewCore(consoleEncoder, consoleSync, logLevel),
 		zapcore.NewCore(fileEncoder, zapcore.AddSync(fileSync), zap.DebugLevel),
@@ -221,11 +227,17 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		return err
 	}
 
+	// Initialize rule hits map
 	m.ruleHits = sync.Map{}
+
+	// Log the current version of the middleware
 	m.logVersion()
+
+	// Start file watchers for rule files and blacklist files
 	m.startFileWatcher(m.RuleFiles)
 	m.startFileWatcher([]string{m.IPBlacklistFile, m.DNSBlacklistFile})
 
+	// Configure rate limiting
 	if m.RateLimit.Requests > 0 {
 		if m.RateLimit.Window <= 0 || m.RateLimit.CleanupInterval <= 0 {
 			return fmt.Errorf("invalid rate limit configuration: requests, window, and cleanup_interval must be greater than zero")
@@ -243,8 +255,10 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		m.logger.Info("Rate limiting is disabled")
 	}
 
+	// Initialize GeoIP stats
 	m.geoIPStats = make(map[string]int64)
 
+	// Configure GeoIP-based country blocking/whitelisting
 	if m.CountryBlock.Enabled || m.CountryWhitelist.Enabled {
 		geoIPPath := m.CountryBlock.GeoIPDBPath
 		if m.CountryWhitelist.Enabled && m.CountryWhitelist.GeoIPDBPath != "" {
@@ -269,20 +283,24 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		}
 	}
 
+	// Initialize config and blacklist loaders
 	m.configLoader = NewConfigLoader(m.logger)
 	m.blacklistLoader = NewBlacklistLoader(m.logger)
 	m.geoIPHandler = NewGeoIPHandler(m.logger)
 	m.requestValueExtractor = NewRequestValueExtractor(m.logger, m.RedactSensitiveData)
 
+	// Configure GeoIP handler
 	m.geoIPHandler.WithGeoIPCache(m.geoIPCacheTTL)
 	m.geoIPHandler.WithGeoIPLookupFallbackBehavior(m.geoIPLookupFallbackBehavior)
 
+	// Load configuration from Caddyfile
 	dispenser := caddyfile.NewDispenser([]caddyfile.Token{})
 	err = m.configLoader.UnmarshalCaddyfile(dispenser, m)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Load IP blacklist
 	m.ipBlacklist = make(map[string]struct{}) // Changed to map[string]struct{}
 	if m.IPBlacklistFile != "" {
 		err = m.blacklistLoader.LoadIPBlacklistFromFile(m.IPBlacklistFile, m.ipBlacklist)
@@ -290,6 +308,8 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			return fmt.Errorf("failed to load IP blacklist: %w", err)
 		}
 	}
+
+	// Load DNS blacklist
 	m.dnsBlacklist = make(map[string]struct{}) // Changed to map[string]struct{}
 	if m.DNSBlacklistFile != "" {
 		err = m.blacklistLoader.LoadDNSBlacklistFromFile(m.DNSBlacklistFile, m.dnsBlacklist)
@@ -298,6 +318,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		}
 	}
 
+	// Load WAF rules
 	if err := m.loadRules(m.RuleFiles); err != nil {
 		return fmt.Errorf("failed to load rules: %w", err)
 	}

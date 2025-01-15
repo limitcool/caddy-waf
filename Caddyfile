@@ -34,8 +34,10 @@
             # Tor blocking configuration
             tor {
                 enabled true
-                tor_ip_blacklist_file tor_blacklist.txt  # Updated field name
+                tor_ip_blacklist_file tor_ip_blacklist.txt
                 update_interval 24h
+                retry_on_failure true
+                retry_interval 1h
             }
 
             rule_file rules.json

@@ -139,6 +139,8 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 		Enabled:            false,               // Default to disabled
 		TORIPBlacklistFile: "tor_blacklist.txt", // Default file
 		UpdateInterval:     "24h",               // Default interval
+		RetryOnFailure:     false,               // Default to disabled
+		RetryInterval:      "5m",                // Default retry interval
 	}
 
 	cl.logger.Debug("WAF UnmarshalCaddyfile Called", zap.String("file", d.File()), zap.Int("line", d.Line()))
@@ -249,6 +251,24 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 						}
 						m.Tor.UpdateInterval = d.Val()
 						cl.logger.Debug("Tor update interval set", zap.String("update_interval", m.Tor.UpdateInterval))
+
+					case "retry_on_failure":
+						if !d.NextArg() {
+							return d.ArgErr()
+						}
+						retryOnFailure, err := strconv.ParseBool(d.Val())
+						if err != nil {
+							return d.Errf("invalid retry_on_failure value: %v", err)
+						}
+						m.Tor.RetryOnFailure = retryOnFailure
+						cl.logger.Debug("Tor retry on failure set", zap.Bool("retry_on_failure", m.Tor.RetryOnFailure))
+
+					case "retry_interval":
+						if !d.NextArg() {
+							return d.ArgErr()
+						}
+						m.Tor.RetryInterval = d.Val()
+						cl.logger.Debug("Tor retry interval set", zap.String("retry_interval", m.Tor.RetryInterval))
 
 					default:
 						return d.Errf("unrecognized tor subdirective: %s", d.Val())
