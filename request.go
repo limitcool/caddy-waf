@@ -2,6 +2,7 @@ package caddywaf
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,7 +10,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // RequestValueExtractor struct
@@ -316,4 +320,113 @@ func (rve *RequestValueExtractor) extractJSONPath(jsonStr string, jsonPath strin
 		return "", fmt.Errorf("invalid path, value is nil '%s'", jsonPath)
 	}
 	return fmt.Sprintf("%v", current), nil // Convert value to string (if possible)
+}
+
+func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	logID := uuid.New().String()
+	ctx := context.WithValue(r.Context(), "logID", logID)
+	r = r.WithContext(ctx)
+
+	m.logRequest(zapcore.DebugLevel, "Entering ServeHTTP", zap.String("path", r.URL.Path))
+
+	state := &WAFState{
+		TotalScore:      0,
+		Blocked:         false,
+		StatusCode:      http.StatusOK,
+		ResponseWritten: false,
+	}
+
+	m.logger.Info("WAF evaluation started",
+		zap.String("log_id", logID),
+		zap.String("method", r.Method),
+		zap.String("path", r.URL.Path),
+		zap.String("source_ip", r.RemoteAddr),
+		zap.String("user_agent", r.UserAgent()),
+		zap.String("query_params", r.URL.RawQuery),
+	)
+
+	block := func(statusCode int, reason string, fields ...zap.Field) error {
+		if !state.ResponseWritten {
+			m.blockRequest(w, r, state, statusCode, append(fields, zap.String("reason", reason))...)
+			return nil
+		}
+		m.logger.Debug("Blocking action skipped, response already written", zap.String("log_id", logID), zap.String("reason", reason))
+		return nil
+	}
+
+	if m.CountryWhitelist.Enabled {
+		whitelisted, err := m.isCountryInList(r.RemoteAddr, m.CountryWhitelist.CountryList, m.CountryWhitelist.geoIP)
+		if err != nil {
+			m.logRequest(zapcore.ErrorLevel, "Failed to check whitelist", zap.String("log_id", logID), zap.Error(err))
+		} else if whitelisted {
+			m.logRequest(zapcore.InfoLevel, "Request allowed - country whitelisted", zap.String("log_id", logID))
+			return next.ServeHTTP(w, r)
+		}
+	}
+
+	if m.CountryBlock.Enabled {
+		blacklisted, err := m.isCountryInList(r.RemoteAddr, m.CountryBlock.CountryList, m.CountryBlock.geoIP)
+		if err != nil {
+			m.logRequest(zapcore.ErrorLevel, "Failed to check blacklist", zap.String("log_id", logID), zap.Error(err))
+			return block(http.StatusInternalServerError, "blacklist_check_error")
+		} else if blacklisted {
+			m.logRequest(zapcore.WarnLevel, "Request blocked - country blacklisted", zap.String("log_id", logID))
+			return block(http.StatusForbidden, "country_blacklist")
+		}
+	}
+
+	m.handlePhase(w, r, 1, state)
+	if state.Blocked {
+		w.WriteHeader(state.StatusCode)
+		return nil
+	}
+
+	m.handlePhase(w, r, 2, state)
+	if state.Blocked {
+		w.WriteHeader(state.StatusCode)
+		return nil
+	}
+
+	recorder := &responseRecorder{ResponseWriter: w, body: new(bytes.Buffer)}
+	err := next.ServeHTTP(recorder, r)
+
+	m.handlePhase(recorder, r, 3, state)
+	if state.Blocked {
+		recorder.WriteHeader(state.StatusCode)
+		return nil
+	}
+
+	if recorder.body != nil {
+		body := recorder.body.String()
+		m.logger.Debug("Response body captured", zap.String("body", body))
+
+		for _, rule := range m.Rules[4] {
+			if rule.regex.MatchString(body) {
+				m.processRuleMatch(recorder, r, &rule, body, state)
+				if state.Blocked {
+					recorder.WriteHeader(state.StatusCode)
+					return nil
+				}
+			}
+		}
+
+		if !state.ResponseWritten {
+			_, writeErr := w.Write(recorder.body.Bytes())
+			if writeErr != nil {
+				m.logger.Error("Failed to write response body", zap.Error(writeErr))
+			}
+		}
+	}
+
+	if m.MetricsEndpoint != "" && r.URL.Path == m.MetricsEndpoint {
+		return m.handleMetricsRequest(w, r)
+	}
+
+	m.logger.Info("WAF evaluation complete",
+		zap.String("log_id", logID),
+		zap.Int("total_score", state.TotalScore),
+		zap.Bool("blocked", state.Blocked),
+	)
+
+	return err
 }
