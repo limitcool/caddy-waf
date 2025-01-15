@@ -43,7 +43,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 			switch directive {
 			case "metrics_endpoint":
 				if !d.NextArg() {
-					return fmt.Errorf("File: %s, Line: %d: missing value for metrics_endpoint", d.File(), d.Line())
+					return fmt.Errorf("file: %s, line: %d: missing value for metrics_endpoint", d.File(), d.Line())
 				}
 				m.MetricsEndpoint = d.Val()
 				cl.logger.Debug("Metrics endpoint set from Caddyfile",
@@ -53,7 +53,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 				)
 			case "log_path":
 				if !d.NextArg() {
-					return fmt.Errorf("File: %s, Line: %d: missing value for log_path", d.File(), d.Line())
+					return fmt.Errorf("file: %s, line: %d: missing value for log_path", d.File(), d.Line())
 				}
 				m.LogFilePath = d.Val()
 				cl.logger.Debug("Log path set from Caddyfile",
@@ -156,7 +156,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 				cl.logger.Debug("Redact sensitive data enabled", zap.String("file", d.File()), zap.Int("line", d.Line()))
 			default:
 				cl.logger.Warn("WAF Unrecognized SubDirective", zap.String("directive", directive), zap.String("file", d.File()), zap.Int("line", d.Line()))
-				return fmt.Errorf("File: %s, Line: %d: unrecognized subdirective: %s", d.File(), d.Line(), d.Val())
+				return fmt.Errorf("file: %s, line: %d: unrecognized subdirective: %s", d.File(), d.Line(), d.Val())
 			}
 		}
 	}
@@ -167,7 +167,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 }
 func (cl *ConfigLoader) parseRuleFile(d *caddyfile.Dispenser, m *Middleware) error {
 	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing path for rule_file", d.File(), d.Line())
+		return fmt.Errorf("file: %s, line: %d: missing path for rule_file", d.File(), d.Line())
 	}
 	ruleFile := d.Val()
 	m.RuleFiles = append(m.RuleFiles, ruleFile)
@@ -189,11 +189,11 @@ func (cl *ConfigLoader) parseCustomResponse(d *caddyfile.Dispenser, m *Middlewar
 	}
 
 	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing status code for custom_response", d.File(), d.Line())
+		return fmt.Errorf("file: %s, line: %d: missing status code for custom_response", d.File(), d.Line())
 	}
 	statusCode, err := strconv.Atoi(d.Val())
 	if err != nil {
-		return fmt.Errorf("File: %s, Line: %d: invalid status code for custom_response: %v", d.File(), d.Line(), err)
+		return fmt.Errorf("file: %s, line: %d: invalid status code for custom_response: %v", d.File(), d.Line(), err)
 	}
 
 	if m.CustomResponses[statusCode].Headers == nil {
@@ -204,7 +204,7 @@ func (cl *ConfigLoader) parseCustomResponse(d *caddyfile.Dispenser, m *Middlewar
 	}
 
 	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing content_type or file path for custom_response", d.File(), d.Line())
+		return fmt.Errorf("file: %s, line: %d: missing content_type or file path for custom_response", d.File(), d.Line())
 	}
 	contentTypeOrFile := d.Val()
 
@@ -212,7 +212,7 @@ func (cl *ConfigLoader) parseCustomResponse(d *caddyfile.Dispenser, m *Middlewar
 		filePath := d.Val()
 		content, err := os.ReadFile(filePath)
 		if err != nil {
-			return fmt.Errorf("File: %s, Line: %d: could not read custom response file '%s': %v", d.File(), d.Line(), filePath, err)
+			return fmt.Errorf("file: %s, line: %d: could not read custom response file '%s': %v", d.File(), d.Line(), filePath, err)
 		}
 		m.CustomResponses[statusCode] = CustomBlockResponse{
 			StatusCode: statusCode,
@@ -231,7 +231,7 @@ func (cl *ConfigLoader) parseCustomResponse(d *caddyfile.Dispenser, m *Middlewar
 	} else {
 		remaining := d.RemainingArgs()
 		if len(remaining) == 0 {
-			return fmt.Errorf("File: %s, Line: %d: missing custom response body", d.File(), d.Line())
+			return fmt.Errorf("file: %s, line: %d: missing custom response body", d.File(), d.Line())
 		}
 		body := strings.Join(remaining, " ")
 		m.CustomResponses[statusCode] = CustomBlockResponse{
@@ -260,7 +260,7 @@ func (cl *ConfigLoader) parseCountryBlock(d *caddyfile.Dispenser, m *Middleware,
 	target.Enabled = true
 
 	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing GeoIP DB path", d.File(), d.Line())
+		return fmt.Errorf("file: %s, line: %d: missing GeoIP DB path", d.File(), d.Line())
 	}
 	target.GeoIPDBPath = d.Val()
 	target.CountryList = []string{}
@@ -281,7 +281,7 @@ func (cl *ConfigLoader) parseCountryBlock(d *caddyfile.Dispenser, m *Middleware,
 
 func (cl *ConfigLoader) parseLogSeverity(d *caddyfile.Dispenser, m *Middleware) error {
 	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing value for log_severity", d.File(), d.Line())
+		return fmt.Errorf("file: %s, line: %d: missing value for log_severity", d.File(), d.Line())
 	}
 	m.LogSeverity = d.Val()
 	cl.logger.Debug("Log severity set",
@@ -293,7 +293,7 @@ func (cl *ConfigLoader) parseLogSeverity(d *caddyfile.Dispenser, m *Middleware) 
 
 func (cl *ConfigLoader) parseBlacklistFile(d *caddyfile.Dispenser, m *Middleware, isIP bool) error {
 	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing blacklist file path", d.File(), d.Line())
+		return fmt.Errorf("file: %s, line: %d: missing blacklist file path", d.File(), d.Line())
 	}
 	if isIP {
 		m.IPBlacklistFile = d.Val()
@@ -306,11 +306,11 @@ func (cl *ConfigLoader) parseBlacklistFile(d *caddyfile.Dispenser, m *Middleware
 
 func (cl *ConfigLoader) parseAnomalyThreshold(d *caddyfile.Dispenser, m *Middleware) error {
 	if !d.NextArg() {
-		return fmt.Errorf("File: %s, Line: %d: missing threshold value", d.File(), d.Line())
+		return fmt.Errorf("file: %s, line: %d: missing threshold value", d.File(), d.Line())
 	}
 	threshold, err := strconv.Atoi(d.Val())
 	if err != nil {
-		return fmt.Errorf("File: %s, Line: %d: invalid threshold: %v", d.File(), d.Line(), err)
+		return fmt.Errorf("file: %s, line: %d: invalid threshold: %v", d.File(), d.Line(), err)
 	}
 	m.AnomalyThreshold = threshold
 	cl.logger.Debug("Anomaly threshold set", zap.Int("threshold", threshold))
