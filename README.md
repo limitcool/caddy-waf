@@ -10,6 +10,7 @@ A robust and flexible **Web Application Firewall (WAF)** middleware for the Cadd
 
 *   **Rule-Based Filtering:** Regex-based rules to inspect URLs, arguments, body, headers, and cookies.
 *   **IP/DNS Blacklisting:** Block traffic using IP or domain blacklists, including CIDR ranges.
+*   **TOR Blacklisting:** Block traffic from TOR network.
 *   **Country Blocking/Whitelisting:** Restrict or allow access by client location using GeoIP2 databases.
 *   **Rate Limiting:** Prevent abuse with request limits per IP or specific paths.
 *   **Anomaly Scoring:** Detect threats by scoring rule matches and blocking when thresholds are exceeded.
