@@ -420,12 +420,37 @@ func (cl *ConfigLoader) parseBlacklistFile(d *caddyfile.Dispenser, m *Middleware
 	if !d.NextArg() {
 		return fmt.Errorf("file: %s, line: %d: missing blacklist file path", d.File(), d.Line())
 	}
-	if isIP {
-		m.IPBlacklistFile = d.Val()
-	} else {
-		m.DNSBlacklistFile = d.Val()
+
+	filePath := d.Val()
+
+	// Check if the file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		// Create an empty file if it doesn't exist
+		file, err := os.Create(filePath)
+		if err != nil {
+			return fmt.Errorf("file: %s, line: %d: could not create blacklist file '%s': %v", d.File(), d.Line(), filePath, err)
+		}
+		file.Close()
+
+		cl.logger.Warn("Blacklist file does not exist, created an empty file",
+			zap.String("file", filePath),
+			zap.Bool("is_ip", isIP),
+		)
+	} else if err != nil {
+		return fmt.Errorf("file: %s, line: %d: could not access blacklist file '%s': %v", d.File(), d.Line(), filePath, err)
 	}
-	cl.logger.Info("Blacklist file loaded", zap.String("file", d.Val()), zap.Bool("is_ip", isIP))
+
+	// Assign the file path to the appropriate field
+	if isIP {
+		m.IPBlacklistFile = filePath
+	} else {
+		m.DNSBlacklistFile = filePath
+	}
+
+	cl.logger.Info("Blacklist file loaded",
+		zap.String("file", filePath),
+		zap.Bool("is_ip", isIP),
+	)
 	return nil
 }
 

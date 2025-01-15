@@ -423,6 +423,14 @@ func (m *Middleware) logVersion() {
 
 func (m *Middleware) startFileWatcher(filePaths []string) {
 	for _, path := range filePaths {
+		// Skip watching if the file doesn't exist
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			m.logger.Warn("Skipping file watch, file does not exist",
+				zap.String("file", path),
+			)
+			continue
+		}
+
 		go func(file string) {
 			watcher, err := fsnotify.NewWatcher()
 			if err != nil {
