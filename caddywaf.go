@@ -106,14 +106,12 @@ type Middleware struct {
 	RateLimit   RateLimit
 	rateLimiter *RateLimiter
 
-	totalRequests         int64
-	blockedRequests       int64
-	allowedRequests       int64
-	ruleHitsByPhase       map[int]int64
-	geoIPStats            map[string]int64 // Key: country code, Value: count
-	muMetrics             sync.RWMutex     // Mutex for metrics synchronization
-	blockedByIPBlacklist  int64            // New metric
-	blockedByDNSBlacklist int64            // New metric
+	totalRequests   int64
+	blockedRequests int64
+	allowedRequests int64
+	ruleHitsByPhase map[int]int64
+	geoIPStats      map[string]int64 // Key: country code, Value: count
+	muMetrics       sync.RWMutex     // Mutex for metrics synchronization
 
 	Tor TorConfig `json:"tor,omitempty"`
 }
@@ -224,19 +222,16 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
 
-	// Initialize ruleHitsByPhase
-	m.ruleHitsByPhase = make(map[int]int64)
+	// Provision Tor blocking
+	if err := m.Tor.Provision(ctx); err != nil {
+		return err
+	}
 
 	// Initialize rule hits map
 	m.ruleHits = sync.Map{}
 
 	// Log the current version of the middleware
 	m.logVersion()
-
-	// Provision Tor blocking
-	if err := m.Tor.Provision(ctx); err != nil {
-		return err
-	}
 
 	// Start file watchers for rule files and blacklist files
 	m.startFileWatcher(m.RuleFiles)
@@ -643,14 +638,12 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 
 	// Collect all metrics
 	metrics := map[string]interface{}{
-		"total_requests":           m.totalRequests,
-		"blocked_requests":         m.blockedRequests,
-		"blocked_by_ip_blacklist":  m.blockedByIPBlacklist,  // New metric
-		"blocked_by_dns_blacklist": m.blockedByDNSBlacklist, // New metric
-		"allowed_requests":         m.allowedRequests,
-		"rule_hits":                ruleHits,
-		"rule_hits_by_phase":       m.ruleHitsByPhase,
-		"geoip_stats":              m.geoIPStats,
+		"total_requests":     m.totalRequests,
+		"blocked_requests":   m.blockedRequests,
+		"allowed_requests":   m.allowedRequests,
+		"rule_hits":          ruleHits,
+		"rule_hits_by_phase": m.ruleHitsByPhase,
+		"geoip_stats":        m.geoIPStats,
 	}
 
 	jsonMetrics, err := json.Marshal(metrics)
@@ -690,15 +683,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		zap.String("user_agent", r.UserAgent()),
 	)
 
-	// Ensure ruleHitsByPhase is initialized for the current phase
-	m.muMetrics.Lock()
-	if _, exists := m.ruleHitsByPhase[phase]; !exists {
-		m.ruleHitsByPhase[phase] = 0
-	}
-	m.muMetrics.Unlock()
-
-	// Existing phase evaluation logic...
-
 	if phase == 1 && m.CountryBlock.Enabled {
 		m.logger.Debug("Starting country blocking phase")
 		blocked, err := m.isCountryInList(r.RemoteAddr, m.CountryBlock.CountryList, m.CountryBlock.geoIP)
@@ -707,21 +691,13 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				r,
 				zap.Error(err),
 			)
-<<<<<<< HEAD
-			m.blockRequest(w, r, state, http.StatusForbidden, "internal_error",
-=======
 			m.blockRequest(w, r, state, http.StatusForbidden, "internal_error", "country_block_rule", r.RemoteAddr,
->>>>>>> 6eb323f (fix: update blockRequest calls to include reason, ruleID, and matchedValue)
 				zap.String("message", "Request blocked due to internal error"),
 			)
 			m.logger.Debug("Country blocking phase completed - blocked due to error")
 			return
 		} else if blocked {
-<<<<<<< HEAD
-			m.blockRequest(w, r, state, http.StatusForbidden, "country_block",
-=======
 			m.blockRequest(w, r, state, http.StatusForbidden, "country_block", "country_block_rule", r.RemoteAddr,
->>>>>>> 6eb323f (fix: update blockRequest calls to include reason, ruleID, and matchedValue)
 				zap.String("message", "Request blocked by country"),
 			)
 			m.logger.Debug("Country blocking phase completed - blocked by country")
@@ -735,11 +711,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		ip := extractIP(r.RemoteAddr, m.logger) // Pass the logger here
 		path := r.URL.Path                      // Get the request path
 		if m.rateLimiter.isRateLimited(ip, path) {
-<<<<<<< HEAD
-			m.blockRequest(w, r, state, http.StatusTooManyRequests, "rate_limit",
-=======
 			m.blockRequest(w, r, state, http.StatusTooManyRequests, "rate_limit", "rate_limit_rule", r.RemoteAddr,
->>>>>>> 6eb323f (fix: update blockRequest calls to include reason, ruleID, and matchedValue)
 				zap.String("message", "Request blocked by rate limit"),
 			)
 			m.logger.Debug("Rate limiting phase completed - blocked by rate limit")
@@ -750,11 +722,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 
 	if phase == 1 && m.isIPBlacklisted(r.RemoteAddr) {
 		m.logger.Debug("Starting IP blacklist phase")
-<<<<<<< HEAD
-		m.blockRequest(w, r, state, http.StatusForbidden, "ip_blacklist",
-=======
 		m.blockRequest(w, r, state, http.StatusForbidden, "ip_blacklist", "ip_blacklist_rule", r.RemoteAddr,
->>>>>>> 6eb323f (fix: update blockRequest calls to include reason, ruleID, and matchedValue)
 			zap.String("message", "Request blocked by IP blacklist"),
 		)
 		m.logger.Debug("IP blacklist phase completed - blocked")
@@ -763,11 +731,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 
 	if phase == 1 && m.isDNSBlacklisted(r.Host) {
 		m.logger.Debug("Starting DNS blacklist phase")
-<<<<<<< HEAD
-		m.blockRequest(w, r, state, http.StatusForbidden, "dns_blacklist",
-=======
 		m.blockRequest(w, r, state, http.StatusForbidden, "dns_blacklist", "dns_blacklist_rule", r.Host,
->>>>>>> 6eb323f (fix: update blockRequest calls to include reason, ruleID, and matchedValue)
 			zap.String("message", "Request blocked by DNS blacklist"),
 			zap.String("host", r.Host),
 		)
@@ -826,12 +790,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 					zap.String("target", target),
 					zap.String("value", value),
 				)
-
-				// Increment the rule hit count for this phase
-				m.muMetrics.Lock()
-				m.ruleHitsByPhase[phase]++
-				m.muMetrics.Unlock()
-
 				m.processRuleMatch(w, r, &rule, value, state)
 				if state.Blocked || state.ResponseWritten {
 					m.logger.Debug("Rule evaluation completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
@@ -860,12 +818,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 					m.logger.Debug("Checking response header", zap.String("rule_id", rule.ID), zap.String("target", target), zap.String("value", value))
 					if value != "" && rule.regex.MatchString(value) {
 						m.logger.Debug("Rule matched on response header", zap.String("rule_id", rule.ID), zap.String("target", target), zap.String("value", value))
-
-						// Increment the rule hit count for this phase
-						m.muMetrics.Lock()
-						m.ruleHitsByPhase[phase]++
-						m.muMetrics.Unlock()
-
 						m.processRuleMatch(recorder, r, &rule, value, state)
 						if state.Blocked || state.ResponseWritten {
 							m.logger.Debug("Response headers phase completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
@@ -892,12 +844,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 						m.logger.Debug("Checking rule against response body", zap.String("rule_id", rule.ID))
 						if rule.regex.MatchString(body) {
 							m.logger.Debug("Rule matched on response body", zap.String("rule_id", rule.ID))
-
-							// Increment the rule hit count for this phase
-							m.muMetrics.Lock()
-							m.ruleHitsByPhase[phase]++
-							m.muMetrics.Unlock()
-
 							m.processRuleMatch(recorder, r, &rule, body, state)
 							if state.Blocked || state.ResponseWritten {
 								m.logger.Debug("Response body phase completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
