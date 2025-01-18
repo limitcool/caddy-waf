@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -80,7 +81,7 @@ type Middleware struct {
 	CountryBlock     CountryAccessFilter `json:"country_block"`
 	CountryWhitelist CountryAccessFilter `json:"country_whitelist"`
 	Rules            map[int][]Rule      `json:"-"`
-	ipBlacklist      map[string]struct{} `json:"-"` // Changed to map[string]struct{}
+	ipBlacklist      *CIDRTrie           `json:"-"` // Changed to CIDRTrie
 	dnsBlacklist     map[string]struct{} `json:"-"` // Changed to map[string]struct{}
 	logger           *zap.Logger
 	LogSeverity      string `json:"log_severity,omitempty"`
@@ -130,6 +131,82 @@ type ContextKeyRule string
 // Define custom types for rule hits
 type RuleID string
 type HitCount int
+
+// CIDRTrie is a trie structure for efficiently storing and looking up CIDR ranges.
+type CIDRTrie struct {
+	mu   sync.RWMutex
+	root *cidrTrieNode
+}
+
+type cidrTrieNode struct {
+	children map[byte]*cidrTrieNode
+	isLeaf   bool
+}
+
+// NewCIDRTrie creates a new CIDRTrie.
+func NewCIDRTrie() *CIDRTrie {
+	return &CIDRTrie{
+		root: &cidrTrieNode{
+			children: make(map[byte]*cidrTrieNode),
+		},
+	}
+}
+
+// Insert adds a CIDR range to the trie.
+func (t *CIDRTrie) Insert(cidr string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return err
+	}
+
+	ip := ipNet.IP.To4()
+	if ip == nil {
+		return fmt.Errorf("only IPv4 CIDR ranges are supported")
+	}
+
+	mask, _ := ipNet.Mask.Size()
+	node := t.root
+
+	for i := 0; i < mask; i++ {
+		bit := (ip[i/8] >> (7 - uint(i%8))) & 1
+		if node.children[bit] == nil {
+			node.children[bit] = &cidrTrieNode{
+				children: make(map[byte]*cidrTrieNode),
+			}
+		}
+		node = node.children[bit]
+	}
+
+	node.isLeaf = true
+	return nil
+}
+
+// Contains checks if an IP address is within any CIDR range in the trie.
+func (t *CIDRTrie) Contains(ipStr string) bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	ip := net.ParseIP(ipStr).To4()
+	if ip == nil {
+		return false
+	}
+
+	node := t.root
+	for i := 0; i < 32; i++ {
+		bit := (ip[i/8] >> (7 - uint(i%8))) & 1
+		if node.children[bit] == nil {
+			return false
+		}
+		node = node.children[bit]
+		if node.isLeaf {
+			return true
+		}
+	}
+	return false
+}
 
 // ==================== Initialization and Setup ====================
 
@@ -301,9 +378,9 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Load IP blacklist
-	m.ipBlacklist = make(map[string]struct{}) // Changed to map[string]struct{}
+	m.ipBlacklist = NewCIDRTrie() // Initialize as CIDRTrie
 	if m.IPBlacklistFile != "" {
-		err = m.blacklistLoader.LoadIPBlacklistFromFile(m.IPBlacklistFile, m.ipBlacklist)
+		err = m.loadIPBlacklistIntoMap(m.IPBlacklistFile, m.ipBlacklist)
 		if err != nil {
 			return fmt.Errorf("failed to load IP blacklist: %w", err)
 		}
@@ -531,7 +608,7 @@ func (m *Middleware) ReloadConfig() error {
 		return fmt.Errorf("failed to reload rules: %v", err)
 	}
 
-	newIPBlacklist := make(map[string]struct{}) // Changed to map[string]struct{}
+	newIPBlacklist := NewCIDRTrie() // Initialize as CIDRTrie
 	if m.IPBlacklistFile != "" {
 		if err := m.loadIPBlacklistIntoMap(m.IPBlacklistFile, newIPBlacklist); err != nil {
 			m.logger.Error("Failed to reload IP blacklist", zap.String("file", m.IPBlacklistFile), zap.Error(err))
@@ -584,7 +661,7 @@ func (m *Middleware) loadRulesIntoMap(rulesMap map[int][]Rule) error {
 	return nil
 }
 
-func (m *Middleware) loadIPBlacklistIntoMap(path string, blacklistMap map[string]struct{}) error {
+func (m *Middleware) loadIPBlacklistIntoMap(path string, blacklistMap *CIDRTrie) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read IP blacklist file: %v", err)
@@ -596,7 +673,9 @@ func (m *Middleware) loadIPBlacklistIntoMap(path string, blacklistMap map[string
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		blacklistMap[line] = struct{}{} // Changed to struct{}{}
+		if err := blacklistMap.Insert(line); err != nil {
+			m.logger.Warn("Failed to insert CIDR into trie", zap.String("cidr", line), zap.Error(err))
+		}
 	}
 	return nil
 }

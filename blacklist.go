@@ -53,40 +53,8 @@ func (bl *BlacklistLoader) LoadDNSBlacklistFromFile(path string, dnsBlacklist ma
 	return nil
 }
 
-// isIPBlacklisted checks if the given IP address is in the blacklist.
-func (m *Middleware) isIPBlacklisted(remoteAddr string) bool {
-	ipStr := extractIP(remoteAddr, m.logger) // Pass the logger here
-	if ipStr == "" {
-		return false
-	}
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	// Check if the IP is directly blacklisted
-	if _, exists := m.ipBlacklist[ipStr]; exists {
-		return true
-	}
-
-	// Check if the IP falls within any CIDR range in the blacklist
-	ip := net.ParseIP(ipStr)
-	if ip == nil {
-		return false
-	}
-
-	for blacklistEntry := range m.ipBlacklist {
-		if strings.Contains(blacklistEntry, "/") {
-			_, ipNet, err := net.ParseCIDR(blacklistEntry)
-			if err != nil {
-				continue
-			}
-			if ipNet.Contains(ip) {
-				return true
-			}
-		}
-	}
-
-	return false
+func (m *Middleware) isIPBlacklisted(ip string) bool {
+	return m.ipBlacklist.Contains(ip)
 }
 
 // isCountryInList checks if the IP's country is in the provided list using the GeoIP database.
