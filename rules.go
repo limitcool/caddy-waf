@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -139,6 +140,7 @@ func validateRule(rule *Rule) error {
 	return nil
 }
 
+// loadRules updates the RuleCache when rules are loaded and sorts rules by priority.
 func (m *Middleware) loadRules(paths []string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -166,6 +168,11 @@ func (m *Middleware) loadRules(paths []string) error {
 			continue
 		}
 
+		// Sort rules by priority (higher priority first)
+		sort.Slice(rules, func(i, j int) bool {
+			return rules[i].Priority > rules[j].Priority
+		})
+
 		var invalidRulesInFile []string
 		for i, rule := range rules {
 			if err := validateRule(&rule); err != nil {
@@ -179,13 +186,19 @@ func (m *Middleware) loadRules(paths []string) error {
 			}
 			ruleIDs[rule.ID] = true
 
-			regex, err := regexp.Compile(rule.Pattern)
-			if err != nil {
-				m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.Error(err))
-				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
-				continue
+			// Check RuleCache first
+			if regex, exists := m.ruleCache.Get(rule.ID); exists {
+				rule.regex = regex
+			} else {
+				regex, err := regexp.Compile(rule.Pattern)
+				if err != nil {
+					m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.Error(err))
+					invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
+					continue
+				}
+				rule.regex = regex
+				m.ruleCache.Set(rule.ID, regex) // Cache the compiled regex
 			}
-			rule.regex = regex
 
 			if _, ok := m.Rules[rule.Phase]; !ok {
 				m.Rules[rule.Phase] = []Rule{}

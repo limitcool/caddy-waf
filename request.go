@@ -390,6 +390,7 @@ func (rve *RequestValueExtractor) extractJSONPath(jsonStr string, jsonPath strin
 }
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	// Generate a unique log ID for the request
 	logID := uuid.New().String()
 
 	// Log the request with common fields
@@ -404,6 +405,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	m.totalRequests++
 	m.muMetrics.Unlock()
 
+	// Initialize WAF state for the request
 	state := &WAFState{
 		TotalScore:      0,
 		Blocked:         false,
@@ -411,7 +413,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		ResponseWritten: false,
 	}
 
-	// Log the request
+	// Log the request details
 	m.logger.Info("WAF evaluation started",
 		zap.String("log_id", logID),
 		zap.String("method", r.Method),
@@ -421,7 +423,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		zap.String("query_params", r.URL.RawQuery),
 	)
 
-	// Handle phases and blocking logic
+	// Handle Phase 1: Pre-request evaluation
 	m.handlePhase(w, r, 1, state)
 	if state.Blocked {
 		m.muMetrics.Lock()
@@ -431,6 +433,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		return nil
 	}
 
+	// Handle Phase 2: Request evaluation
 	m.handlePhase(w, r, 2, state)
 	if state.Blocked {
 		m.muMetrics.Lock()
@@ -440,9 +443,11 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		return nil
 	}
 
+	// Capture the response using a response recorder
 	recorder := &responseRecorder{ResponseWriter: w, body: new(bytes.Buffer)}
 	err := next.ServeHTTP(recorder, r)
 
+	// Handle Phase 3: Response headers evaluation
 	m.handlePhase(recorder, r, 3, state)
 	if state.Blocked {
 		m.muMetrics.Lock()
@@ -452,6 +457,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		return nil
 	}
 
+	// Handle Phase 4: Response body evaluation
 	if recorder.body != nil {
 		body := recorder.body.String()
 		m.logger.Debug("Response body captured", zap.String("body", body))
@@ -469,6 +475,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 			}
 		}
 
+		// Write the response body if no blocking occurred
 		if !state.ResponseWritten {
 			_, writeErr := w.Write(recorder.body.Bytes())
 			if writeErr != nil {
@@ -484,10 +491,12 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		m.muMetrics.Unlock()
 	}
 
+	// Handle metrics endpoint requests
 	if m.MetricsEndpoint != "" && r.URL.Path == m.MetricsEndpoint {
 		return m.handleMetricsRequest(w, r)
 	}
 
+	// Log the completion of WAF evaluation
 	m.logger.Info("WAF evaluation complete",
 		zap.String("log_id", logID),
 		zap.Int("total_score", state.TotalScore),

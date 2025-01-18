@@ -35,6 +35,34 @@ var (
 
 // ==================== Struct Definitions ====================
 
+// RuleCache caches compiled regex patterns for rules.
+type RuleCache struct {
+	mu    sync.RWMutex
+	rules map[string]*regexp.Regexp
+}
+
+// NewRuleCache creates a new RuleCache.
+func NewRuleCache() *RuleCache {
+	return &RuleCache{
+		rules: make(map[string]*regexp.Regexp),
+	}
+}
+
+// Get retrieves a compiled regex pattern from the cache.
+func (rc *RuleCache) Get(ruleID string) (*regexp.Regexp, bool) {
+	rc.mu.RLock()
+	defer rc.mu.RUnlock()
+	regex, exists := rc.rules[ruleID]
+	return regex, exists
+}
+
+// Set stores a compiled regex pattern in the cache.
+func (rc *RuleCache) Set(ruleID string, regex *regexp.Regexp) {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	rc.rules[ruleID] = regex
+}
+
 // CountryAccessFilter struct
 type CountryAccessFilter struct {
 	Enabled     bool              `json:"enabled"`
@@ -61,6 +89,8 @@ type Rule struct {
 	Action      string   `json:"mode"` // Determines the action (block/log)
 	Description string   `json:"description"`
 	regex       *regexp.Regexp
+
+	Priority int // New field for rule priority
 }
 
 // CustomBlockResponse struct
@@ -118,6 +148,9 @@ type Middleware struct {
 
 	logChan chan LogEntry // Buffered channel for log entries
 	logDone chan struct{} // Signal to stop the logging worker
+
+	ruleCache *RuleCache // New field for RuleCache
+
 }
 
 // WAFState struct
@@ -243,6 +276,7 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 
 func (m *Middleware) Provision(ctx caddy.Context) error {
 	m.logger = ctx.Logger(m)
+	m.ruleCache = NewRuleCache() // Initialize RuleCache
 
 	// Set default log severity if not provided
 	if m.LogSeverity == "" {
