@@ -8,17 +8,7 @@
         "action": "log",
         "score": 0,
         "description": "Allow and log traffic from legitimate browsers and search engine crawlers."
-    },
-    {
-        "id": "allow-legit-tools",
-        "phase": 1,
-        "pattern": "(?i)(wget|curl|libwww-perl|python-requests|Go-http-client|Java|HttpClient|axios|PostmanRuntime|Paw|Insomnia|Fiddler|Charles)",
-        "targets": ["HEADERS:User-Agent"],
-        "severity": "MEDIUM",
-        "action": "log",
-        "score": 2,
-        "description": "Log traffic from legitimate tools like wget, curl, and API testing tools."
-    },
+    },  
     {
         "id": "block-scanners",
         "phase": 1,
@@ -28,103 +18,7 @@
         "action": "block",
         "score": 10,
         "description": "Block traffic from known vulnerability scanners and penetration testing tools."
-    },
-    {
-        "id": "block-bad-bots",
-        "phase": 1,
-        "pattern": "(?i)(ahrefsbot|semrushbot|mj12bot|dotbot|petalbot|blexbot|rogerbot|exabot|megaindex|linkdexbot|spbot|sistrix|xoviobot|yandeximages|baiduspider|yandexbot|sogou|exabot|facebot|facebookexternalhit|python-requests|Go-http-client|Java|HttpClient|axios|PostmanRuntime|masscan|zgrab|ja3|ja3s|badbot|evilbot|maliciousbot|spammerbot|scrapy|phantomjs|headlesschrome|headlessfirefox)",
-        "targets": ["HEADERS:User-Agent"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block traffic from known bad bots and automated scripts."
-    },
-    {
-        "id": "block-suspicious-user-agents",
-        "phase": 1,
-        "pattern": "(?i)(bot|crawl|spider|scan|hack|exploit|inject|sql|xss|bypass|brute|force|attack|malware|phishing|spyware|adware|ransomware|trojan|virus|worm|keylogger|backdoor|rootkit|shellcode|payload|exploit|vulnerability|scanner|harvest|scrape|collect|grab|fetch|extract|parse|analyze|monitor|track|log|record|report|submit|send|receive|execute|run|launch|start|stop|kill|terminate|restart|reboot|shutdown|suspend|resume|pause|wait|sleep|delay|timeout|retry|repeat|loop|cycle|iterate|recur|recurse|recurring|recurrent|recursive|recursion)",
-        "targets": ["HEADERS:User-Agent"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block traffic with suspicious or malicious User-Agent strings."
-    },
-    {
-        "id": "block-no-user-agent",
-        "phase": 1,
-        "pattern": "^$",
-        "targets": ["HEADERS:User-Agent"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block traffic with missing or empty User-Agent headers."
-    },
-    {
-        "id": "block-headless-browsers",
-        "phase": 1,
-        "pattern": "(?i)(headlesschrome|headlessfirefox|phantomjs|puppeteer|selenium|playwright|electron|chrome-lighthouse)",
-        "targets": ["HEADERS:User-Agent"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block traffic from headless browsers and automation frameworks."
-    },
-    {
-        "id": "block-suspicious-tools",
-        "phase": 1,
-        "pattern": "(?i)(sqlmap|hydra|metasploit|nmap|nikto|wpscan|dirbuster|burpsuite|owasp zap|netsparker|appscan|arachni|skipfish|gobuster|wfuzz|masscan|zgrab|ja3|ja3s)",
-        "targets": ["HEADERS:User-Agent"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 10,
-        "description": "Block traffic from suspicious tools commonly used for attacks."
-    },
-    {
-        "id": "block-unknown-bots",
-        "phase": 1,
-        "pattern": "(?i)(bot|crawler|spider|scanner|harvester|fetcher|grabber|collector|extractor|parser|analyzer|monitor|tracker|logger|recorder|reporter|submitter|sender|receiver|executor|runner|launcher|starter|stopper|killer|terminator|restarter|rebooter|shutdown|suspender|resumer|pauser|waiter|sleeper|delayer|timeouter|retrier|repeater|looper|cycler|iterator|recurrer|recurser|recurring|recurrent|recursive|recursion)",
-        "targets": ["HEADERS:User-Agent"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block traffic from unknown or generic bots with suspicious behavior."
-    },
-    {
-        "id": "block-evasion-attempts",
-        "phase": 1,
-        "pattern": "(?i)(obfuscate|encode|decode|encrypt|decrypt|base64|hex|urlencode|urldecode|rot13|xor|aes|des|rc4|md5|sha1|sha256|sha512|hmac|jwt|token|bearer|oauth|api_key|secret|password|credential|auth|authentication|session|cookie|csrf|xss|sql|inject|payload|exploit|vulnerability|bypass|brute|force|attack|malware|phishing|spyware|adware|ransomware|trojan|virus|worm|keylogger|backdoor|rootkit|shellcode|payload|exploit|vulnerability|scanner|harvest|scrape|collect|grab|fetch|extract|parse|analyze|monitor|track|log|record|report|submit|send|receive|execute|run|launch|start|stop|kill|terminate|restart|reboot|shutdown|suspend|resume|pause|wait|sleep|delay|timeout|retry|repeat|loop|cycle|iterate|recur|recurse|recurring|recurrent|recursive|recursion)",
-        "targets": ["HEADERS:User-Agent"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 10,
-        "description": "Block traffic with User-Agent strings indicating evasion or attack attempts."
-    },
-    {
-        "id": "932130",
-        "phase": 2,
-        "pattern": "@rx \\$(?:\\((?:.*|\\(.*\\))\\)|\\{.*\\}|\\[.*\\])|[<>]\\(.*\\)|/[0-9A-Z_a-z]*\\[!?.+\\]",
-        "targets": [
-            "ARGS",
-            "REQUEST_COOKIES"
-        ],
-        "severity": "LOW",
-        "action": "log",
-        "score": 1,
-        "description": "No description provided."
-    },
-    {
-        "id": "932200",
-        "phase": 2,
-        "pattern": "@rx ['\\*\\?\\x5c`][^\\n/]+/|/[^/]+?['\\*\\?\\x5c`]|\\$[!#\\$\\(\\*\\-0-9\\?-\\[_a-\\{]",
-        "targets": [
-            "ARGS",
-            "REQUEST_COOKIES"
-        ],
-        "severity": "LOW",
-        "action": "log",
-        "score": 1,
-        "description": "No description provided."
-    },
+    },  
     {
         "id": "942440",
         "phase": 2,
@@ -137,7 +31,7 @@
         "action": "log",
         "score": 1,
         "description": "No description provided."
-    },
+    },  
     {
         "id": "sql-injection",
         "phase": 2,
@@ -151,7 +45,7 @@
         "action": "block",
         "score": 7,
         "description": "Block SQL injection attempts in request arguments, body, and headers."
-    },
+    },  
     {
         "id": "xss",
         "phase": 2,
@@ -165,7 +59,7 @@
         "action": "block",
         "score": 6,
         "description": "Block XSS attempts using HTML tags, event handlers, javascript: protocol."
-    },
+    },  
     {
         "id": "path-traversal",
         "phase": 2,
@@ -179,7 +73,7 @@
         "action": "block",
         "score": 9,
         "description": "Block path traversal attempts and direct access to sensitive files (Target: URI, ARGS, HEADERS)."
-    },
+    },  
     {
         "id": "rce-commands",
         "phase": 2,
@@ -192,34 +86,7 @@
         "action": "block",
         "score": 3,
         "description": "Block common commands used in RCE attempts."
-    },
-    {
-        "id": "rce-separators",
-        "phase": 2,
-        "pattern": "(?i)(?:`[^`]+`|\\b(?:;|\\|\\||&&|\\n|%0a|%0d)\\s*(?:rm|cat|echo|curl|wget|python|php|jsp|cmd|exec|system|passthru|shell_exec|exec|system|popen|pcntl_exec))",
-        "targets": [
-            "ARGS",
-            "HEADERS"
-        ],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 7,
-        "description": "Block command separators followed by specific commands in ARGS and headers."
-    },
-    {
-        "id": "log4j-exploit",
-        "phase": 2,
-        "pattern": "(?i)(?:\\$\\{jndi:(?:ldap|rmi|dns|iiop|corba|nds|nis|http|ldaps|rmi|nis|custom)://[^}]+\\}|\\$\\{(?:env|sys|java|lower|upper|logger|ctx|date|threadcontext|marker):[^}]+\\}|\\$\\{.*?\\:.*?\\})",
-        "targets": [
-            "ARGS",
-            "BODY",
-            "HEADERS"
-        ],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 9,
-        "description": "Block Log4j exploit attempts using JNDI and environment variables."
-    },
+    },  
     {
         "id": "header-attacks",
         "phase": 2,
@@ -231,7 +98,7 @@
         "action": "block",
         "score": 8,
         "description": "Block SQL injection, XSS, and path traversal attempts in headers."
-    },
+    },  
     {
         "id": "sensitive-files",
         "phase": 1,
@@ -243,7 +110,7 @@
         "action": "block",
         "score": 9,
         "description": "Block access to sensitive files and directories (Target: URI)."
-    },
+    },  
     {
         "id": "unusual-paths",
         "phase": 1,
@@ -255,19 +122,7 @@
         "action": "block",
         "score": 7,
         "description": "Block requests to unusual or suspicious paths (Target: URI)."
-    },
-    {
-        "id": "mass-assignment-indicators",
-        "phase": 2,
-        "pattern": "(?i)(?:.*?\\[.*?\\]=.*?){3,}",
-        "targets": [
-            "ARGS"
-        ],
-        "severity": "MEDIUM",
-        "action": "log",
-        "score": 5,
-        "description": "Log requests with numerous array-like parameter assignments."
-    },
+    },  
     {
         "id": "exposed-admin-panels-no-referer",
         "phase": 1,
@@ -279,55 +134,7 @@
         "action": "log",
         "score": 3,
         "description": "Log requests to common admin panel paths."
-    },
-    {
-        "id": "exposed-admin-panels-no-referer-condition",
-        "phase": 1,
-        "pattern": "^$",
-        "targets": [
-            "HEADERS"
-        ],
-        "severity": "LOW",
-        "action": "log",
-        "score": 3,
-        "description": "Log requests to common admin panel paths without a Referer header (needs to be used in conjunction with 'exposed-admin-panels-no-referer' with a conditional)."
-    },
-    {
-        "id": "username-enumeration-login-page",
-        "phase": 2,
-        "pattern": "(?i)(?:\\buser(?:name)?\\b.*?(?:invalid|incorrect|not\\s+found))",
-        "targets": [
-            "BODY"
-        ],
-        "severity": "LOW",
-        "action": "log",
-        "score": 2,
-        "description": "Log login responses that might indicate username enumeration vulnerabilities."
-    },
-    {
-        "id": "high-scoring-cookies",
-        "phase": 2,
-        "pattern": "your_session_cookie_name=.*?(vulnerable_pattern|suspicious_value)",
-        "targets": [
-            "COOKIES"
-        ],
-        "severity": "MEDIUM",
-        "action": "log",
-        "score": 5,
-        "description": "Log requests with specific patterns or values in important cookies (customize cookie name and pattern)."
-    },
-    {
-        "id": "suspicious-auth-headers",
-        "phase": 2,
-        "pattern": "(?i)Authorization: Basic\\s+[a-zA-Z0-9+/=]{0,}",
-        "targets": [
-            "HEADERS"
-        ],
-        "severity": "LOW",
-        "action": "log",
-        "score": 2,
-        "description": "Log requests with potentially incomplete or suspicious Basic Authentication headers."
-    },
+    },  
     {
         "id": "crlf-injection-headers",
         "phase": 2,
@@ -339,7 +146,7 @@
         "action": "log",
         "score": 5,
         "description": "Log requests with potential CRLF injection characters in headers."
-    },
+    },  
     {
         "id": "rce-command-injection-args",
         "phase": 2,
@@ -351,31 +158,7 @@
         "action": "block",
         "score": 8,
         "description": "Block potential RCE attempts via command injection in request arguments."
-    },
-    {
-        "id": "rce-file-access-headers",
-        "phase": 2,
-        "pattern": "(?i)(?:(?:cat|more|less|head|tail)\\s+[^\\s]+(?:/etc/(?:passwd|shadow)|/proc/self/environ))",
-        "targets": [
-            "HEADERS"
-        ],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 6,
-        "description": "Block attempts to access sensitive files via command-like patterns in headers."
-    },
-    {
-        "id": "sql-injection-common-keywords-body",
-        "phase": 2,
-        "pattern": "(?i)\\b(?:select\\s+.+\\s+from|insert\\s+into|update\\s+.+\\s+set|delete\\s+from|drop\\s+table|alter\\s+table|union\\s+select)\\b",
-        "targets": [
-            "BODY"
-        ],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 7,
-        "description": "Block common SQL injection keywords in request body."
-    },
+    },  
     {
         "id": "sql-injection-comment-bypass-args",
         "phase": 2,
@@ -387,19 +170,7 @@
         "action": "log",
         "score": 4,
         "description": "Log potential SQL injection comment bypass attempts in arguments."
-    },
-    {
-        "id": "log4j-jndi-args",
-        "phase": 2,
-        "pattern": "(?i)\\$\\{jndi:(ldap|rmi|dns|iiop|corba|nds|nis|http|ldaps|rmi|nis)://[^}]*\\}",
-        "targets": [
-            "ARGS"
-        ],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block Log4j JNDI injection attempts in request arguments."
-    },
+    },  
     {
         "id": "sql-injection-improved-basic",
         "phase": 2,
@@ -414,7 +185,7 @@
         "action": "block",
         "score": 8,
         "description": "Improved rule to catch basic SQL injection including quotes and boolean logic."
-    },
+    },  
     {
         "id": "xss-improved-encoding",
         "phase": 2,
@@ -428,7 +199,7 @@
         "action": "block",
         "score": 8,
         "description": "Improved XSS rule to catch encoded payloads and iframe srcdoc."
-    },
+    },  
     {
         "id": "rce-commands-expanded",
         "phase": 2,
@@ -441,20 +212,7 @@
         "action": "block",
         "score": 5,
         "description": "Expanded rule to block more RCE related commands and utilities."
-    },
-    {
-        "id": "rce-system-info-keywords",
-        "phase": 2,
-        "pattern": "(?i)(?:systeminfo|ver|uname\\s+-a|whoami)",
-        "targets": [
-            "ARGS",
-            "HEADERS"
-        ],
-        "severity": "MEDIUM",
-        "action": "block",
-        "score": 6,
-        "description": "Rule to block keywords related to system information gathering."
-    },
+    },  
     {
         "id": "header-suspicious-x-forwarded-for",
         "phase": 2,
@@ -466,7 +224,7 @@
         "action": "block",
         "score": 6,
         "description": "Block requests with potentially internal IPs in X-Forwarded-For."
-    },
+    },  
     {
         "id": "sensitive-files-expanded",
         "phase": 1,
@@ -478,7 +236,7 @@
         "action": "block",
         "score": 9,
         "description": "Expanded rule to block access to more sensitive files and account for obfuscation."
-    },
+    },  
     {
         "id": "insecure-deserialization-java",
         "phase": 2,
@@ -492,267 +250,7 @@
         "action": "block",
         "score": 9,
         "description": "Block requests containing potential Java serialized objects."
-    },
-    {
-        "id": "wordpress-xmlrpc-abuse",
-        "phase": 1,
-        "pattern": "(?i)/xmlrpc\\.php$",
-        "targets": ["URI"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 7,
-        "description": "Block abuse of WordPress XML-RPC endpoint, often used for brute force attacks or DDoS."
-    },
-    {
-        "id": "wordpress-admin-ajax-abuse",
-        "phase": 1,
-        "pattern": "(?i)/wp-admin/admin-ajax\\.php$",
-        "targets": ["URI"],
-        "severity": "MEDIUM",
-        "action": "log",
-        "score": 5,
-        "description": "Log requests to WordPress admin-ajax.php, often abused for enumeration or exploitation."
-    },
-    {
-        "id": "wordpress-theme-editor-exploit",
-        "phase": 1,
-        "pattern": "(?i)/wp-admin/theme-editor\\.php$",
-        "targets": ["URI"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block access to WordPress theme editor, which can be abused to inject malicious code."
-    },
-    {
-        "id": "wordpress-plugin-install-exploit",
-        "phase": 1,
-        "pattern": "(?i)/wp-admin/plugin-install\\.php$",
-        "targets": ["URI"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block access to WordPress plugin installer, which can be abused to upload malicious plugins."
-    },
-    {
-        "id": "joomla-admin-exploit",
-        "phase": 1,
-        "pattern": "(?i)/administrator/",
-        "targets": ["URI"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block access to Joomla administrator panel, often targeted for brute force or exploitation."
-    },
-    {
-        "id": "joomla-config-leak",
-        "phase": 1,
-        "pattern": "(?i)/configuration\\.php(-dist|-bak)?$",
-        "targets": ["URI"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block access to Joomla configuration files, which may leak sensitive database credentials."
-    },
-    {
-        "id": "drupal-admin-exploit",
-        "phase": 1,
-        "pattern": "(?i)/user/login$",
-        "targets": ["URI"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block access to Drupal login page, often targeted for brute force attacks."
-    },
-    {
-        "id": "drupal-module-exploit",
-        "phase": 1,
-        "pattern": "(?i)/modules/",
-        "targets": ["URI"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block access to Drupal modules directory, which can be abused to upload malicious modules."
-    },
-    {
-        "id": "nextcloud-config-leak",
-        "phase": 1,
-        "pattern": "(?i)/config/config\\.php$",
-        "targets": ["URI"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block access to Nextcloud configuration files, which may leak sensitive credentials."
-    },
-    {
-        "id": "nextcloud-login-brute-force",
-        "phase": 1,
-        "pattern": "(?i)/login$",
-        "targets": ["URI"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block access to Nextcloud login page, often targeted for brute force attacks."
-    },
-    {
-        "id": "gitlab-api-exploit",
-        "phase": 1,
-        "pattern": "(?i)/api/v[0-9]+/",
-        "targets": ["URI"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block access to GitLab API endpoints, which can be abused for enumeration or exploitation."
-    },
-    {
-        "id": "gitlab-config-leak",
-        "phase": 1,
-        "pattern": "(?i)/etc/gitlab/gitlab-secrets\\.json$",
-        "targets": ["URI"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block access to GitLab secrets file, which may leak sensitive credentials."
-    },
-    {
-        "id": "phpmyadmin-exploit",
-        "phase": 1,
-        "pattern": "(?i)/phpmyadmin/",
-        "targets": ["URI"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block access to phpMyAdmin, often targeted for SQL injection or credential theft."
-    },
-    {
-        "id": "cpanel-exploit",
-        "phase": 1,
-        "pattern": "(?i)/cpanel/",
-        "targets": ["URI"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block access to cPanel, often targeted for brute force or exploitation."
-    },
-    {
-        "id": "webdav-exploit",
-        "phase": 1,
-        "pattern": "(?i)/webdav/",
-        "targets": ["URI"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block access to WebDAV directories, which can be abused for file uploads or directory traversal."
-    },
-    {
-        "id": "sensitive-cms-files",
-        "phase": 1,
-        "pattern": "(?i)(?:/\\.git/|/\\.env|/\\.htaccess|/\\.htpasswd|/\\.svn/|/\\.DS_Store$|/wp-config\\.php$|/configuration\\.php$|/config/config\\.php$|/settings\\.php$)",
-        "targets": ["URI"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block access to sensitive files commonly found in CMS platforms."
-    },
-    {
-        "id": "api-abuse-rate-limit",
-        "phase": 1,
-        "pattern": "(?i)/api/v[0-9]+/",
-        "targets": ["URI"],
-        "severity": "MEDIUM",
-        "action": "log",
-        "score": 5,
-        "description": "Log requests to API endpoints, which may indicate abuse or excessive usage."
-    },
-    {
-        "id": "insecure-deserialization-json",
-        "phase": 2,
-        "pattern": "(?i)(?:\\{\\s*\"@type\"\\s*:|\\{\\s*\"\\$type\"\\s*:)",
-        "targets": ["BODY"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block requests with potential insecure deserialization payloads in JSON."
-    },
-    {
-        "id": "command-injection-windows",
-        "phase": 2,
-        "pattern": "(?i)(?:cmd\\.exe|powershell\\.exe|\\|\\||&&|%[0-9a-fA-F]{2}|\\^)",
-        "targets": ["ARGS", "BODY", "HEADERS"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block common Windows command injection patterns in request parameters."
-    },
-    {
-        "id": "file-upload-exploit",
-        "phase": 2,
-        "pattern": "(?i)(?:\\.php|\\.jsp|\\.asp|\\.aspx|\\.pl|\\.py|\\.sh|\\.exe|\\.dll|\\.bat|\\.cmd|\\.jar|\\.war|\\.ear|\\.rb|\\.cgi|\\.phtml)",
-        "targets": ["FILE_NAME"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block file uploads with dangerous extensions that could lead to remote code execution."
-    },
-    {
-        "id": "file-upload-mime-type-bypass",
-        "phase": 2,
-        "pattern": "(?i)(?:image/jpeg|image/png|text/plain|application/octet-stream)",
-        "targets": ["FILE_MIME_TYPE"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block file uploads with mismatched MIME types, often used to bypass security checks."
-    },
-    {
-        "id": "misconfigured-services",
-        "phase": 1,
-        "pattern": "(?i)(?:/server-status|/phpinfo\\.php|/info\\.php|/test\\.php|/debug\\.php|/status|/health|/metrics)",
-        "targets": ["URI"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block access to misconfigured service endpoints that leak sensitive information."
-    },
-    {
-        "id": "open-redirect-attempt",
-        "phase": 2,
-        "pattern": "(?i)(?:https?://(?:[^/]+@)?[^/]+\\.[^/]+/|\\b(?:redirect|url|next|return|r|u)\\b\\s*=\\s*(?:https?://|//))",
-        "targets": ["ARGS", "BODY", "HEADERS"],
-        "severity": "MEDIUM",
-        "action": "block",
-        "score": 6,
-        "description": "Block potential open redirect attempts in request parameters."
-    },
-    {
-        "id": "xml-external-entity-xxe",
-        "phase": 2,
-        "pattern": "(?i)(?:<!ENTITY\\s+[^>]+\\s+SYSTEM\\s+['\"])",
-        "targets": ["BODY"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block potential XXE (XML External Entity) injection attempts in XML payloads."
-    },
-    {
-        "id": "graphql-introspection-abuse",
-        "phase": 2,
-        "pattern": "(?i)(?:__schema|__type|__typename|introspection)",
-        "targets": ["BODY"],
-        "severity": "MEDIUM",
-        "action": "log",
-        "score": 5,
-        "description": "Log potential abuse of GraphQL introspection queries, which can leak sensitive schema information."
-    },
-    {
-        "id": "webshell-detection",
-        "phase": 2,
-        "pattern": "(?i)(?:eval\\(|base64_decode\\(|system\\(|shell_exec\\(|passthru\\(|exec\\(|popen\\(|proc_open\\(|assert\\(|create_function\\(|phpinfo\\(\\))",
-        "targets": ["ARGS", "BODY", "HEADERS"],
-        "severity": "CRITICAL",
-        "action": "block",
-        "score": 9,
-        "description": "Block potential webshell payloads in request parameters or headers."
-    },
+    },  
     {
         "id": "jwt-tampering",
         "phase": 2,
@@ -762,25 +260,15 @@
         "action": "block",
         "score": 8,
         "description": "Block potential JWT tampering attempts in Authorization headers or cookies."
-    },
+    },  
     {
-        "id": "oauth-token-leak",
+        "id": "open-redirect-attempt",
         "phase": 2,
-        "pattern": "(?i)(?:access_token|refresh_token|id_token|oauth_token)\\s*=\\s*[^&]+",
+        "pattern": "(?i)(?:https?://(?:[^/]+@)?[^/]+\\.[^/]+/|\\b(?:redirect|url|next|return|r|u)\\b\\s*=\\s*(?:https?://|//))",
         "targets": ["ARGS", "BODY", "HEADERS"],
-        "severity": "HIGH",
-        "action": "block",
-        "score": 8,
-        "description": "Block potential OAuth token leaks in request parameters or headers."
-    },
-    {
-        "id": "cors-misconfiguration",
-        "phase": 2,
-        "pattern": "(?i)(?:Origin:\\s*(?:https?://[^/]+\\.[^/]+|null))",
-        "targets": ["HEADERS:Origin"],
         "severity": "MEDIUM",
-        "action": "log",
-        "score": 5,
-        "description": "Log potential CORS misconfigurations that could allow unauthorized cross-origin requests."
-    }
+        "action": "block",
+        "score": 6,
+        "description": "Block potential open redirect attempts in request parameters."
+    }  
 ]
