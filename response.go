@@ -1,3 +1,4 @@
+// response.go
 package caddywaf
 
 import (
@@ -11,7 +12,7 @@ import (
 )
 
 // blockRequest handles blocking a request and logging the details.
-func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, reason string, fields ...zap.Field) {
+func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, reason, ruleID, matchedValue string, fields ...zap.Field) {
 	// Debug log to verify request details
 	m.logger.Debug("Verifying request details in blockRequest",
 		zap.String("source_ip", r.RemoteAddr),
@@ -24,18 +25,6 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 		state.Blocked = true
 		state.StatusCode = statusCode
 		state.ResponseWritten = true
-
-		// Increment the appropriate counter based on the reason
-		m.muMetrics.Lock()
-		switch reason {
-		case "ip_blacklist":
-			m.blockedByIPBlacklist++
-		case "dns_blacklist":
-			m.blockedByDNSBlacklist++
-		default:
-			m.blockedRequests++
-		}
-		m.muMetrics.Unlock()
 
 		// Custom response handling
 		if resp, ok := m.CustomResponses[statusCode]; ok {
@@ -66,7 +55,9 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 			zap.String("query_params", r.URL.RawQuery),
 			zap.Int("status_code", statusCode),
 			zap.Time("timestamp", time.Now()),
-			zap.String("reason", reason), // Include the reason for blocking
+			zap.String("reason", reason),          // Include the reason for blocking
+			zap.String("rule_id", ruleID),        // Include the rule ID
+			zap.String("matched_value", matchedValue), // Include the matched value
 		}
 
 		// Debug: Print the blockFields to verify they are correct
