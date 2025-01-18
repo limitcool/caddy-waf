@@ -222,16 +222,19 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
 
-	// Provision Tor blocking
-	if err := m.Tor.Provision(ctx); err != nil {
-		return err
-	}
+	// Initialize ruleHitsByPhase
+	m.ruleHitsByPhase = make(map[int]int64)
 
 	// Initialize rule hits map
 	m.ruleHits = sync.Map{}
 
 	// Log the current version of the middleware
 	m.logVersion()
+
+	// Provision Tor blocking
+	if err := m.Tor.Provision(ctx); err != nil {
+		return err
+	}
 
 	// Start file watchers for rule files and blacklist files
 	m.startFileWatcher(m.RuleFiles)
@@ -642,7 +645,7 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 		"blocked_requests":   m.blockedRequests,
 		"allowed_requests":   m.allowedRequests,
 		"rule_hits":          ruleHits,
-		"rule_hits_by_phase": m.ruleHitsByPhase,
+		"rule_hits_by_phase": m.ruleHitsByPhase, // Include rule hits by phase
 		"geoip_stats":        m.geoIPStats,
 	}
 
@@ -682,6 +685,15 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		zap.String("source_ip", r.RemoteAddr),
 		zap.String("user_agent", r.UserAgent()),
 	)
+
+	// Ensure ruleHitsByPhase is initialized for the current phase
+	m.muMetrics.Lock()
+	if _, exists := m.ruleHitsByPhase[phase]; !exists {
+		m.ruleHitsByPhase[phase] = 0
+	}
+	m.muMetrics.Unlock()
+
+	// Existing phase evaluation logic...
 
 	if phase == 1 && m.CountryBlock.Enabled {
 		m.logger.Debug("Starting country blocking phase")
@@ -795,6 +807,12 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 					zap.String("target", target),
 					zap.String("value", value),
 				)
+
+				// Increment the rule hit count for this phase
+				m.muMetrics.Lock()
+				m.ruleHitsByPhase[phase]++
+				m.muMetrics.Unlock()
+
 				m.processRuleMatch(w, r, &rule, value, state)
 				if state.Blocked || state.ResponseWritten {
 					m.logger.Debug("Rule evaluation completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
@@ -823,6 +841,12 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 					m.logger.Debug("Checking response header", zap.String("rule_id", rule.ID), zap.String("target", target), zap.String("value", value))
 					if value != "" && rule.regex.MatchString(value) {
 						m.logger.Debug("Rule matched on response header", zap.String("rule_id", rule.ID), zap.String("target", target), zap.String("value", value))
+
+						// Increment the rule hit count for this phase
+						m.muMetrics.Lock()
+						m.ruleHitsByPhase[phase]++
+						m.muMetrics.Unlock()
+
 						m.processRuleMatch(recorder, r, &rule, value, state)
 						if state.Blocked || state.ResponseWritten {
 							m.logger.Debug("Response headers phase completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
@@ -849,6 +873,12 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 						m.logger.Debug("Checking rule against response body", zap.String("rule_id", rule.ID))
 						if rule.regex.MatchString(body) {
 							m.logger.Debug("Rule matched on response body", zap.String("rule_id", rule.ID))
+
+							// Increment the rule hit count for this phase
+							m.muMetrics.Lock()
+							m.ruleHitsByPhase[phase]++
+							m.muMetrics.Unlock()
+
 							m.processRuleMatch(recorder, r, &rule, body, state)
 							if state.Blocked || state.ResponseWritten {
 								m.logger.Debug("Response body phase completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
