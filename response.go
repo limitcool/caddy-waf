@@ -1,4 +1,3 @@
-// response.go
 package caddywaf
 
 import (
@@ -11,7 +10,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, fields ...zap.Field) {
+// blockRequest handles blocking a request and logging the details.
+func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, reason string, fields ...zap.Field) {
 	// Debug log to verify request details
 	m.logger.Debug("Verifying request details in blockRequest",
 		zap.String("source_ip", r.RemoteAddr),
@@ -24,6 +24,18 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 		state.Blocked = true
 		state.StatusCode = statusCode
 		state.ResponseWritten = true
+
+		// Increment the appropriate counter based on the reason
+		m.muMetrics.Lock()
+		switch reason {
+		case "ip_blacklist":
+			m.blockedByIPBlacklist++
+		case "dns_blacklist":
+			m.blockedByDNSBlacklist++
+		default:
+			m.blockedRequests++
+		}
+		m.muMetrics.Unlock()
 
 		// Custom response handling
 		if resp, ok := m.CustomResponses[statusCode]; ok {
@@ -54,6 +66,7 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 			zap.String("query_params", r.URL.RawQuery),
 			zap.Int("status_code", statusCode),
 			zap.Time("timestamp", time.Now()),
+			zap.String("reason", reason), // Include the reason for blocking
 		}
 
 		// Debug: Print the blockFields to verify they are correct
@@ -80,12 +93,14 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 	}
 }
 
+// responseRecorder captures the response status code, headers, and body.
 type responseRecorder struct {
 	http.ResponseWriter
 	body       *bytes.Buffer
 	statusCode int
 }
 
+// NewResponseRecorder creates a new responseRecorder.
 func NewResponseRecorder(w http.ResponseWriter) *responseRecorder {
 	return &responseRecorder{
 		ResponseWriter: w,
@@ -94,23 +109,23 @@ func NewResponseRecorder(w http.ResponseWriter) *responseRecorder {
 	}
 }
 
-// WriteHeader captures the response status code
+// WriteHeader captures the response status code.
 func (r *responseRecorder) WriteHeader(statusCode int) {
 	r.statusCode = statusCode
 	r.ResponseWriter.WriteHeader(statusCode)
 }
 
-// Header returns the response headers
+// Header returns the response headers.
 func (r *responseRecorder) Header() http.Header {
 	return r.ResponseWriter.Header()
 }
 
-// BodyString returns the captured response body as a string
+// BodyString returns the captured response body as a string.
 func (r *responseRecorder) BodyString() string {
 	return r.body.String()
 }
 
-// StatusCode returns the captured status code
+// StatusCode returns the captured status code.
 func (r *responseRecorder) StatusCode() int {
 	if r.statusCode == 0 {
 		return http.StatusOK // Default to 200 if not explicitly set
@@ -118,7 +133,7 @@ func (r *responseRecorder) StatusCode() int {
 	return r.statusCode
 }
 
-// Write captures the response body and writes to the buffer only
+// Write captures the response body and writes to the buffer only.
 func (r *responseRecorder) Write(b []byte) (int, error) {
 	if r.statusCode == 0 {
 		r.WriteHeader(http.StatusOK) // Default to 200 if not set
