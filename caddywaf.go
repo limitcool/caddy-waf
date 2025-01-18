@@ -106,12 +106,14 @@ type Middleware struct {
 	RateLimit   RateLimit
 	rateLimiter *RateLimiter
 
-	totalRequests   int64
-	blockedRequests int64
-	allowedRequests int64
-	ruleHitsByPhase map[int]int64
-	geoIPStats      map[string]int64 // Key: country code, Value: count
-	muMetrics       sync.RWMutex     // Mutex for metrics synchronization
+	totalRequests         int64
+	blockedRequests       int64
+	allowedRequests       int64
+	ruleHitsByPhase       map[int]int64
+	geoIPStats            map[string]int64 // Key: country code, Value: count
+	muMetrics             sync.RWMutex     // Mutex for metrics synchronization
+	blockedByIPBlacklist  int64            // New metric
+	blockedByDNSBlacklist int64            // New metric
 
 	Tor TorConfig `json:"tor,omitempty"`
 }
@@ -641,12 +643,14 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 
 	// Collect all metrics
 	metrics := map[string]interface{}{
-		"total_requests":     m.totalRequests,
-		"blocked_requests":   m.blockedRequests,
-		"allowed_requests":   m.allowedRequests,
-		"rule_hits":          ruleHits,
-		"rule_hits_by_phase": m.ruleHitsByPhase, // Include rule hits by phase
-		"geoip_stats":        m.geoIPStats,
+		"total_requests":           m.totalRequests,
+		"blocked_requests":         m.blockedRequests,
+		"blocked_by_ip_blacklist":  m.blockedByIPBlacklist,  // New metric
+		"blocked_by_dns_blacklist": m.blockedByDNSBlacklist, // New metric
+		"allowed_requests":         m.allowedRequests,
+		"rule_hits":                ruleHits,
+		"rule_hits_by_phase":       m.ruleHitsByPhase,
+		"geoip_stats":              m.geoIPStats,
 	}
 
 	jsonMetrics, err := json.Marshal(metrics)
@@ -703,16 +707,14 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				r,
 				zap.Error(err),
 			)
-			m.blockRequest(w, r, state, http.StatusForbidden,
+			m.blockRequest(w, r, state, http.StatusForbidden, "internal_error",
 				zap.String("message", "Request blocked due to internal error"),
-				zap.String("reason", "internal_error"),
 			)
 			m.logger.Debug("Country blocking phase completed - blocked due to error")
 			return
 		} else if blocked {
-			m.blockRequest(w, r, state, http.StatusForbidden,
+			m.blockRequest(w, r, state, http.StatusForbidden, "country_block",
 				zap.String("message", "Request blocked by country"),
-				zap.String("reason", "country_block"),
 			)
 			m.logger.Debug("Country blocking phase completed - blocked by country")
 			return
@@ -725,9 +727,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		ip := extractIP(r.RemoteAddr, m.logger) // Pass the logger here
 		path := r.URL.Path                      // Get the request path
 		if m.rateLimiter.isRateLimited(ip, path) {
-			m.blockRequest(w, r, state, http.StatusTooManyRequests,
+			m.blockRequest(w, r, state, http.StatusTooManyRequests, "rate_limit",
 				zap.String("message", "Request blocked by rate limit"),
-				zap.String("reason", "rate_limit"),
 			)
 			m.logger.Debug("Rate limiting phase completed - blocked by rate limit")
 			return
@@ -737,9 +738,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 
 	if phase == 1 && m.isIPBlacklisted(r.RemoteAddr) {
 		m.logger.Debug("Starting IP blacklist phase")
-		m.blockRequest(w, r, state, http.StatusForbidden,
+		m.blockRequest(w, r, state, http.StatusForbidden, "ip_blacklist",
 			zap.String("message", "Request blocked by IP blacklist"),
-			zap.String("reason", "ip_blacklist"),
 		)
 		m.logger.Debug("IP blacklist phase completed - blocked")
 		return
@@ -747,9 +747,8 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 
 	if phase == 1 && m.isDNSBlacklisted(r.Host) {
 		m.logger.Debug("Starting DNS blacklist phase")
-		m.blockRequest(w, r, state, http.StatusForbidden,
+		m.blockRequest(w, r, state, http.StatusForbidden, "dns_blacklist",
 			zap.String("message", "Request blocked by DNS blacklist"),
-			zap.String("reason", "dns_blacklist"),
 			zap.String("host", r.Host),
 		)
 		m.logger.Debug("DNS blacklist phase completed - blocked")
