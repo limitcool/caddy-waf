@@ -707,13 +707,21 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				r,
 				zap.Error(err),
 			)
+<<<<<<< HEAD
 			m.blockRequest(w, r, state, http.StatusForbidden, "internal_error",
+=======
+			m.blockRequest(w, r, state, http.StatusForbidden, "internal_error", "country_block_rule", r.RemoteAddr,
+>>>>>>> 6eb323f (fix: update blockRequest calls to include reason, ruleID, and matchedValue)
 				zap.String("message", "Request blocked due to internal error"),
 			)
 			m.logger.Debug("Country blocking phase completed - blocked due to error")
 			return
 		} else if blocked {
+<<<<<<< HEAD
 			m.blockRequest(w, r, state, http.StatusForbidden, "country_block",
+=======
+			m.blockRequest(w, r, state, http.StatusForbidden, "country_block", "country_block_rule", r.RemoteAddr,
+>>>>>>> 6eb323f (fix: update blockRequest calls to include reason, ruleID, and matchedValue)
 				zap.String("message", "Request blocked by country"),
 			)
 			m.logger.Debug("Country blocking phase completed - blocked by country")
@@ -727,7 +735,11 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		ip := extractIP(r.RemoteAddr, m.logger) // Pass the logger here
 		path := r.URL.Path                      // Get the request path
 		if m.rateLimiter.isRateLimited(ip, path) {
+<<<<<<< HEAD
 			m.blockRequest(w, r, state, http.StatusTooManyRequests, "rate_limit",
+=======
+			m.blockRequest(w, r, state, http.StatusTooManyRequests, "rate_limit", "rate_limit_rule", r.RemoteAddr,
+>>>>>>> 6eb323f (fix: update blockRequest calls to include reason, ruleID, and matchedValue)
 				zap.String("message", "Request blocked by rate limit"),
 			)
 			m.logger.Debug("Rate limiting phase completed - blocked by rate limit")
@@ -738,7 +750,11 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 
 	if phase == 1 && m.isIPBlacklisted(r.RemoteAddr) {
 		m.logger.Debug("Starting IP blacklist phase")
+<<<<<<< HEAD
 		m.blockRequest(w, r, state, http.StatusForbidden, "ip_blacklist",
+=======
+		m.blockRequest(w, r, state, http.StatusForbidden, "ip_blacklist", "ip_blacklist_rule", r.RemoteAddr,
+>>>>>>> 6eb323f (fix: update blockRequest calls to include reason, ruleID, and matchedValue)
 			zap.String("message", "Request blocked by IP blacklist"),
 		)
 		m.logger.Debug("IP blacklist phase completed - blocked")
@@ -747,7 +763,11 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 
 	if phase == 1 && m.isDNSBlacklisted(r.Host) {
 		m.logger.Debug("Starting DNS blacklist phase")
+<<<<<<< HEAD
 		m.blockRequest(w, r, state, http.StatusForbidden, "dns_blacklist",
+=======
+		m.blockRequest(w, r, state, http.StatusForbidden, "dns_blacklist", "dns_blacklist_rule", r.Host,
+>>>>>>> 6eb323f (fix: update blockRequest calls to include reason, ruleID, and matchedValue)
 			zap.String("message", "Request blocked by DNS blacklist"),
 			zap.String("host", r.Host),
 		)
