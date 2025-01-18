@@ -1,4 +1,3 @@
-// rules.go
 package caddywaf
 
 import (
@@ -15,14 +14,11 @@ import (
 )
 
 func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) {
-
-	// Extract log ID from request context
 	logID, _ := r.Context().Value("logID").(string)
 	if logID == "" {
-		logID = uuid.New().String() // Fallback to new UUID if missing
+		logID = uuid.New().String()
 	}
 
-	// Log that a rule was matched
 	m.logRequest(zapcore.DebugLevel, "Rule matched during evaluation", r,
 		zap.String("rule_id", rule.ID),
 		zap.String("target", strings.Join(rule.Targets, ",")),
@@ -31,7 +27,6 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.Int("score", rule.Score),
 	)
 
-	// Increment rule hit counter
 	if count, ok := m.ruleHits.Load(rule.ID); ok {
 		newCount := count.(int) + 1
 		m.ruleHits.Store(rule.ID, newCount)
@@ -47,7 +42,6 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		)
 	}
 
-	// Increase the total anomaly score
 	oldScore := state.TotalScore
 	state.TotalScore += rule.Score
 	m.logRequest(zapcore.DebugLevel, "Increased anomaly score", r,
@@ -59,7 +53,6 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
 
-	// Determine if a blocking action should be taken
 	shouldBlock := false
 	blockReason := ""
 
@@ -73,7 +66,6 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		}
 	}
 
-	// Log the decision-making process
 	m.logger.Debug("Processing rule action",
 		zap.String("rule_id", rule.ID),
 		zap.String("action", rule.Action),
@@ -81,7 +73,6 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.String("block_reason", blockReason),
 	)
 
-	// Perform blocking action if needed and response not already written
 	if shouldBlock && !state.ResponseWritten {
 		state.Blocked = true
 		state.StatusCode = http.StatusForbidden
@@ -96,17 +87,15 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 			zap.Int("total_score", state.TotalScore),
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		)
-		return // Exit after blocking
+		return
 	}
 
-	// Handle the rule's defined action (log) if not blocked
 	if rule.Action == "log" {
 		m.logRequest(zapcore.InfoLevel, "Rule action is 'log', request allowed but logged", r,
 			zap.String("log_id", logID),
 			zap.String("rule_id", rule.ID),
 		)
 	} else if !shouldBlock && !state.ResponseWritten {
-		// Log when a rule matches but doesn't lead to blocking
 		m.logRequest(zapcore.DebugLevel, "Rule matched, no blocking action taken", r,
 			zap.String("log_id", logID),
 			zap.String("rule_id", rule.ID),
@@ -117,7 +106,6 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	}
 }
 
-// validateRule checks if a rule is valid
 func validateRule(rule *Rule) error {
 	if rule.ID == "" {
 		return fmt.Errorf("rule has an empty ID")
