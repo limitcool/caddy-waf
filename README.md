@@ -516,7 +516,7 @@ python3 get_vulnerability_rules.py
 
 ### `get_caddy_feeds.py`
 
-*   Downloads pre-generated blacklists and rules from the repository to be used by the WAF.
+*   Downloads pre-generated blacklists and rules from [this repository](https://github.com/fabriziosalmi/caddy-feeds/) to be used by the WAF.
 
 ```bash
 python3 get_caddy_feeds.py
