@@ -115,6 +115,9 @@ type Middleware struct {
 	muMetrics       sync.RWMutex     // Mutex for metrics synchronization
 
 	Tor TorConfig `json:"tor,omitempty"`
+
+	logChan chan LogEntry // Buffered channel for log entries
+	logDone chan struct{} // Signal to stop the logging worker
 }
 
 // WAFState struct
@@ -299,6 +302,9 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
 
+	// Start the asynchronous logging worker
+	m.StartLogWorker()
+
 	// Provision Tor blocking
 	if err := m.Tor.Provision(ctx); err != nil {
 		return err
@@ -408,6 +414,7 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 	m.logger.Info("Starting WAF middleware shutdown procedures")
 	m.isShuttingDown = true
 
+	// Stop the rate limiter cleanup
 	if m.rateLimiter != nil {
 		m.logger.Debug("Signaling rate limiter cleanup to stop...")
 		m.rateLimiter.signalStopCleanup()
@@ -416,28 +423,32 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 		m.logger.Debug("Rate limiter is nil, no cleanup signaling needed.")
 	}
 
+	// Stop the asynchronous logging worker
+	m.logger.Debug("Stopping logging worker...")
+	m.StopLogWorker()
+	m.logger.Debug("Logging worker stopped.")
+
 	var firstError error
+	var errorOccurred bool
 
-	var errorOccurred bool // Add a flag
-
+	// Close GeoIP databases
 	if m.CountryBlock.geoIP != nil {
 		m.logger.Debug("Closing country block GeoIP database...")
 		if err := m.CountryBlock.geoIP.Close(); err != nil {
 			m.logger.Error("Error encountered while closing country block GeoIP database", zap.Error(err))
-			if !errorOccurred { // Check the flag instead
+			if !errorOccurred {
 				firstError = fmt.Errorf("error closing country block GeoIP: %w", err)
-				errorOccurred = true // Set the flag
+				errorOccurred = true
 			}
 		} else {
 			m.logger.Debug("Country block GeoIP database closed successfully.")
 		}
-		m.CountryBlock.geoIP = nil // Explicitly set to nil after closing
+		m.CountryBlock.geoIP = nil
 	}
 
 	if m.CountryWhitelist.geoIP != nil {
 		m.logger.Debug("Closing country whitelist GeoIP database...")
-		err := m.CountryWhitelist.geoIP.Close()
-		if err != nil {
+		if err := m.CountryWhitelist.geoIP.Close(); err != nil {
 			m.logger.Error("Error encountered while closing country whitelist GeoIP database", zap.Error(err))
 			if firstError == nil {
 				firstError = fmt.Errorf("error closing country whitelist GeoIP: %w", err)
@@ -450,18 +461,19 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 		m.logger.Debug("Country whitelist GeoIP database was not open, skipping close.")
 	}
 
+	// Log rule hit statistics
 	m.logger.Info("Rule Hit Statistics:")
 	m.ruleHits.Range(func(key, value interface{}) bool {
 		ruleID, ok := key.(RuleID)
 		if !ok {
 			m.logger.Error("Invalid type for rule ID in ruleHits map", zap.Any("key", key))
-			return true // Continue iterating
+			return true
 		}
 
 		hitCount, ok := value.(HitCount)
 		if !ok {
 			m.logger.Error("Invalid type for hit count in ruleHits map", zap.Any("value", value))
-			return true // Continue iterating
+			return true
 		}
 
 		m.logger.Info("Rule Hit",

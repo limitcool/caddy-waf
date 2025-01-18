@@ -16,10 +16,10 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, r *http.Request
 		return
 	}
 
-	// Debug: Print the incoming fields
-	m.logger.Debug("Incoming fields to logRequest",
-		zap.Any("fields", fields),
-	)
+	// Skip logging if the level is below the threshold
+	if level < m.logLevel {
+		return
+	}
 
 	// Extract log ID or generate a new one
 	var logID string
@@ -42,15 +42,9 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, r *http.Request
 	// Append log_id explicitly to newFields
 	newFields = append(newFields, zap.String("log_id", logID))
 
-	// Debug: Print the newFields before calling getCommonLogFields
-	m.logger.Debug("New fields before getCommonLogFields",
-		zap.Any("newFields", newFields),
-	)
-
 	// Attach common request metadata only if not already set
 	commonFields := m.getCommonLogFields(r, newFields)
 	for _, commonField := range commonFields {
-		// Check if the field is already set in newFields
 		fieldExists := false
 		for _, existingField := range newFields {
 			if existingField.Key == commonField.Key {
@@ -58,41 +52,21 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, r *http.Request
 				break
 			}
 		}
-		// Add the common field only if it doesn't already exist
 		if !fieldExists {
 			newFields = append(newFields, commonField)
 		}
 	}
 
-	// Debug: Print the newFields after calling getCommonLogFields
-	m.logger.Debug("New fields after getCommonLogFields",
-		zap.Any("newFields", newFields),
-	)
-
-	// Determine the log level if unset
-	if m.logLevel == 0 {
-		switch strings.ToLower(m.LogSeverity) {
-		case "debug":
-			m.logLevel = zapcore.DebugLevel
-		case "warn":
-			m.logLevel = zapcore.WarnLevel
-		case "error":
-			m.logLevel = zapcore.ErrorLevel
-		default:
-			m.logLevel = zapcore.InfoLevel
-		}
-	}
-
-	// Skip logging if level is below the threshold
-	if level < m.logLevel {
-		return
-	}
-
-	// Log the message with the appropriate format
-	if m.LogJSON {
-		newFields = append(newFields, zap.String("message", msg))
-		m.logger.Log(level, "", newFields...)
-	} else {
+	// Send the log entry to the buffered channel
+	select {
+	case m.logChan <- LogEntry{Level: level, Message: msg, Fields: newFields}:
+		// Log entry successfully queued
+	default:
+		// If the channel is full, fall back to synchronous logging
+		m.logger.Warn("Log buffer full, falling back to synchronous logging",
+			zap.String("message", msg),
+			zap.Any("fields", newFields),
+		)
 		m.logger.Log(level, msg, newFields...)
 	}
 }
@@ -219,4 +193,30 @@ func (m *Middleware) redactQueryParams(queryParams string) string {
 
 func caddyTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(t.Format("2006/01/02 15:04:05.000"))
+}
+
+// LogEntry represents a single log entry to be processed asynchronously.
+type LogEntry struct {
+	Level   zapcore.Level
+	Message string
+	Fields  []zap.Field
+}
+
+// StartLogWorker initializes the background logging worker.
+func (m *Middleware) StartLogWorker() {
+	m.logChan = make(chan LogEntry, 1000) // Buffer size can be adjusted
+	m.logDone = make(chan struct{})
+
+	go func() {
+		for entry := range m.logChan {
+			m.logger.Log(entry.Level, entry.Message, entry.Fields...)
+		}
+		close(m.logDone) // Signal that the worker has finished
+	}()
+}
+
+// StopLogWorker stops the background logging worker.
+func (m *Middleware) StopLogWorker() {
+	close(m.logChan) // Close the channel to stop the worker
+	<-m.logDone      // Wait for the worker to finish processing
 }
