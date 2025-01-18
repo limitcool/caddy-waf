@@ -27,6 +27,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.Int("score", rule.Score),
 	)
 
+	// Increment rule hit count
 	if count, ok := m.ruleHits.Load(rule.ID); ok {
 		newCount := count.(int) + 1
 		m.ruleHits.Store(rule.ID, newCount)
@@ -41,6 +42,14 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 			zap.Int("new_count", 1),
 		)
 	}
+
+	// Increment rule hits by phase
+	m.muMetrics.Lock()
+	if m.ruleHitsByPhase == nil {
+		m.ruleHitsByPhase = make(map[int]int64)
+	}
+	m.ruleHitsByPhase[rule.Phase]++
+	m.muMetrics.Unlock()
 
 	oldScore := state.TotalScore
 	state.TotalScore += rule.Score

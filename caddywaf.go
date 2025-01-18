@@ -642,7 +642,7 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 		"blocked_requests":   m.blockedRequests,
 		"allowed_requests":   m.allowedRequests,
 		"rule_hits":          ruleHits,
-		"rule_hits_by_phase": m.ruleHitsByPhase,
+		"rule_hits_by_phase": m.ruleHitsByPhase, // Include rule hits by phase
 		"geoip_stats":        m.geoIPStats,
 	}
 
