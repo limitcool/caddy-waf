@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) {
+func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) bool {
 	logID, _ := r.Context().Value("logID").(string)
 	if logID == "" {
 		logID = uuid.New().String()
@@ -96,7 +96,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 			zap.Int("total_score", state.TotalScore),
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		)
-		return
+		return false // Stop further processing
 	}
 
 	if rule.Action == "log" {
@@ -113,6 +113,8 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		)
 	}
+
+	return true // Continue processing
 }
 
 func validateRule(rule *Rule) error {

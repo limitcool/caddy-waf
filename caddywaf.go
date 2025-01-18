@@ -790,7 +790,9 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 					zap.String("target", target),
 					zap.String("value", value),
 				)
-				m.processRuleMatch(w, r, &rule, value, state)
+				if !m.processRuleMatch(w, r, &rule, value, state) {
+					return // Stop processing if the rule match indicates blocking
+				}
 				if state.Blocked || state.ResponseWritten {
 					m.logger.Debug("Rule evaluation completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
 					return
@@ -818,7 +820,9 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 					m.logger.Debug("Checking response header", zap.String("rule_id", rule.ID), zap.String("target", target), zap.String("value", value))
 					if value != "" && rule.regex.MatchString(value) {
 						m.logger.Debug("Rule matched on response header", zap.String("rule_id", rule.ID), zap.String("target", target), zap.String("value", value))
-						m.processRuleMatch(recorder, r, &rule, value, state)
+						if !m.processRuleMatch(recorder, r, &rule, value, state) {
+							return // Stop processing if the rule match indicates blocking
+						}
 						if state.Blocked || state.ResponseWritten {
 							m.logger.Debug("Response headers phase completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
 							return
@@ -844,7 +848,9 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 						m.logger.Debug("Checking rule against response body", zap.String("rule_id", rule.ID))
 						if rule.regex.MatchString(body) {
 							m.logger.Debug("Rule matched on response body", zap.String("rule_id", rule.ID))
-							m.processRuleMatch(recorder, r, &rule, body, state)
+							if !m.processRuleMatch(recorder, r, &rule, body, state) {
+								return // Stop processing if the rule match indicates blocking
+							}
 							if state.Blocked || state.ResponseWritten {
 								m.logger.Debug("Response body phase completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
 								return
