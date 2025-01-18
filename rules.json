@@ -189,22 +189,6 @@
       "description": "Block potential open redirect attempts in request body and headers."
     },
     {
-      "id": "rate-limiting-login",
-      "phase": 1,
-      "pattern": "^/login$",
-      "targets": [
-        "URI"
-      ],
-      "severity": "MEDIUM",
-      "action": "rate_limit",
-      "score": 5,
-      "rate_limit": {
-        "window_sec": 60,
-        "max_requests": 10
-      },
-      "description": "Rate limit requests to login endpoint to prevent brute force attacks."
-    },
-    {
       "id": "nosql-injection-attacks",
       "phase": 2,
       "pattern": "(?i)(?:\\$(?:gt|gte|lt|lte|ne|eq|regex|where|or|and|in|nin|exists|type|jsonSchema|not|mod|elemMatch|all|size|nor|comment|slice|expr|meta|text|search|near|nearSphere|geoWithin|geoIntersects|geoNear)\\b|\\b(?:db|collection|aggregate|mapReduce|count|group|distinct|findOne|find|remove|update|insert)\\b)",
