@@ -150,7 +150,6 @@ type Middleware struct {
 	logDone chan struct{} // Signal to stop the logging worker
 
 	ruleCache *RuleCache // New field for RuleCache
-
 }
 
 // WAFState struct
