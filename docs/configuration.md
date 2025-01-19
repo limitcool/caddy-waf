@@ -1,5 +1,66 @@
 # ⚙️ Configuration
 
+Understanding how the Caddy WAF processes incoming requests, evaluates rules, and decides when to block a request is essential for effectively configuring and managing the middleware. This section explains the request lifecycle within the WAF, including the order of operations and the logic behind blocking decisions.
+
+## Request Processing Flow: From Caddy to the WAF
+
+1.  **Incoming Request:** When a client sends an HTTP request to your Caddy server, the request is first handled by Caddy's core request handling mechanism.
+2.  **WAF Middleware Invoked:** If a `waf` block is configured in your `Caddyfile`, the WAF middleware is invoked as the first handler in the route.
+3.  **Request Context Initialization:** The WAF initializes a `WAFState` struct for each incoming request. This struct holds the request's anomaly score (`TotalScore`), its blocking status (`Blocked`), and the response status code (`StatusCode`). It also creates a unique log identifier to help trace the request in the logs.
+4.  **Phase-Based Evaluation:** The WAF processes the request in distinct phases. Each phase represents a specific stage of the request lifecycle, which allows applying different types of rules depending on where the attack could occur. The phases are executed in numerical order:
+    *   **Phase 1: Request Headers (and Early Checks)** This phase is performed first and performs actions that should happen before the request body is parsed, and includes:
+        *   **Country Blocking/Whitelisting (Optional):** If configured, the WAF first checks the request's source IP against the configured country list. If the IP originates from a blocked country (or doesn't originate from a whitelisted country), the request is immediately blocked, and no further rules are evaluated.
+        *   **Rate Limiting (Optional):** If configured, the WAF then checks the rate limiter against the client IP and request path. If the request count exceeds the limit within the configured time window, the request is blocked, and no further rules are evaluated.
+        *   **IP Blacklisting:**  The WAF checks the request's source IP against the configured IP blacklist. If a match is found (either a direct IP match or within a CIDR range), the request is immediately blocked, and no further rules are evaluated.
+        *   **DNS Blacklisting:** The WAF checks the request's `Host` header against the DNS blacklist, if a match is found, the request is immediately blocked.
+        *   **Rule Evaluation for Request Headers:** The WAF checks the request headers against the configured rules for phase 1.
+    *   **Phase 2: Request Body:** The WAF analyzes the request body against any rules configured for this phase, looking for malicious payloads.
+    *   **Phase 3: Response Headers:** (After the request is processed by the backend) Before the response is sent to the client, the WAF analyzes the response headers, looking for malicious payloads or unintended information that should be blocked.
+    *   **Phase 4: Response Body:** (After the response is processed by the backend) Before the response is sent to the client, the WAF analyzes the response body, looking for malicious or unintended content, or any other pattern that should be blocked.
+5.  **Rule Evaluation within Each Phase:**
+    *   For each phase, the WAF iterates through the rules defined for that specific phase, respecting the order they were defined (and priority within the rules configuration).
+    *   For each rule, the WAF extracts the configured `target` from the request (e.g., URL, headers, body, cookies, etc.). It also supports extracting data from the response on phases 3 and 4.
+    *   The extracted value is matched against the rule's regular expression (`pattern`).
+    *   If a match is found:
+        *   The rule's hit count is incremented.
+        *   The rule's score is added to the request's `TotalScore`.
+        *   The WAF checks if the rule's action is `block` or if the current `TotalScore` is greater than or equal to `anomaly_threshold`, also if a response was already written to the client.
+        *   If either of those conditions are met:
+            *   The request is marked as `Blocked`.
+            * The response status code is set to `403 Forbidden` by default (this can be customized).
+            *   A log entry is created at `WARN` level describing the blocked request, with details about the rule that was triggered, and a log ID.
+            *   If a custom response has been defined for the blocked status code, that response is sent to the user.
+            *   The request processing is stopped immediately, and no further WAF rules or other handlers are executed for the current request.
+            * If a rule with a `log` action is triggered, the request continues processing as usual.
+        *   If the conditions for blocking are not met, but the `rule.Action` is `log`, the match is logged at `INFO` level, and the request continues its execution.
+6.  **Request Continues or Blocked:** After all phases have been processed:
+    *   If the request is not `Blocked`, it continues to the next handler on the route, typically your application's handler.
+    *   If the request is `Blocked`, a 403 error (or a custom response) is returned to the client, and no further handlers are executed. The WAF itself will write the response to the client in this case.
+7. **Metrics Collection:** For every request processed, the WAF updates the internal request counters, increments `total_requests`, and depending if the request was blocked or allowed the counter `blocked_requests` and `allowed_requests` are incremented.
+8. **Metrics Exposure:** A `/waf_metrics` endpoint provides a JSON output of these metrics that can be used for monitoring and troubleshooting. This endpoint provides insights on how many requests are being processed, how many are being blocked, and more statistics about the WAF activity.
+
+## Blocking Logic and Precedence
+
+*   **Early Checks Take Precedence:** The country blocking/whitelisting, rate limiting, IP blacklisting and DNS blacklisting checks in Phase 1 take precedence over rule-based checks. If a request is blocked by any of these early checks, further rule evaluations are skipped.
+*   **Rule Priority:** Within each phase, rules are evaluated in the order they appear in your configuration file by their priority (higher priority first). The rule matching will iterate all targets of the rule, so if one target matches, the other targets of the same rule are skipped.
+*   **Anomaly Scoring:** The `anomaly_threshold` provides a way to block requests that trigger multiple lower-severity rules, as the score for each triggered rule is accumulated and the request is blocked if the threshold is reached.
+*  **Rule Action `block`**: If a rule has action `block`, the request will immediately be blocked and the execution will stop regardless of the `anomaly_threshold` or any other rule that might apply.
+* **First match blocks (with exception):** if a rule matches and the request is blocked, then the execution stops and no other rule is executed, except the `log` action, that will only log the match and continue with the process, unless it exceeds the `anomaly_threshold`.
+*   **Custom Responses:** If a custom response is configured for the status code in the blocked request, it takes precedence over the default blocking message.
+*   **Short Circuiting:** If a request is blocked, the processing is stopped immediately, which prevents unnecessary resource utilization and ensures a fast response.
+*  **Response Processing**: In phases `3` and `4`, the WAF works on the response that is being sent to the client, if the response is blocked, then that response will not be sent to the client and the configured custom response will be returned instead.
+
+## Key Takeaways
+
+*   **Ordered Processing:** The WAF processes requests in a specific order, ensuring that higher-priority checks are performed first.
+*   **Flexible Blocking:** Requests can be blocked based on explicit rules, accumulated anomaly scores, country restrictions, rate limits, blacklists, or a combination of all those factors.
+*   **Customizable Behavior:** The WAF is highly customizable through configuration options, allowing you to adapt to your specific security needs.
+*   **Efficient Handling:** The short-circuiting approach ensures that once a request is blocked, no further processing is performed, saving resources and improving performance.
+*  **Response Evaluation**: The WAF also evaluates the response, if the response is blocked then it will not be sent to the client and the configured custom response or default blocked message is sent instead.
+
+By understanding these principles, you can configure and manage your Caddy WAF with greater confidence and effectiveness, ensuring your applications are protected from a wide range of threats. This approach allows a layered security approach, with each stage of processing adding a different protection mechanism. Remember that proper configuration and fine tuning is important to ensure a balance between security and performance.
+
+
 The WAF provides a variety of configuration options to control its behavior, allowing for precise customization of security policies. These options are typically set within the WAF's configuration file (e.g., Caddyfile). The following table describes each option in detail:
 
 | Option                 | Description                                                                                                                                                                                                | Example                                                                                                        |
