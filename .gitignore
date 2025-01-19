@@ -4,3 +4,4 @@ debug.json
 log.json
 waf_test_results.log
 tor_ip_blacklist.txt
+tor_blacklist.txt
