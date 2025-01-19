@@ -2,61 +2,21 @@
 
 A robust, highly customizable, and feature-rich **Web Application Firewall (WAF)** middleware for the Caddy web server. This middleware provides **advanced protection** against a comprehensive range of web-based threats, seamlessly integrating with Caddy and offering flexible configuration options to secure your applications effectively.
 
-[![Go](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/go.yml/badge.svg)](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/go.yml) [![CodeQL](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/github-code-scanning/codeql) [![Build and test Caddy with WAF](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/build.yml/badge.svg)](https://github.com/fabriziosalmi/caddy-waf/actions/workflows/build.yml)
-
-## 🛡️ Core Protections
-
-*   **Regex-Based Filtering:** Deep URL, data & header inspection using powerful regex rules.
-*   **Blacklisting:** Blocks malicious IPs, domains & optionally TOR exit nodes.
-*   **Geo-Blocking:** Restricts access by country using GeoIP.
-*   **Rate Limiting:** Prevents abuse via customizable IP request limits.
-*   **Anomaly Scoring:** Dynamically blocks requests based on cumulative rule matches.
-*   **Multi-Phase Inspection:** Analyzes traffic throughout the request lifecycle.
-*   **Sensitive Data Redaction:** Removes private info from logs.
-*   **Custom Response Handling:** Tailored responses for blocked requests.
-*   **Detailed Monitoring:** JSON endpoint for performance tracking & analysis.
-*   **Dynamic Config Reloads:** Seamless updates without restarts.
-*   **File Watchers:** Automatic reloads on rule/blacklist changes.
-
-## 🚀 Quick Start
-
-```bash
-curl -fsSL -H "Pragma: no-cache" https://raw.githubusercontent.com/fabriziosalmi/caddy-waf/refs/heads/main/install.sh | bash
-```
-
-**Example Output:**
-
-```
-INFO    Provisioning WAF middleware     {"log_level": "info", "log_path": "debug.json", "log_json": true, "anomaly_threshold": 10}
-INFO    http.handlers.waf       Updated Tor exit nodes in IP blacklist  {"count": 1077}
-INFO    WAF middleware version  {"version": "v0.0.0-20250115164938-7f35253f2ffc"}
-INFO    Rate limit configuration        {"requests": 100, "window": 10, "cleanup_interval": 300, "paths": ["/api/v1/.*", "/admin/.*"], "match_all_paths": false}
-WARN    GeoIP database not found. Country blocking/whitelisting will be disabled        {"path": "GeoLite2-Country.mmdb"}
-INFO    IP blacklist loaded successfully        {"file": "ip_blacklist.txt", "valid_entries": 3, "total_lines": 3}
-INFO    DNS blacklist loaded successfully       {"file": "dns_blacklist.txt", "valid_entries": 2, "total_lines": 2}
-INFO    Rules loaded    {"file": "rules.json", "total_rules": 70, "invalid_rules": 0}
-INFO    WAF middleware provisioned successfully
-```
-
 ## 📑 Table of Contents
 
-1.  [🚀 Installation](#-installation)
-2.  [🛠️ Basic Configuration](#️-basic-configuration)
-3.  [📚 Full Documentation](#-full-documentation)
-    *   [Configuration Options](docs/configuration.md)
-    *   [Rules Format](docs/rules.md)
-    *   [Metrics](docs/metrics.md)
-    *   [Protected Attack Types](docs/attacks.md)
-    *   [Blacklist Formats](docs/blacklists.md)
-    *   [Rate Limiting](docs/ratelimit.md)
-    *   [Country Blocking and Whitelisting](docs/geoblocking.md)
-    *   [Dynamic Updates](docs/dynamicupdates.md)
-    *   [Testing](docs/testing.md)
-    *   [Docker Support](docs/docker.md)
-    *   [Rule/Blacklist Population Scripts](docs/scripts.md)
-    *   [Prometheus Metrics](docs/prometheus.md)
-4.  [📜 License](#-license)
-5.  [🙏 Contributing](#-contributing)
+1.   *   [Configuration Options](configuration.md)
+2.    *   [Rules Format](rules.md)
+3.    *   [Metrics](metrics.md)
+4.    *   [Protected Attack Types](attacks.md)
+5.    *   [Blacklist Formats](blacklists.md)
+6.    *   [Rate Limiting](ratelimit.md)
+7.    *   [Country Blocking and Whitelisting](geoblocking.md)
+8.    *   [Dynamic Updates](dynamicupdates.md)
+9.    *   [Testing](testing.md)
+10.    *   [Docker Support](docker.md)
+11.    *   [Rule/Blacklist Population Scripts](scripts.md)
+12.    *   [Prometheus Metrics](prometheus.md)
+
 
 ---
 
