@@ -1,10 +1,3 @@
-Okay, this is a great improvement!  Here's how we can split this into a `README.md` with a good overview and a `/docs/` folder for more in-depth documentation. I'll also suggest some minor tweaks.
-
-**1. `README.md` (Root of the Repository)**
-
-This will be your project's landing page. Keep it concise and focused on the essentials:
-
-```markdown
 # 🛡️ Caddy WAF Middleware
 
 A robust, highly customizable, and feature-rich **Web Application Firewall (WAF)** middleware for the Caddy web server. This middleware provides **advanced protection** against a comprehensive range of web-based threats, seamlessly integrating with Caddy and offering flexible configuration options to secure your applications effectively.
