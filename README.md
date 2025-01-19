@@ -1,3 +1,5 @@
+Okay, here's the updated `README.md` with the improved index, incorporating the file locations in `/docs` and making it more user-friendly:
+
 # 🛡️ Caddy WAF Middleware
 
 A robust, highly customizable, and feature-rich **Web Application Firewall (WAF)** middleware for the Caddy web server. This middleware provides **advanced protection** against a comprehensive range of web-based threats, seamlessly integrating with Caddy and offering flexible configuration options to secure your applications effectively.
@@ -137,7 +139,21 @@ Here's a minimal Caddyfile example to get started:
 
 For complete documentation, including configuration options, rule format details, protected attack types, testing strategies, and more, please refer to the `/docs` directory in this repository.
 
-[Link to `/docs`](/docs/)  
+### 📑 Table of Contents
+
+1.  [**Installation**](docs/installation.md) - *Instructions for installing the Caddy WAF middleware.*
+2.  [**Configuration Options**](docs/configuration.md) - *Detailed explanation of all available configuration settings.*
+3.  [**Rules Format (`rules.json`)**](docs/rules.md) - *A comprehensive guide to defining custom rules using the JSON format.*
+4.  [**Blacklist Formats**](docs/blacklists.md) - *Documentation of the formats used for defining IP and DNS blacklists.*
+5.   [**Rate Limiting**](docs/ratelimit.md) - *How to configure rate limiting, including parameters and usage.*
+6.  [**Country Blocking and Whitelisting**](docs/geoblocking.md) - *Details on how to configure country-based blocking and whitelisting.*
+7.  [**Protected Attack Types**](docs/attacks.md) - *An overview of the wide range of web-based threats that the Caddy WAF is designed to protect against.*
+8.  [**Dynamic Updates**](docs/dynamicupdates.md) - *How to dynamically update the WAF rules and other settings without downtime.*
+9.  [**Metrics**](docs/metrics.md) - *Details about the WAF's metrics endpoint and the different metrics collected.*
+10. [**Prometheus Metrics**](docs/prometheus.md) - *Instructions on how to expose WAF metrics using the Prometheus format.*
+11. [**Rule/Blacklist Population Scripts**](docs/scripts.md) - *Documentation on the provided scripts to automatically fetch, update and generate rules and blacklists.*
+12. [**Testing**](docs/testing.md) - *Guidance on how to test the WAF's effectiveness using the provided testing tools.*
+13.  [**Docker Support**](docs/docker.md) - *Instructions on how to build and run the WAF using Docker.*
 
 ---
 
