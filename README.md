@@ -1,5 +1,3 @@
-Okay, here's the updated `README.md` with the improved index, incorporating the file locations in `/docs` and making it more user-friendly:
-
 # 🛡️ Caddy WAF Middleware
 
 A robust, highly customizable, and feature-rich **Web Application Firewall (WAF)** middleware for the Caddy web server. This middleware provides **advanced protection** against a comprehensive range of web-based threats, seamlessly integrating with Caddy and offering flexible configuration options to secure your applications effectively.
