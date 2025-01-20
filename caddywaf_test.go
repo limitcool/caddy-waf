@@ -698,13 +698,10 @@ func TestIsRateLimited_MatchAllPaths(t *testing.T) {
 	rl := NewRateLimiter(config)
 
 	// Test rate limiting for all paths
-	assert.False(t, rl.isRateLimited("192.168.1.1", "/api/test")) // First request
-	assert.False(t, rl.isRateLimited("192.168.1.1", "/api/test")) // Second request
-	assert.True(t, rl.isRateLimited("192.168.1.1", "/api/test"))  // Third request, rate limited
-
-	assert.False(t, rl.isRateLimited("192.168.1.1", "/other/test")) // First request on a different path
-	assert.False(t, rl.isRateLimited("192.168.1.1", "/other/test")) // Second request on a different path
-	assert.True(t, rl.isRateLimited("192.168.1.1", "/other/test"))  // Third request on a different path, rate limited
+	assert.False(t, rl.isRateLimited("192.168.1.1", "/api/test"))  // First request
+	assert.False(t, rl.isRateLimited("192.168.1.1", "/api/test"))  // Second request
+	assert.True(t, rl.isRateLimited("192.168.1.1", "/api/test"))   // Third request, rate limited
+	assert.True(t, rl.isRateLimited("192.168.1.1", "/other/test")) // first request to the other path is rate limited
 }
 
 func TestIsRateLimited_WindowExpiry(t *testing.T) {
