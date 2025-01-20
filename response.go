@@ -28,6 +28,10 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 
 		// Custom response handling
 		if resp, ok := m.CustomResponses[statusCode]; ok {
+			m.logger.Debug("Custom response found for status code",
+				zap.Int("status_code", statusCode),
+				zap.String("body", resp.Body),
+			)
 			for key, value := range resp.Headers {
 				w.Header().Set(key, value)
 			}
@@ -55,8 +59,8 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 			zap.String("query_params", r.URL.RawQuery),
 			zap.Int("status_code", statusCode),
 			zap.Time("timestamp", time.Now()),
-			zap.String("reason", reason),          // Include the reason for blocking
-			zap.String("rule_id", ruleID),        // Include the rule ID
+			zap.String("reason", reason),              // Include the reason for blocking
+			zap.String("rule_id", ruleID),             // Include the rule ID
 			zap.String("matched_value", matchedValue), // Include the matched value
 		}
 

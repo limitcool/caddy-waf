@@ -84,16 +84,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	)
 
 	if shouldBlock && !state.ResponseWritten {
-		state.Blocked = true
-		state.StatusCode = http.StatusForbidden
-		w.WriteHeader(state.StatusCode)
-		state.ResponseWritten = true
-
-		m.logRequest(zapcore.WarnLevel, "Request blocked", r,
-			zap.String("log_id", logID),
-			zap.String("rule_id", rule.ID),
-			zap.Int("status_code", state.StatusCode),
-			zap.String("reason", blockReason),
+		m.blockRequest(w, r, state, http.StatusForbidden, blockReason, rule.ID, value,
 			zap.Int("total_score", state.TotalScore),
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		)

@@ -914,8 +914,20 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 					zap.String("target", target),
 					zap.String("value", value),
 				)
-				if !m.processRuleMatch(w, r, &rule, value, state) {
-					return // Stop processing if the rule match indicates blocking
+				if phase == 3 || phase == 4 {
+					if recorder, ok := w.(*responseRecorder); ok {
+						if !m.processRuleMatch(recorder, r, &rule, value, state) {
+							return // Stop processing if the rule match indicates blocking
+						}
+					} else {
+						if !m.processRuleMatch(w, r, &rule, value, state) {
+							return // Stop processing if the rule match indicates blocking
+						}
+					}
+				} else {
+					if !m.processRuleMatch(w, r, &rule, value, state) {
+						return // Stop processing if the rule match indicates blocking
+					}
 				}
 				if state.Blocked || state.ResponseWritten {
 					m.logger.Debug("Rule evaluation completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
@@ -934,59 +946,16 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 
 	if phase == 3 {
 		m.logger.Debug("Starting response headers phase")
-		if recorder, ok := w.(*responseRecorder); ok {
-			headers := recorder.Header()
-			m.logger.Debug("Processing response headers", zap.Any("headers", headers))
-			for _, rule := range m.Rules[3] {
-				m.logger.Debug("Processing rule for response headers", zap.String("rule_id", rule.ID), zap.Int("target_count", len(rule.Targets)))
-				for _, target := range rule.Targets {
-					value := headers.Get(target)
-					m.logger.Debug("Checking response header", zap.String("rule_id", rule.ID), zap.String("target", target), zap.String("value", value))
-					if value != "" && rule.regex.MatchString(value) {
-						m.logger.Debug("Rule matched on response header", zap.String("rule_id", rule.ID), zap.String("target", target), zap.String("value", value))
-						if !m.processRuleMatch(recorder, r, &rule, value, state) {
-							return // Stop processing if the rule match indicates blocking
-						}
-						if state.Blocked || state.ResponseWritten {
-							m.logger.Debug("Response headers phase completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
-							return
-						}
-					} else {
-						m.logger.Debug("Rule did not match on response header", zap.String("rule_id", rule.ID), zap.String("target", target), zap.String("value", value))
-					}
-				}
-			}
+		if _, ok := w.(*responseRecorder); ok {
+			m.logger.Debug("Response headers phase completed")
 		}
-		m.logger.Debug("Response headers phase completed")
 	}
 
 	if phase == 4 {
 		m.logger.Debug("Starting response body phase")
-		if recorder, ok := w.(*responseRecorder); ok {
-			body := recorder.BodyString()
-			m.logger.Debug("Processing response body", zap.Int("body_length", len(body)))
-			for _, rule := range m.Rules[4] {
-				m.logger.Debug("Processing rule for response body", zap.String("rule_id", rule.ID), zap.Int("target_count", len(rule.Targets)))
-				for _, target := range rule.Targets {
-					if target == "RESPONSE_BODY" {
-						m.logger.Debug("Checking rule against response body", zap.String("rule_id", rule.ID))
-						if rule.regex.MatchString(body) {
-							m.logger.Debug("Rule matched on response body", zap.String("rule_id", rule.ID))
-							if !m.processRuleMatch(recorder, r, &rule, body, state) {
-								return // Stop processing if the rule match indicates blocking
-							}
-							if state.Blocked || state.ResponseWritten {
-								m.logger.Debug("Response body phase completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
-								return
-							}
-						} else {
-							m.logger.Debug("Rule did not match on response body", zap.String("rule_id", rule.ID))
-						}
-					}
-				}
-			}
+		if _, ok := w.(*responseRecorder); ok {
+			m.logger.Debug("Response body phase completed")
 		}
-		m.logger.Debug("Response body phase completed")
 	}
 
 	m.logger.Debug("Completed phase evaluation",

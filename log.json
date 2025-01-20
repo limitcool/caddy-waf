@@ -6,3 +6,114 @@
 {"level":"INFO","ts":"2025/01/15 00:30:31.636","msg":"Starting caddy-waf","version":"v0.0.0-20250113222957-aab3402b71d8"}
 {"level":"INFO","ts":"2025/01/15 00:30:31.636","msg":"Rate limiting is disabled"}
 {"level":"DEBUG","ts":"2025/01/15 00:30:31.636","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"INFO","ts":"2025/01/20 00:16:40.263","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":10}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/20 00:16:40.264","msg":"Skipping file watch, file does not exist","file":"testdata/rules.json"}
+{"level":"WARN","ts":"2025/01/20 00:16:40.264","msg":"Skipping file watch, file does not exist","file":"testdata/ip_blacklist.txt"}
+{"level":"WARN","ts":"2025/01/20 00:16:40.264","msg":"Skipping file watch, file does not exist","file":"testdata/dns_blacklist.txt"}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/20 00:16:40.264","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"Starting WAF middleware shutdown procedures"}
+{"level":"DEBUG","ts":"2025/01/20 00:16:40.264","msg":"Rate limiter is nil, no cleanup signaling needed."}
+{"level":"DEBUG","ts":"2025/01/20 00:16:40.264","msg":"Stopping logging worker..."}
+{"level":"DEBUG","ts":"2025/01/20 00:16:40.264","msg":"Logging worker stopped."}
+{"level":"DEBUG","ts":"2025/01/20 00:16:40.264","msg":"Country whitelist GeoIP database was not open, skipping close."}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"Rule Hit Statistics:"}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"WAF middleware shutdown procedures completed"}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/20 00:16:40.264","msg":"Skipping file watch, file does not exist","file":"testdata/rules.json"}
+{"level":"WARN","ts":"2025/01/20 00:16:40.264","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"WARN","ts":"2025/01/20 00:16:40.264","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/20 00:16:40.264","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"DEBUG","ts":"2025/01/20 00:16:40.264","msg":"Loading rules from files","rule_files":["testdata/rules.json"]}
+{"level":"ERROR","ts":"2025/01/20 00:16:40.264","msg":"Failed to read rule file","file":"testdata/rules.json","error":"open testdata/rules.json: no such file or directory"}
+{"level":"WARN","ts":"2025/01/20 00:16:40.264","msg":"Some rule files could not be loaded","invalid_files":["testdata/rules.json"]}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"Reloading WAF rules"}
+{"level":"ERROR","ts":"2025/01/20 00:16:40.264","msg":"Failed to read rule file","file":"testdata/rules.json","error":"open testdata/rules.json: no such file or directory"}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"WAF rules reloaded successfully"}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/20 00:16:40.264","msg":"Skipping file watch, file does not exist","file":"testdata/rules.json"}
+{"level":"WARN","ts":"2025/01/20 00:16:40.264","msg":"Skipping file watch, file does not exist","file":"testdata/ip_blacklist.txt"}
+{"level":"WARN","ts":"2025/01/20 00:16:40.264","msg":"Skipping file watch, file does not exist","file":"testdata/dns_blacklist.txt"}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/20 00:16:40.264","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"INFO","ts":"2025/01/20 00:16:40.264","msg":"Reloading WAF configuration"}
+{"level":"ERROR","ts":"2025/01/20 00:16:40.264","msg":"Failed to read rule file","file":"testdata/rules.json","error":"open testdata/rules.json: no such file or directory"}
+{"level":"ERROR","ts":"2025/01/20 00:16:40.264","msg":"Failed to reload rules","error":"failed to read rule file: testdata/rules.json, error: open testdata/rules.json: no such file or directory"}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":10}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/20 00:16:51.726","msg":"Skipping file watch, file does not exist","file":"testdata/rules.json"}
+{"level":"WARN","ts":"2025/01/20 00:16:51.726","msg":"Skipping file watch, file does not exist","file":"testdata/ip_blacklist.txt"}
+{"level":"WARN","ts":"2025/01/20 00:16:51.726","msg":"Skipping file watch, file does not exist","file":"testdata/dns_blacklist.txt"}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/20 00:16:51.726","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"Starting WAF middleware shutdown procedures"}
+{"level":"DEBUG","ts":"2025/01/20 00:16:51.726","msg":"Rate limiter is nil, no cleanup signaling needed."}
+{"level":"DEBUG","ts":"2025/01/20 00:16:51.726","msg":"Stopping logging worker..."}
+{"level":"DEBUG","ts":"2025/01/20 00:16:51.726","msg":"Logging worker stopped."}
+{"level":"DEBUG","ts":"2025/01/20 00:16:51.726","msg":"Country whitelist GeoIP database was not open, skipping close."}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"Rule Hit Statistics:"}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"WAF middleware shutdown procedures completed"}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/20 00:16:51.726","msg":"Skipping file watch, file does not exist","file":"testdata/rules.json"}
+{"level":"WARN","ts":"2025/01/20 00:16:51.726","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"WARN","ts":"2025/01/20 00:16:51.726","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/20 00:16:51.726","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"DEBUG","ts":"2025/01/20 00:16:51.726","msg":"Loading rules from files","rule_files":["testdata/rules.json"]}
+{"level":"ERROR","ts":"2025/01/20 00:16:51.726","msg":"Failed to read rule file","file":"testdata/rules.json","error":"open testdata/rules.json: no such file or directory"}
+{"level":"WARN","ts":"2025/01/20 00:16:51.726","msg":"Some rule files could not be loaded","invalid_files":["testdata/rules.json"]}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"Reloading WAF rules"}
+{"level":"ERROR","ts":"2025/01/20 00:16:51.726","msg":"Failed to read rule file","file":"testdata/rules.json","error":"open testdata/rules.json: no such file or directory"}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"WAF rules reloaded successfully"}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/20 00:16:51.726","msg":"Skipping file watch, file does not exist","file":"testdata/rules.json"}
+{"level":"WARN","ts":"2025/01/20 00:16:51.726","msg":"Skipping file watch, file does not exist","file":"testdata/ip_blacklist.txt"}
+{"level":"WARN","ts":"2025/01/20 00:16:51.726","msg":"Skipping file watch, file does not exist","file":"testdata/dns_blacklist.txt"}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/20 00:16:51.726","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"INFO","ts":"2025/01/20 00:16:51.726","msg":"Reloading WAF configuration"}
+{"level":"ERROR","ts":"2025/01/20 00:16:51.726","msg":"Failed to read rule file","file":"testdata/rules.json","error":"open testdata/rules.json: no such file or directory"}
+{"level":"ERROR","ts":"2025/01/20 00:16:51.726","msg":"Failed to reload rules","error":"failed to read rule file: testdata/rules.json, error: open testdata/rules.json: no such file or directory"}
+{"level":"INFO","ts":"2025/01/20 00:17:01.359","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":10}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/20 00:17:01.360","msg":"Skipping file watch, file does not exist","file":"testdata/rules.json"}
+{"level":"WARN","ts":"2025/01/20 00:17:01.360","msg":"Skipping file watch, file does not exist","file":"testdata/ip_blacklist.txt"}
+{"level":"WARN","ts":"2025/01/20 00:17:01.360","msg":"Skipping file watch, file does not exist","file":"testdata/dns_blacklist.txt"}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/20 00:17:01.360","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"Starting WAF middleware shutdown procedures"}
+{"level":"DEBUG","ts":"2025/01/20 00:17:01.360","msg":"Rate limiter is nil, no cleanup signaling needed."}
+{"level":"DEBUG","ts":"2025/01/20 00:17:01.360","msg":"Stopping logging worker..."}
+{"level":"DEBUG","ts":"2025/01/20 00:17:01.360","msg":"Logging worker stopped."}
+{"level":"DEBUG","ts":"2025/01/20 00:17:01.360","msg":"Country whitelist GeoIP database was not open, skipping close."}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"Rule Hit Statistics:"}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"WAF middleware shutdown procedures completed"}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/20 00:17:01.360","msg":"Skipping file watch, file does not exist","file":"testdata/rules.json"}
+{"level":"WARN","ts":"2025/01/20 00:17:01.360","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"WARN","ts":"2025/01/20 00:17:01.360","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/20 00:17:01.360","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"DEBUG","ts":"2025/01/20 00:17:01.360","msg":"Loading rules from files","rule_files":["testdata/rules.json"]}
+{"level":"ERROR","ts":"2025/01/20 00:17:01.360","msg":"Failed to read rule file","file":"testdata/rules.json","error":"open testdata/rules.json: no such file or directory"}
+{"level":"WARN","ts":"2025/01/20 00:17:01.360","msg":"Some rule files could not be loaded","invalid_files":["testdata/rules.json"]}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"Reloading WAF rules"}
+{"level":"ERROR","ts":"2025/01/20 00:17:01.360","msg":"Failed to read rule file","file":"testdata/rules.json","error":"open testdata/rules.json: no such file or directory"}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"WAF rules reloaded successfully"}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/20 00:17:01.360","msg":"Skipping file watch, file does not exist","file":"testdata/rules.json"}
+{"level":"WARN","ts":"2025/01/20 00:17:01.360","msg":"Skipping file watch, file does not exist","file":"testdata/ip_blacklist.txt"}
+{"level":"WARN","ts":"2025/01/20 00:17:01.360","msg":"Skipping file watch, file does not exist","file":"testdata/dns_blacklist.txt"}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/20 00:17:01.360","msg":"WAF UnmarshalCaddyfile Called","file":"","line":0}
+{"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"Reloading WAF configuration"}
+{"level":"ERROR","ts":"2025/01/20 00:17:01.360","msg":"Failed to read rule file","file":"testdata/rules.json","error":"open testdata/rules.json: no such file or directory"}
+{"level":"ERROR","ts":"2025/01/20 00:17:01.360","msg":"Failed to reload rules","error":"failed to read rule file: testdata/rules.json, error: open testdata/rules.json: no such file or directory"}
