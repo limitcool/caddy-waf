@@ -21,8 +21,9 @@ jobs:
       - name: Get Dependencies
         run: go get -v ./...
         
-      - name: Install Required tools
-        run: go install github.com/caddyserver/caddy/v2@latest
+      - name: Build Caddy
+        run: |
+          go build -v -o caddy github.com/caddyserver/caddy/v2/cmd/caddy
       
       - name: Tidy modules
         run: go mod tidy
