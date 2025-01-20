@@ -21,10 +21,18 @@ jobs:
       - name: Get Dependencies
         run: go get -v ./...
         
+      - name: Get Caddy Dependencies
+        run: |
+          go get github.com/caddyserver/caddy/v2/modules/caddyhttp/templates@v2.9.1
+          go get github.com/caddyserver/caddy/v2/modules/caddyhttp/proxyprotocol@v2.9.1
+          go get github.com/caddyserver/caddy/v2/modules/caddyhttp/tracing@v2.9.1
+          go get github.com/caddyserver/caddy/v2/modules/caddypki/acmeserver@v2.9.1
+          go get github.com/smallstep/certificates/acme@v0.26.1
+          
       - name: Build Caddy
         run: |
           go build -v -o caddy github.com/caddyserver/caddy/v2/cmd/caddy
-      
+          
       - name: Tidy modules
         run: go mod tidy
 
@@ -32,4 +40,4 @@ jobs:
         run: go build -v ./...
 
       - name: Test
-        run: go test -v -coverprofile=coverage.out ./...
+        run: go test -v
