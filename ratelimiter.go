@@ -59,31 +59,38 @@ func (rl *RateLimiter) isRateLimited(ip, path string) bool {
 	rl.Lock()
 	defer rl.Unlock()
 
+	var key string
+	if rl.config.MatchAllPaths {
+		key = ip
+	} else {
+		//Check if path is matching
+		if len(rl.config.PathRegexes) > 0 {
+			matched := false
+			for _, regex := range rl.config.PathRegexes {
+				if regex.MatchString(path) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				return false // Path does not match any configured paths, no rate limiting
+			}
+		}
+		key = ip + path
+	}
+
 	// Initialize the nested map if it doesn't exist
+
 	if _, exists := rl.requests[ip]; !exists {
 		rl.requests[ip] = make(map[string]*requestCounter)
 	}
 
-	// Check if the path matches any of the configured paths
-	if len(rl.config.PathRegexes) > 0 && !rl.config.MatchAllPaths {
-		matched := false
-		for _, regex := range rl.config.PathRegexes {
-			if regex.MatchString(path) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false // Path does not match any configured paths, no rate limiting
-		}
-	}
-
 	// Get or create the counter for the specific path
-	counter, exists := rl.requests[ip][path]
+	counter, exists := rl.requests[ip][key]
 	if exists {
 		if now.Sub(counter.window) > rl.config.Window {
 			// Window expired, reset the counter
-			rl.requests[ip][path] = &requestCounter{count: 1, window: now}
+			rl.requests[ip][key] = &requestCounter{count: 1, window: now}
 			return false
 		}
 
@@ -93,7 +100,7 @@ func (rl *RateLimiter) isRateLimited(ip, path string) bool {
 	}
 
 	// IP and path combination doesn't exist, add it
-	rl.requests[ip][path] = &requestCounter{count: 1, window: now}
+	rl.requests[ip][key] = &requestCounter{count: 1, window: now}
 	return false
 }
 

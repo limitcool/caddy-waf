@@ -2688,3 +2688,287 @@ func TestBlockedRequestPhase3_ResponseHeaderRegex_NoSetCookie(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code, "Expected status code 200")
 	assert.Empty(t, w.Body.String(), "Response body should be empty")
 }
+
+//
+
+func TestBlockedRequestPhase1_HeaderRegex_CaseInsensitive(t *testing.T) {
+	logger := zap.NewNop()
+	middleware := &Middleware{
+		logger: logger,
+		Rules: map[int][]Rule{
+			1: {
+				{
+					ID:      "rule_header_case_insensitive",
+					Pattern: "(?i)bad-value",
+					Targets: []string{"HEADERS:X-Custom-Header"},
+					Phase:   1,
+					Score:   5,
+					Action:  "block",
+					regex:   regexp.MustCompile("(?i)bad-value"),
+				},
+			},
+		},
+		CustomResponses: map[int]CustomBlockResponse{
+			403: {
+				StatusCode: http.StatusForbidden,
+				Body:       "Blocked by Case-Insensitive Header Regex",
+			},
+		},
+		ruleCache:             NewRuleCache(),
+		ipBlacklist:           NewCIDRTrie(),
+		dnsBlacklist:          map[string]struct{}{},
+		requestValueExtractor: NewRequestValueExtractor(logger, false),
+	}
+
+	req := httptest.NewRequest("GET", "http://example.com", nil)
+	req.Header.Set("X-Custom-Header", "bAd-VaLuE") // Test with mixed-case header value
+	w := httptest.NewRecorder()
+	state := &WAFState{}
+
+	middleware.handlePhase(w, req, 1, state)
+
+	t.Logf("State Blocked: %v", state.Blocked)
+	t.Logf("Response Code: %d", w.Code)
+	t.Logf("Response Body: %s", w.Body.String())
+
+	assert.True(t, state.Blocked, "Request should be blocked by case-insensitive regex")
+	assert.Equal(t, http.StatusForbidden, w.Code, "Expected status code 403")
+	assert.Contains(t, w.Body.String(), "Blocked by Case-Insensitive Header Regex", "Response body should contain 'Blocked by Case-Insensitive Header Regex'")
+}
+
+func TestBlockedRequestPhase1_HeaderRegex_MultipleMatchingHeaders(t *testing.T) {
+	logger := zap.NewNop()
+	middleware := &Middleware{
+		logger: logger,
+		Rules: map[int][]Rule{
+			1: {
+				{
+					ID:      "rule_header_multi",
+					Pattern: "bad",
+					Targets: []string{"HEADERS:X-Custom-Header1,HEADERS:X-Custom-Header2"},
+					Phase:   1,
+					Score:   5,
+					Action:  "block",
+					regex:   regexp.MustCompile("bad"),
+				},
+			},
+		},
+		CustomResponses: map[int]CustomBlockResponse{
+			403: {
+				StatusCode: http.StatusForbidden,
+				Body:       "Blocked by Multiple Matching Headers Regex",
+			},
+		},
+		ruleCache:             NewRuleCache(),
+		ipBlacklist:           NewCIDRTrie(),
+		dnsBlacklist:          map[string]struct{}{},
+		requestValueExtractor: NewRequestValueExtractor(logger, false),
+	}
+
+	req := httptest.NewRequest("GET", "http://example.com", nil)
+	req.Header.Set("X-Custom-Header1", "bad-value")
+	req.Header.Set("X-Custom-Header2", "bad-value") // Both headers have a "bad" value
+	w := httptest.NewRecorder()
+	state := &WAFState{}
+
+	middleware.handlePhase(w, req, 1, state)
+
+	t.Logf("State Blocked: %v", state.Blocked)
+	t.Logf("Response Code: %d", w.Code)
+	t.Logf("Response Body: %s", w.Body.String())
+
+	assert.True(t, state.Blocked, "Request should be blocked when both headers match")
+	assert.Equal(t, http.StatusForbidden, w.Code, "Expected status code 403")
+	assert.Contains(t, w.Body.String(), "Blocked by Multiple Matching Headers Regex", "Response body should contain 'Blocked by Multiple Matching Headers Regex'")
+
+	req2 := httptest.NewRequest("GET", "http://example.com", nil)
+	req2.Header.Set("X-Custom-Header1", "good-value")
+	req2.Header.Set("X-Custom-Header2", "bad-value") // One header has a "bad" value
+	w2 := httptest.NewRecorder()
+	state2 := &WAFState{}
+
+	middleware.handlePhase(w2, req2, 1, state2)
+
+	t.Logf("State Blocked: %v", state2.Blocked)
+	t.Logf("Response Code: %d", w2.Code)
+	t.Logf("Response Body: %s", w2.Body.String())
+
+	assert.True(t, state2.Blocked, "Request should be blocked when one header match")
+	assert.Equal(t, http.StatusForbidden, w2.Code, "Expected status code 403")
+	assert.Contains(t, w2.Body.String(), "Blocked by Multiple Matching Headers Regex", "Response body should contain 'Blocked by Multiple Matching Headers Regex'")
+
+	req3 := httptest.NewRequest("GET", "http://example.com", nil)
+	req3.Header.Set("X-Custom-Header1", "good-value")
+	req3.Header.Set("X-Custom-Header2", "good-value") // None headers have a "bad" value
+	w3 := httptest.NewRecorder()
+	state3 := &WAFState{}
+
+	middleware.handlePhase(w3, req3, 1, state3)
+
+	t.Logf("State Blocked: %v", state3.Blocked)
+	t.Logf("Response Code: %d", w3.Code)
+	t.Logf("Response Body: %s", w3.Body.String())
+
+	assert.False(t, state3.Blocked, "Request should not be blocked when none headers match")
+	assert.Equal(t, http.StatusOK, w3.Code, "Expected status code 200")
+
+}
+
+func TestBlockedRequestPhase1_RateLimiting_MultiplePaths(t *testing.T) {
+	logger := zap.NewNop()
+	middleware := &Middleware{
+		logger: logger,
+		rateLimiter: NewRateLimiter(RateLimit{
+			Requests:        1,
+			Window:          time.Minute,
+			CleanupInterval: time.Minute,
+			Paths:           []string{"/api/v1/.*", "/admin/.*"},
+			MatchAllPaths:   false,
+		}),
+		CustomResponses: map[int]CustomBlockResponse{
+			429: {
+				StatusCode: http.StatusTooManyRequests,
+				Body:       "Rate limit exceeded",
+			},
+		},
+		ipBlacklist:  NewCIDRTrie(),
+		dnsBlacklist: make(map[string]struct{}),
+	}
+
+	// Test path 1
+	req1 := httptest.NewRequest("GET", "/api/v1/users", nil)
+	req1.RemoteAddr = "192.168.1.1:12345"
+	w1 := httptest.NewRecorder()
+	state1 := &WAFState{}
+
+	middleware.handlePhase(w1, req1, 1, state1)
+	assert.False(t, state1.Blocked, "First request to /api/v1 should be allowed")
+	assert.Equal(t, http.StatusOK, w1.Code, "Expected status code 200")
+
+	req2 := httptest.NewRequest("GET", "/api/v1/users", nil)
+	req2.RemoteAddr = "192.168.1.1:12345"
+	w2 := httptest.NewRecorder()
+	state2 := &WAFState{}
+	middleware.handlePhase(w2, req2, 1, state2)
+	assert.True(t, state2.Blocked, "Second request to /api/v1 should be rate-limited")
+	assert.Equal(t, http.StatusTooManyRequests, w2.Code, "Expected status code 429")
+
+	// Test path 2
+	req3 := httptest.NewRequest("GET", "/admin/dashboard", nil)
+	req3.RemoteAddr = "192.168.1.1:12345"
+	w3 := httptest.NewRecorder()
+	state3 := &WAFState{}
+	middleware.handlePhase(w3, req3, 1, state3)
+	assert.False(t, state3.Blocked, "First request to /admin should be allowed")
+	assert.Equal(t, http.StatusOK, w3.Code, "Expected status code 200")
+
+	req4 := httptest.NewRequest("GET", "/admin/dashboard", nil)
+	req4.RemoteAddr = "192.168.1.1:12345"
+	w4 := httptest.NewRecorder()
+	state4 := &WAFState{}
+	middleware.handlePhase(w4, req4, 1, state4)
+	assert.True(t, state4.Blocked, "Second request to /admin should be rate-limited")
+	assert.Equal(t, http.StatusTooManyRequests, w4.Code, "Expected status code 429")
+
+	req5 := httptest.NewRequest("GET", "/not-rate-limited", nil)
+	req5.RemoteAddr = "192.168.1.1:12345"
+	w5 := httptest.NewRecorder()
+	state5 := &WAFState{}
+	middleware.handlePhase(w5, req5, 1, state5)
+	assert.False(t, state5.Blocked, "Request not rate limited path should be allowed")
+	assert.Equal(t, http.StatusOK, w5.Code, "Expected status code 200")
+}
+
+func TestBlockedRequestPhase1_RateLimiting_DifferentIPs(t *testing.T) {
+	logger := zap.NewNop()
+	middleware := &Middleware{
+		logger: logger,
+		rateLimiter: NewRateLimiter(RateLimit{
+			Requests:        1,
+			Window:          time.Minute,
+			CleanupInterval: time.Minute,
+			MatchAllPaths:   true,
+		}),
+		CustomResponses: map[int]CustomBlockResponse{
+			429: {
+				StatusCode: http.StatusTooManyRequests,
+				Body:       "Rate limit exceeded",
+			},
+		},
+		ipBlacklist:  NewCIDRTrie(),
+		dnsBlacklist: make(map[string]struct{}),
+	}
+
+	// Test different IPs
+	req1 := httptest.NewRequest("GET", "/api/users", nil)
+	req1.RemoteAddr = "192.168.1.1:12345"
+	w1 := httptest.NewRecorder()
+	state1 := &WAFState{}
+
+	middleware.handlePhase(w1, req1, 1, state1)
+	assert.False(t, state1.Blocked, "First request from 192.168.1.1 should be allowed")
+	assert.Equal(t, http.StatusOK, w1.Code, "Expected status code 200")
+
+	req2 := httptest.NewRequest("GET", "/api/users", nil)
+	req2.RemoteAddr = "192.168.1.2:12345"
+	w2 := httptest.NewRecorder()
+	state2 := &WAFState{}
+	middleware.handlePhase(w2, req2, 1, state2)
+	assert.False(t, state2.Blocked, "First request from 192.168.1.2 should be allowed")
+	assert.Equal(t, http.StatusOK, w2.Code, "Expected status code 200")
+
+	req3 := httptest.NewRequest("GET", "/api/users", nil)
+	req3.RemoteAddr = "192.168.1.1:12345"
+	w3 := httptest.NewRecorder()
+	state3 := &WAFState{}
+	middleware.handlePhase(w3, req3, 1, state3)
+	assert.True(t, state3.Blocked, "Second request from 192.168.1.1 should be blocked")
+	assert.Equal(t, http.StatusTooManyRequests, w3.Code, "Expected status code 429")
+}
+
+func TestBlockedRequestPhase1_RateLimiting_MatchAllPaths(t *testing.T) {
+	logger := zap.NewNop()
+	middleware := &Middleware{
+		logger: logger,
+		rateLimiter: NewRateLimiter(RateLimit{
+			Requests:        1,
+			Window:          time.Minute,
+			CleanupInterval: time.Minute,
+			MatchAllPaths:   true,
+		}),
+		CustomResponses: map[int]CustomBlockResponse{
+			429: {
+				StatusCode: http.StatusTooManyRequests,
+				Body:       "Rate limit exceeded",
+			},
+		},
+		ipBlacklist:  NewCIDRTrie(),
+		dnsBlacklist: make(map[string]struct{}),
+	}
+
+	// Test with match all paths
+	req1 := httptest.NewRequest("GET", "/api/users", nil)
+	req1.RemoteAddr = "192.168.1.1:12345"
+	w1 := httptest.NewRecorder()
+	state1 := &WAFState{}
+	middleware.handlePhase(w1, req1, 1, state1)
+	assert.False(t, state1.Blocked, "First request to /api/users should be allowed")
+	assert.Equal(t, http.StatusOK, w1.Code, "Expected status code 200")
+
+	req2 := httptest.NewRequest("GET", "/api/users", nil)
+	req2.RemoteAddr = "192.168.1.1:12345"
+	w2 := httptest.NewRecorder()
+	state2 := &WAFState{}
+
+	middleware.handlePhase(w2, req2, 1, state2)
+	assert.True(t, state2.Blocked, "Second request to /api/users should be rate-limited")
+	assert.Equal(t, http.StatusTooManyRequests, w2.Code, "Expected status code 429")
+
+	req3 := httptest.NewRequest("GET", "/some-other-path", nil)
+	req3.RemoteAddr = "192.168.1.1:12345"
+	w3 := httptest.NewRecorder()
+	state3 := &WAFState{}
+	middleware.handlePhase(w3, req3, 1, state3)
+	assert.True(t, state3.Blocked, "Second request to /some-other-path should be rate-limited because MatchAllPaths=true")
+	assert.Equal(t, http.StatusTooManyRequests, w3.Code, "Expected status code 429")
+}
