@@ -11,3 +11,4 @@ testdata/GeoIP2-Country-Test.mmdb
 testdata/ip_blacklist.txt
 testdata/rules.json
 log.json
+validation.log
