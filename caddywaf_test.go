@@ -2969,3 +2969,165 @@ func TestBlockedRequestPhase1_RateLimiting_MatchAllPaths(t *testing.T) {
 	assert.True(t, state3.Blocked, "Second request to /some-other-path should be rate-limited because MatchAllPaths=true")
 	assert.Equal(t, http.StatusTooManyRequests, w3.Code, "Expected status code 429")
 }
+
+// TestLoadDNSBlacklistFromFile_EmptyFile tests loading from an empty file
+func TestLoadDNSBlacklistFromFile_EmptyFile(t *testing.T) {
+	logger := zap.NewNop()
+	bl := NewBlacklistLoader(logger)
+
+	tmpFile, err := os.CreateTemp("", "dns_blacklist_empty-*.txt")
+	if err != nil {
+		t.Fatalf("Failed to create temporary file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	tmpFile.Close()
+
+	dnsBlacklist := make(map[string]struct{})
+	err = bl.LoadDNSBlacklistFromFile(tmpFile.Name(), dnsBlacklist)
+	assert.NoError(t, err)
+	assert.Empty(t, dnsBlacklist)
+}
+
+// TestLoadIPBlacklistFromFile_EmptyFile tests loading from an empty file
+func TestLoadIPBlacklistFromFile_EmptyFile(t *testing.T) {
+	logger := zap.NewNop()
+	bl := NewBlacklistLoader(logger)
+
+	tmpFile, err := os.CreateTemp("", "ip_blacklist_empty-*.txt")
+	if err != nil {
+		t.Fatalf("Failed to create temporary file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	tmpFile.Close()
+
+	ipBlacklist := make(map[string]struct{})
+	err = bl.LoadIPBlacklistFromFile(tmpFile.Name(), ipBlacklist)
+	assert.NoError(t, err)
+	assert.Empty(t, ipBlacklist)
+}
+
+// TestLoadIPBlacklistFromFile_InvalidCIDR tests loading with an invalid CIDR range
+func TestLoadIPBlacklistFromFile_InvalidCIDR(t *testing.T) {
+	logger := zap.NewNop()
+	bl := NewBlacklistLoader(logger)
+
+	tmpFile, err := os.CreateTemp("", "ip_blacklist_invalid-*.txt")
+	if err != nil {
+		t.Fatalf("Failed to create temporary file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.WriteString("192.168.1.0/abc\n")
+	if err != nil {
+		t.Fatalf("Failed to write to temporary file: %v", err)
+	}
+
+	tmpFile.Close()
+	ipBlacklist := make(map[string]struct{})
+	err = bl.LoadIPBlacklistFromFile(tmpFile.Name(), ipBlacklist)
+	assert.NoError(t, err) // Loading should not fail completely, but log the error
+	assert.Empty(t, ipBlacklist)
+}
+
+// TestParseRateLimit_InvalidRequests tests invalid requests value
+func TestParseRateLimit_InvalidRequests(t *testing.T) {
+	logger := zap.NewNop()
+	cl := NewConfigLoader(logger)
+	m := &Middleware{}
+	d := caddyfile.NewTestDispenser(`
+        rate_limit {
+            requests invalid
+            window 10s
+        }
+    `)
+
+	if !d.Next() {
+		t.Fatal("Failed to advance to the first directive")
+	}
+	err := cl.parseRateLimit(d, m)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid syntax")
+}
+
+// TestParseRateLimit_InvalidWindow tests invalid window value
+func TestParseRateLimit_InvalidWindow(t *testing.T) {
+	logger := zap.NewNop()
+	cl := NewConfigLoader(logger)
+	m := &Middleware{}
+	d := caddyfile.NewTestDispenser(`
+        rate_limit {
+            requests 100
+            window invalid
+        }
+    `)
+
+	if !d.Next() {
+		t.Fatal("Failed to advance to the first directive")
+	}
+	err := cl.parseRateLimit(d, m)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid duration")
+}
+
+// TestParseAnomalyThreshold_Invalid tests invalid anomaly threshold
+func TestParseAnomalyThreshold_Invalid(t *testing.T) {
+	logger := zap.NewNop()
+	cl := NewConfigLoader(logger)
+	m := &Middleware{}
+	d := caddyfile.NewTestDispenser(`
+        anomaly_threshold invalid
+    `)
+	// Advance to the "anomaly_threshold" directive
+	if !d.Next() {
+		t.Fatal("Failed to advance to the first directive")
+	}
+
+	err := cl.parseAnomalyThreshold(d, m)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid syntax")
+}
+
+func TestProcessRuleMatch_NoAction(t *testing.T) {
+	logger := newMockLogger()
+	middleware := &Middleware{
+		logger:           logger.Logger, // Use the embedded *zap.Logger
+		AnomalyThreshold: 10,
+		ruleHits:         sync.Map{},
+		muMetrics:        sync.RWMutex{}, // Use sync.RWMutex directly
+	}
+
+	rule := &Rule{
+		ID:          "no_action_rule",
+		Targets:     []string{"header"},
+		Description: "Test no-action rule",
+		Score:       5,
+		Action:      "", // No action
+	}
+
+	state := &WAFState{
+		TotalScore:      0,
+		ResponseWritten: false,
+	}
+
+	req := httptest.NewRequest("GET", "http://example.com", nil)
+	w := httptest.NewRecorder()
+
+	shouldContinue := middleware.processRuleMatch(w, req, rule, "value", state)
+	assert.True(t, shouldContinue)
+	assert.Equal(t, 5, state.TotalScore)
+	assert.False(t, state.Blocked)
+
+}
+
+func TestExtractValue_HeaderCaseInsensitive(t *testing.T) {
+	logger := zap.NewNop()
+	rve := NewRequestValueExtractor(logger, false)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("x-test-header", "test-value")
+	w := httptest.NewRecorder()
+
+	value, err := rve.ExtractValue("HEADERS:X-Test-Header", req, w)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-value", value) // Check if case-insensitive extraction works
+}
