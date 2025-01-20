@@ -1,0 +1,185 @@
+name: Build, Package, and Release Caddy with WAF
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-package:
+    name: Build and Package Caddy WAF
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y wget git build-essential upx
+
+      - name: Install Go 1.23.4
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23.4'
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Cache xcaddy
+        uses: actions/cache@v3
+        with:
+          path: ~/go/bin/xcaddy
+          key: ${{ runner.os }}-xcaddy
+          restore-keys: |
+            ${{ runner.os }}-xcaddy
+
+      - name: Prepare Build Environment
+        run: |
+          sudo apt update
+          sudo apt install -y wget git build-essential upx
+          go version
+          if ! go version | grep -q "go1.23.4"; then
+             echo "Go installation failed or incorrect version" && exit 1
+          fi
+          git clone https://github.com/fabriziosalmi/caddy-waf.git
+          cd caddy-waf
+          if [ ! -d "caddy-waf" ]; then
+             echo "Repository cloning failed" && exit 1
+          fi
+          go mod tidy
+          go get -v github.com/fabriziosalmi/caddy-waf github.com/caddyserver/caddy/v2 github.com/oschwald/maxminddb-golang
+          wget https://git.io/GeoLite2-Country.mmdb
+          if [ ! -f "GeoLite2-Country.mmdb" ]; then
+             echo "GeoLite2 database download failed" && exit 1
+          fi
+
+      - name: Build Caddy with caddy-waf
+        run: |
+           set -e
+           cd caddy-waf
+           go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
+           if [ ! -f "caddy" ]; then
+              echo "Caddy build failed" && exit 1
+           fi
+
+      - name: Package Caddy Binary
+        run: |
+          cd caddy-waf
+          if [[ "${{ matrix.goos }}" != "windows" ]]; then
+            upx caddy
+          fi
+          mkdir -p dist
+          mv caddy dist/caddy-${{ matrix.goos }}-${{ matrix.goarch }}$([[ "${{ matrix.goos }}" == "windows" ]] && echo ".exe")
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: caddy-waf-binaries
+          path: caddy-waf/dist
+          
+      - name: Test Caddy Run and Validate WAF Provisioning
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        run: |
+          cd caddy-waf
+          echo ":8080 {
+            waf
+            respond 200
+           }" > Caddyfile
+          chmod +x caddy
+          ./caddy run --config Caddyfile > caddy_output.log 2>&1 &
+          sleep 5
+          
+          if ! pgrep -f "caddy run"; then
+            echo "Caddy run failed"
+            cat caddy_output.log
+            exit 1
+          fi
+          
+          if ! grep -q "WAF middleware provisioned successfully" caddy_output.log; then
+            echo "WAF provisioning log not found"
+            cat caddy_output.log
+            exit 1
+          fi
+          
+          echo "Caddy WAF build and run successful with WAF middleware provisioned"
+
+      - name: Clean Up
+        if: always()
+        run: |
+          pkill -f "caddy" || true
+          echo "Cleaned up running Caddy instances"
+
+  release:
+      name: Create Release
+      needs: build-and-package
+      runs-on: ubuntu-latest
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+      steps:
+        - name: Download all artifacts
+          uses: actions/download-artifact@v3
+          with:
+            path: artifacts
+          
+        - name: Package Release
+          run: |
+            mkdir release
+            for d in artifacts/*; do
+              unzip "$d" -d release
+            done
+            cd release
+            ls
+            zip -r caddy-waf-release.zip .
+            mv caddy-waf-release.zip ../
+          
+        - name: Create Release
+          uses: actions/create-release@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            tag_name: ${{ github.ref_name }}
+            release_name: Release ${{ github.ref_name }}
+            body: |
+              Caddy binaries with WAF
+            draft: false
+            prerelease: false
+        
+        - name: Upload Release Assets
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: caddy-waf-release.zip
+            asset_name: caddy-waf-release.zip
+            asset_content_type: application/zip
