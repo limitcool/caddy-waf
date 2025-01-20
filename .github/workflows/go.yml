@@ -40,4 +40,26 @@ jobs:
         run: go build -v ./...
 
       - name: Test
-        run: go test -v
+        id: test
+        run: |
+           test_output=$(go test -v -count=1 ./... 2>&1)
+           echo "test_output<<EOF" >> $GITHUB_STEP_SUMMARY
+           echo "$test_output" >> $GITHUB_STEP_SUMMARY
+           echo "EOF" >> $GITHUB_STEP_SUMMARY
+           
+           passed_count=$(echo "$test_output" | grep "PASS:" | wc -l)
+           failed_count=$(echo "$test_output" | grep "FAIL:" | wc -l)
+
+           echo "::set-output name=passed::$(echo $passed_count)"
+           echo "::set-output name=failed::$(echo $failed_count)"
+           
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "Test Results:"
+          echo "Passed Tests: ${{ steps.test.outputs.passed }}"
+          echo "Failed Tests: ${{ steps.test.outputs.failed }}"
+      
+      - name: Fail if tests failed
+        if: steps.test.outputs.failed != '0'
+        run: exit 1
