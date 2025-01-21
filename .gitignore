@@ -12,4 +12,4 @@ testdata/ip_blacklist.txt
 testdata/rules.json
 log.json
 validation.log
-caddy-waf
+caddy-waf.DS_Store
