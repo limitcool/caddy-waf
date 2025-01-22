@@ -23,6 +23,8 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.String("value", value),
 		zap.String("description", rule.Description),
 		zap.Int("score", rule.Score),
+		zap.Int("anomaly_threshold_config", m.AnomalyThreshold), // ADDED: Log configured anomaly threshold
+		zap.Int("current_anomaly_score", state.TotalScore),      // ADDED: Log current anomaly score before increment
 	)
 
 	// Rule Hit Counter - Refactored for clarity
@@ -52,16 +54,19 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		}
 	}
 
-	m.logRequest(zapcore.DebugLevel, "Anomaly score increased", r, // 'r' is now the 3rd argument
+	m.logRequest(zapcore.DebugLevel, "Determining Block Action", r, // More descriptive log message
 		zap.String("action", rule.Action),
 		zap.Bool("should_block", shouldBlock),
 		zap.String("block_reason", blockReason),
+		zap.Int("total_score", state.TotalScore),         // ADDED: Log total score in block decision log
+		zap.Int("anomaly_threshold", m.AnomalyThreshold), // ADDED: Log anomaly threshold in block decision log
 	)
 
 	if shouldBlock {
 		m.blockRequest(w, r, state, http.StatusForbidden, blockReason, string(rule.ID), value,
 			zap.Int("total_score", state.TotalScore),
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
+			zap.String("final_block_reason", blockReason), // ADDED: Clarify block reason in blockRequest log
 		)
 		return false
 	}
@@ -70,6 +75,8 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		m.logRequest(zapcore.InfoLevel, "Rule action: Log", r,
 			zap.String("log_id", logID),
 			zap.String("rule_id", string(rule.ID)),
+			zap.Int("total_score", state.TotalScore),         // ADDED: Log total score for log action
+			zap.Int("anomaly_threshold", m.AnomalyThreshold), // ADDED: Log anomaly threshold for log action
 		)
 	} else if !shouldBlock && !state.ResponseWritten {
 		m.logRequest(zapcore.DebugLevel, "Rule action: No Block", r,
