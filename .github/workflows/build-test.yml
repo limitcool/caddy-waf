@@ -1,4 +1,4 @@
-name: Build and test Caddy with WAF (branch: test)
+name: Build and test Caddy with WAF - test
 
 permissions:
   contents: read
