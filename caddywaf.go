@@ -33,11 +33,11 @@ var (
 // ==================== Initialization and Setup ====================
 
 func init() {
-	caddy.RegisterModule(Middleware{})
+	caddy.RegisterModule(&Middleware{}) // Changed from Middleware{} to &Middleware{}
 	httpcaddyfile.RegisterHandlerDirective("waf", parseCaddyfile)
 }
 
-func (Middleware) CaddyModule() caddy.ModuleInfo {
+func (*Middleware) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.waf",
 		New: func() caddy.Module { return &Middleware{} },
