@@ -89,6 +89,11 @@ func (m *Middleware) extractLogIDField(fields []zap.Field) (logID string, remain
 
 // mergeFields merges custom fields and common fields, with custom fields taking precedence and ensuring log_id is present.
 func (m *Middleware) mergeFields(customFields []zap.Field, commonFields []zap.Field, logIDField zap.Field) []zap.Field {
+	// Check for potential overflow
+	if len(customFields) > (int(^uint(0) >> 1) - len(commonFields) - 1) {
+		m.logger.Error("Field lengths too large, potential overflow detected")
+		return nil
+	}
 	mergedFields := make([]zap.Field, 0, len(customFields)+len(commonFields)+1) //预分配容量
 	mergedFields = append(mergedFields, customFields...)
 
