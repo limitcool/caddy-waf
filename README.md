@@ -38,10 +38,6 @@ INFO    Rules loaded    {"file": "rules.json", "total_rules": 70, "invalid_rules
 INFO    WAF middleware provisioned successfully
 ```
 
-### Diagram
-
-![diagram](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/caddy-waf-bw.drawio.png?raw=true)
-
 ## 📑 Table of Contents
 
 1.  [🚀 Installation](#-installation)
