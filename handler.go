@@ -10,6 +10,7 @@ import (
 )
 
 // ServeHTTP implements caddyhttp.Handler.
+// ServeHTTP implements caddyhttp.Handler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	logID := uuid.New().String()
 
@@ -40,7 +41,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	m.handleResponseBodyPhase(recorder, r, state) // Phase 4: Response Body analysis (if not blocked yet)
 
 	if state.Blocked {
-		m.incrementBlockedRequestsMetric()
+		m.incrementBlockedRequestsMetric() // Potential overcounting here
 		m.writeCustomResponse(recorder, state.StatusCode)
 		return nil // Short circuit if blocked in any phase after headers
 	}
