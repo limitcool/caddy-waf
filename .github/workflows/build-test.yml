@@ -105,7 +105,7 @@ jobs:
           fi
 
           # Check for critical log messages in stdout
-          if ! grep -q '"msg":"Provisioning WAF middleware"' caddy_output.log; then
+          if ! grep -q '"msg":"WAF middleware provisioned successfully"' caddy_output.log; then
             echo "WAF middleware provisioning log not found in stdout"
             cat caddy_output.log
             exit 1
