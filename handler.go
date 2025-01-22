@@ -10,7 +10,6 @@ import (
 )
 
 // ServeHTTP implements caddyhttp.Handler.
-// ServeHTTP implements caddyhttp.Handler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	logID := uuid.New().String()
 
