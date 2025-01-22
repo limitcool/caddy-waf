@@ -35,6 +35,25 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, r *http.Request
 	}
 }
 
+// redactSensitiveFields redacts sensitive information in the log fields.
+func (m *Middleware) redactSensitiveFields(fields []zap.Field) []zap.Field {
+	redactedFields := make([]zap.Field, len(fields))
+	for i, field := range fields {
+		redacted := false
+		for _, key := range sensitiveKeys {
+			if strings.Contains(strings.ToLower(field.Key), key) {
+				redactedFields[i] = zap.String(field.Key, "[REDACTED]")
+				redacted = true
+				break
+			}
+		}
+		if !redacted {
+			redactedFields[i] = field
+		}
+	}
+	return redactedFields
+}
+
 // prepareLogFields consolidates the logic for preparing log fields, including common fields and log_id.
 func (m *Middleware) prepareLogFields(r *http.Request, fields []zap.Field) []zap.Field { // Corrected signature: Removed 'level zapcore.Level'
 	var logID string
@@ -49,6 +68,9 @@ func (m *Middleware) prepareLogFields(r *http.Request, fields []zap.Field) []zap
 	// Get common log fields and merge with custom fields, prioritizing custom fields in case of duplicates
 	commonFields := m.getCommonLogFields(r)
 	allFields := m.mergeFields(customFields, commonFields, zap.String("log_id", logID)) // Ensure log_id is always present
+
+	// Redact sensitive information in the log fields
+	allFields = m.redactSensitiveFields(allFields)
 
 	return allFields
 }
