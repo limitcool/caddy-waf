@@ -21,7 +21,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	}
 
 	m.logRequest(zapcore.DebugLevel, "Rule matched during evaluation", r,
-		zap.String("rule_id", rule.ID),
+		zap.String("rule_id", string(rule.ID)),
 		zap.String("target", strings.Join(rule.Targets, ",")),
 		zap.String("value", value),
 		zap.String("description", rule.Description),
@@ -30,16 +30,16 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 
 	// Increment rule hit count
 	if count, ok := m.ruleHits.Load(rule.ID); ok {
-		newCount := count.(int) + 1
+		newCount := count.(HitCount) + 1
 		m.ruleHits.Store(rule.ID, newCount)
 		m.logger.Debug("Incremented rule hit count",
-			zap.String("rule_id", rule.ID),
-			zap.Int("new_count", newCount),
+			zap.String("rule_id", string(rule.ID)),
+			zap.Int("new_count", int(newCount)),
 		)
 	} else {
-		m.ruleHits.Store(rule.ID, 1)
+		m.ruleHits.Store(rule.ID, HitCount(1))
 		m.logger.Debug("Initialized rule hit count",
-			zap.String("rule_id", rule.ID),
+			zap.String("rule_id", string(rule.ID)),
 			zap.Int("new_count", 1),
 		)
 	}
@@ -56,7 +56,7 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	state.TotalScore += rule.Score
 	m.logRequest(zapcore.DebugLevel, "Increased anomaly score", r,
 		zap.String("log_id", logID),
-		zap.String("rule_id", rule.ID),
+		zap.String("rule_id", string(rule.ID)),
 		zap.Int("score_increase", rule.Score),
 		zap.Int("old_total_score", oldScore),
 		zap.Int("new_total_score", state.TotalScore),
@@ -77,14 +77,14 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	}
 
 	m.logger.Debug("Processing rule action",
-		zap.String("rule_id", rule.ID),
+		zap.String("rule_id", string(rule.ID)),
 		zap.String("action", rule.Action),
 		zap.Bool("should_block", shouldBlock),
 		zap.String("block_reason", blockReason),
 	)
 
 	if shouldBlock && !state.ResponseWritten {
-		m.blockRequest(w, r, state, http.StatusForbidden, blockReason, rule.ID, value,
+		m.blockRequest(w, r, state, http.StatusForbidden, blockReason, string(rule.ID), value,
 			zap.Int("total_score", state.TotalScore),
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		)
@@ -94,12 +94,12 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 	if rule.Action == "log" {
 		m.logRequest(zapcore.InfoLevel, "Rule action is 'log', request allowed but logged", r,
 			zap.String("log_id", logID),
-			zap.String("rule_id", rule.ID),
+			zap.String("rule_id", string(rule.ID)),
 		)
 	} else if !shouldBlock && !state.ResponseWritten {
 		m.logRequest(zapcore.DebugLevel, "Rule matched, no blocking action taken", r,
 			zap.String("log_id", logID),
-			zap.String("rule_id", rule.ID),
+			zap.String("rule_id", string(rule.ID)),
 			zap.String("action", rule.Action),
 			zap.Int("total_score", state.TotalScore),
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
@@ -171,11 +171,11 @@ func (m *Middleware) loadRules(paths []string) error {
 				continue
 			}
 
-			if _, exists := ruleIDs[rule.ID]; exists {
+			if _, exists := ruleIDs[string(rule.ID)]; exists {
 				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Duplicate rule ID '%s' at index %d", rule.ID, i))
 				continue
 			}
-			ruleIDs[rule.ID] = true
+			ruleIDs[string(rule.ID)] = true
 
 			// Check RuleCache first
 			if regex, exists := m.ruleCache.Get(rule.ID); exists {
@@ -183,7 +183,7 @@ func (m *Middleware) loadRules(paths []string) error {
 			} else {
 				regex, err := regexp.Compile(rule.Pattern)
 				if err != nil {
-					m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", rule.ID), zap.String("pattern", rule.Pattern), zap.Error(err))
+					m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", string(rule.ID)), zap.String("pattern", rule.Pattern), zap.Error(err))
 					invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
 					continue
 				}

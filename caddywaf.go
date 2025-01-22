@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -34,11 +33,11 @@ var (
 // ==================== Initialization and Setup ====================
 
 func init() {
-	caddy.RegisterModule(&Middleware{})
+	caddy.RegisterModule(Middleware{})
 	httpcaddyfile.RegisterHandlerDirective("waf", parseCaddyfile)
 }
 
-func (m *Middleware) CaddyModule() caddy.ModuleInfo {
+func (Middleware) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.waf",
 		New: func() caddy.Module { return &Middleware{} },
@@ -222,7 +221,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 		}
 	}
 
-	// Load WAF rules
+	// Load WAF rules - calling the new external loadRules function
 	if err := m.loadRules(m.RuleFiles); err != nil {
 		return fmt.Errorf("failed to load rules: %w", err)
 	}
@@ -265,6 +264,8 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 			m.logger.Debug("Country block GeoIP database closed successfully.")
 		}
 		m.CountryBlock.geoIP = nil
+	} else {
+		m.logger.Debug("Country block GeoIP database was not open, skipping close.")
 	}
 
 	if m.CountryWhitelist.geoIP != nil {
@@ -388,44 +389,13 @@ func (m *Middleware) ReloadRules() error {
 	defer m.mu.Unlock()
 
 	m.logger.Info("Reloading WAF rules")
-
-	newRules := make(map[int][]Rule)
-
-	for _, file := range m.RuleFiles {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			m.logger.Error("Failed to read rule file", zap.String("file", file), zap.Error(err))
-			continue
-		}
-
-		var rules []Rule
-		if err := json.Unmarshal(content, &rules); err != nil {
-			m.logger.Error("Failed to unmarshal rules from file", zap.String("file", file), zap.Error(err))
-			continue
-		}
-
-		for _, rule := range rules {
-			if err := validateRule(&rule); err != nil {
-				m.logger.Warn("Invalid rule encountered", zap.String("file", file), zap.String("rule_id", rule.ID), zap.Error(err))
-				continue
-			}
-
-			rule.regex, err = regexp.Compile(rule.Pattern)
-			if err != nil {
-				m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", rule.ID), zap.Error(err))
-				continue
-			}
-
-			if _, exists := newRules[rule.Phase]; !exists {
-				newRules[rule.Phase] = []Rule{}
-			}
-			newRules[rule.Phase] = append(newRules[rule.Phase], rule)
-		}
+	// Call the external loadRules function
+	if err := m.loadRules(m.RuleFiles); err != nil {
+		m.logger.Error("Failed to reload rules", zap.Error(err))
+		return fmt.Errorf("failed to reload rules: %v", err)
 	}
 
-	m.Rules = newRules
 	m.logger.Info("WAF rules reloaded successfully")
-
 	return nil
 }
 
@@ -435,13 +405,7 @@ func (m *Middleware) ReloadConfig() error {
 
 	m.logger.Info("Reloading WAF configuration")
 
-	newRules := make(map[int][]Rule)
-	if err := m.loadRulesIntoMap(newRules); err != nil {
-		m.logger.Error("Failed to reload rules", zap.Error(err))
-		return fmt.Errorf("failed to reload rules: %v", err)
-	}
-
-	newIPBlacklist := NewCIDRTrie() // Initialize as CIDRTrie
+	newIPBlacklist := NewCIDRTrie()
 	if m.IPBlacklistFile != "" {
 		if err := m.loadIPBlacklistIntoMap(m.IPBlacklistFile, newIPBlacklist); err != nil {
 			m.logger.Error("Failed to reload IP blacklist", zap.String("file", m.IPBlacklistFile), zap.Error(err))
@@ -451,7 +415,7 @@ func (m *Middleware) ReloadConfig() error {
 		m.logger.Debug("No IP blacklist file specified, skipping reload")
 	}
 
-	newDNSBlacklist := make(map[string]struct{}) // Changed to map[string]struct{}
+	newDNSBlacklist := make(map[string]struct{})
 	if m.DNSBlacklistFile != "" {
 		if err := m.loadDNSBlacklistIntoMap(m.DNSBlacklistFile, newDNSBlacklist); err != nil {
 			m.logger.Error("Failed to reload DNS blacklist", zap.String("file", m.DNSBlacklistFile), zap.Error(err))
@@ -461,36 +425,17 @@ func (m *Middleware) ReloadConfig() error {
 		m.logger.Debug("No DNS blacklist file specified, skipping reload")
 	}
 
-	m.Rules = newRules
+	// Call the external loadRules function
+	if err := m.loadRules(m.RuleFiles); err != nil {
+		m.logger.Error("Failed to reload rules", zap.Error(err))
+		return fmt.Errorf("failed to reload rules: %v", err)
+	}
+
 	m.ipBlacklist = newIPBlacklist
 	m.dnsBlacklist = newDNSBlacklist
 
 	m.logger.Info("WAF configuration reloaded successfully")
 
-	return nil
-}
-
-func (m *Middleware) loadRulesIntoMap(rulesMap map[int][]Rule) error {
-	for _, file := range m.RuleFiles {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			m.logger.Error("Failed to read rule file", zap.String("file", file), zap.Error(err))
-			return fmt.Errorf("failed to read rule file: %s, error: %v", file, err)
-		}
-
-		var rules []Rule
-		if err := json.Unmarshal(content, &rules); err != nil {
-			m.logger.Error("Failed to unmarshal rules from file", zap.String("file", file), zap.Error(err))
-			return fmt.Errorf("failed to unmarshal rules from file: %s, error: %v. Ensure valid JSON", file, err)
-		}
-
-		for _, rule := range rules {
-			if _, ok := rulesMap[rule.Phase]; !ok {
-				rulesMap[rule.Phase] = []Rule{}
-			}
-			rulesMap[rule.Phase] = append(rulesMap[rule.Phase], rule)
-		}
-	}
 	return nil
 }
 
@@ -535,7 +480,17 @@ func (m *Middleware) loadDNSBlacklistIntoMap(path string, blacklistMap map[strin
 func (m *Middleware) getRuleHitStats() map[string]int {
 	stats := make(map[string]int)
 	m.ruleHits.Range(func(key, value interface{}) bool {
-		stats[key.(string)] = value.(int)
+		ruleID, ok := key.(RuleID)
+		if !ok {
+			m.logger.Error("Invalid type for rule ID in ruleHits map", zap.Any("key", key))
+			return true // Continue iteration
+		}
+		hitCount, ok := value.(HitCount)
+		if !ok {
+			m.logger.Error("Invalid type for hit count in ruleHits map", zap.Any("value", value))
+			return true // Continue iteration
+		}
+		stats[string(ruleID)] = int(hitCount)
 		return true
 	})
 	return stats
@@ -659,14 +614,14 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 
 	m.logger.Debug("Starting rule evaluation for phase", zap.Int("phase", phase), zap.Int("rule_count", len(rules)))
 	for _, rule := range rules {
-		m.logger.Debug("Processing rule", zap.String("rule_id", rule.ID), zap.Int("target_count", len(rule.Targets)))
+		m.logger.Debug("Processing rule", zap.String("rule_id", string(rule.ID)), zap.Int("target_count", len(rule.Targets)))
 
 		// Use the custom type as the key
 		ctx := context.WithValue(r.Context(), ContextKeyRule("rule_id"), rule.ID)
 		r = r.WithContext(ctx)
 
 		for _, target := range rule.Targets {
-			m.logger.Debug("Extracting value for target", zap.String("target", target), zap.String("rule_id", rule.ID))
+			m.logger.Debug("Extracting value for target", zap.String("target", target), zap.String("rule_id", string(rule.ID)))
 			var value string
 			var err error
 
@@ -684,21 +639,21 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			if err != nil {
 				m.logger.Debug("Failed to extract value for target, skipping rule for this target",
 					zap.String("target", target),
-					zap.String("rule_id", rule.ID),
+					zap.String("rule_id", string(rule.ID)),
 					zap.Error(err),
 				)
 				continue
 			}
 
 			m.logger.Debug("Extracted value",
-				zap.String("rule_id", rule.ID),
+				zap.String("rule_id", string(rule.ID)),
 				zap.String("target", target),
 				zap.String("value", value),
 			)
 
 			if rule.regex.MatchString(value) {
 				m.logger.Debug("Rule matched",
-					zap.String("rule_id", rule.ID),
+					zap.String("rule_id", string(rule.ID)),
 					zap.String("target", target),
 					zap.String("value", value),
 				)
@@ -718,12 +673,12 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 					}
 				}
 				if state.Blocked || state.ResponseWritten {
-					m.logger.Debug("Rule evaluation completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", rule.ID))
+					m.logger.Debug("Rule evaluation completed early due to blocking or response written", zap.Int("phase", phase), zap.String("rule_id", string(rule.ID)))
 					return
 				}
 			} else {
 				m.logger.Debug("Rule did not match",
-					zap.String("rule_id", rule.ID),
+					zap.String("rule_id", string(rule.ID)),
 					zap.String("target", target),
 					zap.String("value", value),
 				)
