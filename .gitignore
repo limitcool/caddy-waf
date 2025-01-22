@@ -13,3 +13,4 @@ testdata/rules.json
 log.json
 validation.log
 caddy-waf.DS_Store
+vendor

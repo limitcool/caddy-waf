@@ -1,6 +1,7 @@
 package caddywaf
 
 import (
+	"bufio" // Optimized reading
 	"fmt"
 	"net"
 	"os"
@@ -25,18 +26,22 @@ func (bl *BlacklistLoader) LoadDNSBlacklistFromFile(path string, dnsBlacklist ma
 	if bl.logger == nil {
 		bl.logger = zap.NewNop()
 	}
-	bl.logger.Debug("Loading DNS blacklist from file", zap.String("file", path))
+	bl.logger.Debug("Loading DNS blacklist", zap.String("path", path)) // Improved log message
 
-	content, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
-		bl.logger.Warn("Failed to read DNS blacklist file", zap.String("file", path), zap.Error(err))
-		return fmt.Errorf("failed to read DNS blacklist file: %w", err)
+		bl.logger.Warn("Failed to open DNS blacklist file", zap.String("path", path), zap.Error(err)) // Path instead of file for consistency
+		return fmt.Errorf("failed to open DNS blacklist file: %w", err)                               // More accurate error message
 	}
+	defer file.Close()
 
-	lines := strings.Split(string(content), "\n")
+	scanner := bufio.NewScanner(file)
 	validEntries := 0
+	totalLines := 0 // Initialize totalLines
 
-	for _, line := range lines {
+	for scanner.Scan() {
+		totalLines++
+		line := scanner.Text()
 		line = strings.ToLower(strings.TrimSpace(line))
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue // Skip empty lines and comments
@@ -45,10 +50,15 @@ func (bl *BlacklistLoader) LoadDNSBlacklistFromFile(path string, dnsBlacklist ma
 		validEntries++
 	}
 
-	bl.logger.Info("DNS blacklist loaded successfully",
-		zap.String("file", path),
+	if err := scanner.Err(); err != nil {
+		bl.logger.Error("Error reading DNS blacklist file", zap.String("path", path), zap.Error(err)) // More specific error log
+		return fmt.Errorf("error reading DNS blacklist file: %w", err)
+	}
+
+	bl.logger.Info("DNS blacklist loaded", // Improved log message
+		zap.String("path", path),
 		zap.Int("valid_entries", validEntries),
-		zap.Int("total_lines", len(lines)),
+		zap.Int("total_lines", totalLines), // Use totalLines which is correctly counted
 	)
 	return nil
 }
@@ -77,14 +87,14 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 	defer m.mu.RUnlock()
 
 	if _, exists := m.dnsBlacklist[normalizedHost]; exists {
-		m.logger.Info("Host is blacklisted",
+		m.logger.Debug("DNS blacklist hit", // More concise log message, debug level
 			zap.String("host", host),
 			zap.String("blacklisted_domain", normalizedHost),
 		)
 		return true
 	}
 
-	m.logger.Debug("Host is not blacklisted", zap.String("host", host))
+	m.logger.Debug("DNS blacklist miss", zap.String("host", host)) // More concise log message, debug level
 	return false
 }
 
@@ -92,9 +102,9 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 func extractIP(remoteAddr string, logger *zap.Logger) string {
 	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
-		logger.Debug("Failed to extract IP from remote address, using full address",
+		logger.Debug("Using full remote address as IP", // More descriptive debug log
 			zap.String("remoteAddr", remoteAddr),
-			zap.Error(err),
+			zap.Error(err), // Keep error for debugging
 		)
 		return remoteAddr // Assume the input is already an IP address
 	}
@@ -106,18 +116,22 @@ func (bl *BlacklistLoader) LoadIPBlacklistFromFile(path string, ipBlacklist map[
 	if bl.logger == nil {
 		bl.logger = zap.NewNop()
 	}
-	bl.logger.Debug("Loading IP blacklist from file", zap.String("file", path))
+	bl.logger.Debug("Loading IP blacklist", zap.String("path", path)) // Improved log message
 
-	content, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
-		bl.logger.Warn("Failed to read IP blacklist file", zap.String("file", path), zap.Error(err))
-		return fmt.Errorf("failed to read IP blacklist file: %w", err)
+		bl.logger.Warn("Failed to open IP blacklist file", zap.String("path", path), zap.Error(err)) // Path instead of file for consistency
+		return fmt.Errorf("failed to open IP blacklist file: %w", err)                               // More accurate error message
 	}
+	defer file.Close()
 
-	lines := strings.Split(string(content), "\n")
+	scanner := bufio.NewScanner(file)
 	validEntries := 0
+	totalLines := 0 // Initialize totalLines
 
-	for i, line := range lines {
+	for scanner.Scan() {
+		totalLines++
+		line := scanner.Text()
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue // Skip empty lines and comments
@@ -127,7 +141,7 @@ func (bl *BlacklistLoader) LoadIPBlacklistFromFile(path string, ipBlacklist map[
 			// Valid CIDR range
 			ipBlacklist[line] = struct{}{}
 			validEntries++
-			bl.logger.Debug("Added CIDR range to blacklist", zap.String("cidr", line))
+			bl.logger.Debug("Added CIDR to IP blacklist", zap.String("cidr", line)) // More specific debug log
 			continue
 		}
 
@@ -135,21 +149,26 @@ func (bl *BlacklistLoader) LoadIPBlacklistFromFile(path string, ipBlacklist map[
 			// Valid IP address
 			ipBlacklist[line] = struct{}{}
 			validEntries++
-			bl.logger.Debug("Added IP to blacklist", zap.String("ip", line))
+			bl.logger.Debug("Added IP to IP blacklist", zap.String("ip", line)) // More specific debug log
 			continue
 		}
 
-		bl.logger.Warn("Invalid IP or CIDR range in blacklist file, skipping",
-			zap.String("file", path),
-			zap.Int("line", i+1),
+		bl.logger.Warn("Invalid IP/CIDR entry in blacklist file", // More concise warning message
+			zap.String("path", path),
+			zap.Int("line", totalLines), // Use totalLines which is correctly counted
 			zap.String("entry", line),
 		)
 	}
 
-	bl.logger.Info("IP blacklist loaded successfully",
-		zap.String("file", path),
+	if scanner.Err() != nil {
+		bl.logger.Error("Error reading IP blacklist file", zap.String("path", path), zap.Error(scanner.Err())) // More specific error log
+		return fmt.Errorf("error reading IP blacklist file: %w", scanner.Err())
+	}
+
+	bl.logger.Info("IP blacklist loaded", // Improved log message
+		zap.String("path", path),
 		zap.Int("valid_entries", validEntries),
-		zap.Int("total_lines", len(lines)),
+		zap.Int("total_lines", totalLines), // Use totalLines which is correctly counted
 	)
 	return nil
 }

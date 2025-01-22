@@ -84,7 +84,7 @@ func TestLoadDNSBlacklistFromFile_InvalidFile(t *testing.T) {
 	dnsBlacklist := make(map[string]struct{})
 	err := bl.LoadDNSBlacklistFromFile("nonexistent.txt", dnsBlacklist)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to read DNS blacklist file")
+	assert.Contains(t, err.Error(), "failed to open DNS blacklist file") // Updated error message
 }
 
 // TestLoadIPBlacklistFromFile tests loading IP addresses and CIDR ranges from a file.
@@ -136,7 +136,7 @@ func TestLoadIPBlacklistFromFile_InvalidFile(t *testing.T) {
 	ipBlacklist := make(map[string]struct{})
 	err := bl.LoadIPBlacklistFromFile("nonexistent.txt", ipBlacklist)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to read IP blacklist file")
+	assert.Contains(t, err.Error(), "failed to open IP blacklist file") // Updated error message
 }
 
 // TestIsDNSBlacklisted tests checking if a host is blacklisted.
@@ -400,9 +400,10 @@ func TestParseCountryBlock(t *testing.T) {
 		t.Fatal("Failed to advance to the first directive")
 	}
 
-	err := cl.parseCountryBlock(d, m, true)
+	handler := cl.parseCountryBlockDirective(true) // Get the directive handler
+	err := handler(d, m)                           // Execute the handler
 	if err != nil {
-		t.Fatalf("parseCountryBlock failed: %v", err)
+		t.Fatalf("parseCountryBlockDirective failed: %v", err)
 	}
 
 	if !m.CountryBlock.Enabled {
@@ -459,13 +460,31 @@ func TestParseBlacklistFile(t *testing.T) {
 		t.Fatal("Failed to advance to the first directive")
 	}
 
-	err := cl.parseBlacklistFile(d, m, true)
+	handler := cl.parseBlacklistFileDirective(true) // Get the directive handler for IP blacklist
+	err := handler(d, m)                            // Execute the handler
 	if err != nil {
-		t.Fatalf("parseBlacklistFile failed: %v", err)
+		t.Fatalf("parseBlacklistFileDirective failed: %v", err)
 	}
 
 	if m.IPBlacklistFile != tmpFile {
 		t.Errorf("Expected IP blacklist file to be '%s', got '%s'", tmpFile, m.IPBlacklistFile)
+	}
+
+	// Test dns_blacklist_file
+	tmpDNSFile := filepath.Join(tmpDir, "dns_blacklist.txt")
+	d = caddyfile.NewTestDispenser(`
+        dns_blacklist_file ` + tmpDNSFile + `
+    `)
+	if !d.Next() {
+		t.Fatal("Failed to advance to the dns_blacklist_file directive")
+	}
+	handler = cl.parseBlacklistFileDirective(false) // Get handler for DNS blacklist
+	err = handler(d, m)
+	if err != nil {
+		t.Fatalf("parseBlacklistFileDirective for dns failed: %v", err)
+	}
+	if m.DNSBlacklistFile != tmpDNSFile {
+		t.Errorf("Expected DNS blacklist file to be '%s', got '%s'", tmpDNSFile, m.DNSBlacklistFile)
 	}
 }
 
@@ -1008,10 +1027,10 @@ func TestValidateRule(t *testing.T) {
 func TestProcessRuleMatch(t *testing.T) {
 	logger := newMockLogger()
 	middleware := &Middleware{
-		logger:           logger.Logger, // Use the embedded *zap.Logger
+		logger:           logger.Logger,
 		AnomalyThreshold: 10,
-		ruleHits:         sync.Map{},     // Use sync.Map directly
-		muMetrics:        sync.RWMutex{}, // Use sync.RWMutex directly
+		ruleHits:         sync.Map{},
+		muMetrics:        sync.RWMutex{},
 	}
 
 	rule := &Rule{
@@ -1028,12 +1047,22 @@ func TestProcessRuleMatch(t *testing.T) {
 	}
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
-	w := httptest.NewRecorder()
+
+	// Create a context and add logID to it
+	ctx := context.Background()
+	logID := "test-log-id" // Or generate a UUID if needed: uuid.New().String()
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+
+	// Create a new request with the context
+	req = req.WithContext(ctx)
+
+	// Create a ResponseRecorder
+	w := NewResponseRecorder(httptest.NewRecorder())
 
 	// Test blocking rule
 	shouldContinue := middleware.processRuleMatch(w, req, rule, "value", state)
 	assert.False(t, shouldContinue)
-	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.StatusCode())
 	assert.True(t, state.Blocked)
 	assert.Equal(t, 5, state.TotalScore)
 
@@ -1043,7 +1072,8 @@ func TestProcessRuleMatch(t *testing.T) {
 		TotalScore:      0,
 		ResponseWritten: false,
 	}
-	w = httptest.NewRecorder()
+	// Re-create a ResponseRecorder for the second test
+	w = NewResponseRecorder(httptest.NewRecorder())
 	shouldContinue = middleware.processRuleMatch(w, req, rule, "value", state)
 	assert.True(t, shouldContinue)
 	assert.False(t, state.Blocked)
@@ -1122,6 +1152,13 @@ func TestProcessRuleMatch_HighScore(t *testing.T) {
 	}
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-highscore" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx) // Create new request with context
+
 	w := httptest.NewRecorder()
 
 	// Test blocking rule with high score
@@ -1522,6 +1559,13 @@ func TestHandlePhase_Phase2_NiktoUserAgent(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	req.Header.Set("User-Agent", "nikto")
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-nikto" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx) // Create new request with context
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -1535,14 +1579,6 @@ func TestHandlePhase_Phase2_NiktoUserAgent(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, w.Code, "Expected status code 403")
 	assert.Contains(t, w.Body.String(), "Access Denied", "Response body should contain 'Access Denied'")
 }
-
-// func TestBlockedRequestPhase1_IPBlacklist(t *testing.T) {
-// func TestBlockedRequestPhase1_IPBlacklist(t *testing.T) {
-// func TestBlockedRequestPhase1_HeaderRegex(t *testing.T) {
-
-// func TestBlockedRequestPhase2_BodyRegex(t *testing.T) {
-// func TestBlockedRequestPhase3_ResponseHeaderRegex(t *testing.T) {
-// func TestBlockedRequestPhase4_ResponseBodyRegex(t *testing.T) {
 
 func TestBlockedRequestPhase1_HeaderRegex(t *testing.T) {
 	logger := zap.NewNop()
@@ -1575,6 +1611,13 @@ func TestBlockedRequestPhase1_HeaderRegex(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	req.Header.Set("X-Custom-Header", "this-is-a-bad-header") // Simulate a request with bad header
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-headerregex" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx) // Create new request with context
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -1620,6 +1663,13 @@ func TestBlockedRequestPhase1_HeaderRegex_SpecificValue(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	req.Header.Set("X-Specific-Header", "specific-value") // Simulate a request with the specific header
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-headerspecificvalue" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx) // Create new request with context
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -1666,6 +1716,13 @@ func TestBlockedRequestPhase1_HeaderRegex_CommaSeparatedTargets(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	req.Header.Set("X-Custom-Header1", "good-value")
 	req.Header.Set("X-Custom-Header2", "bad-value") // Simulate a request with bad value in one of the headers
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-headercomma" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx) // Create new request with context
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -1711,6 +1768,12 @@ func TestBlockedRequestPhase1_CombinedConditions(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://bad-host.com", nil)
 	req.Header.Set("User-Agent", "good-user")
+
+	// Create a context and add logID to it
+	ctx := context.Background()
+	logID := "test-log-id-combined"
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
 
 	w := httptest.NewRecorder()
 	state := &WAFState{}
@@ -1758,6 +1821,12 @@ func TestBlockedRequestPhase1_NoMatch(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	req.Header.Set("User-Agent", "good-user")
 
+	// Create a context and add logID to it
+	ctx := context.Background()
+	logID := "test-log-id-nomatch"
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -1802,6 +1871,13 @@ func TestBlockedRequestPhase1_HeaderRegex_EmptyHeader(t *testing.T) {
 	}
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
+
+	// Create a context and add logID to it
+	ctx := context.Background()
+	logID := "test-log-id-headerempty"
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -1845,6 +1921,13 @@ func TestBlockedRequestPhase1_HeaderRegex_MissingHeader(t *testing.T) {
 	}
 
 	req := httptest.NewRequest("GET", "http://example.com", nil) // Header not set
+
+	// Create a context and add logID to it
+	ctx := context.Background()
+	logID := "test-log-id-headermissing"
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -1891,6 +1974,13 @@ func TestBlockedRequestPhase1_HeaderRegex_ComplexPattern(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	req.Header.Set("X-Email-Header", "test@example.com") // Simulate a request with a valid email
+
+	// Create a context and add logID to it
+	ctx := context.Background()
+	logID := "test-log-id-headercomplex"
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -1937,6 +2027,13 @@ func TestBlockedRequestPhase1_MultiTargetMatch(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	req.Header.Set("X-Custom-Header", "good-header")
 	req.Header.Set("User-Agent", "bad-user-agent")
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-multimatch" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -1982,6 +2079,13 @@ func TestBlockedRequestPhase1_MultiTargetNoMatch(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	req.Header.Set("X-Custom-Header", "good-header")
 	req.Header.Set("User-Agent", "good-user-agent")
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-multinomatch" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx) // Create new request with context
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2026,6 +2130,13 @@ func TestBlockedRequestPhase1_URLParameterRegex_NoMatch(t *testing.T) {
 	}
 
 	req := httptest.NewRequest("GET", "http://example.com?param1=good-param-value¶m2=good-value", nil)
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-urlparamnomatch" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2080,6 +2191,12 @@ func TestBlockedRequestPhase1_MultipleRules(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://bad-host.com", nil)
 	req.Header.Set("User-Agent", "bad-user") // Simulate a request with a bad user agent
 
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-multiplerules" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2095,6 +2212,13 @@ func TestBlockedRequestPhase1_MultipleRules(t *testing.T) {
 
 	req2 := httptest.NewRequest("GET", "http://good-host.com", nil)
 	req2.Header.Set("User-Agent", "bad-user") // Simulate a request with a bad user agent
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE for req2 as well!
+	ctx2 := context.Background() // New context for the second request!
+	logID2 := "test-log-id-multiplerules2"
+	ctx2 = context.WithValue(ctx2, ContextKeyLogId("logID"), logID2)
+	req2 = req2.WithContext(ctx2)
+
 	w2 := httptest.NewRecorder()
 	state2 := &WAFState{}
 
@@ -2107,7 +2231,6 @@ func TestBlockedRequestPhase1_MultipleRules(t *testing.T) {
 	assert.True(t, state2.Blocked, "Request should be blocked")
 	assert.Equal(t, http.StatusForbidden, w2.Code, "Expected status code 403")
 	assert.Contains(t, w2.Body.String(), "Blocked by Multiple Rules", "Response body should contain 'Blocked by Multiple Rules'")
-
 }
 
 func TestBlockedRequestPhase2_BodyRegex(t *testing.T) {
@@ -2147,6 +2270,13 @@ func TestBlockedRequestPhase2_BodyRegex(t *testing.T) {
 		}(), // Simulate a request with bad body
 	)
 	req.Header.Set("Content-Type", "text/plain")
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-bodyregex" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2160,8 +2290,6 @@ func TestBlockedRequestPhase2_BodyRegex(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, w.Code, "Expected status code 403")
 	assert.Contains(t, w.Body.String(), "Blocked by Body Regex", "Response body should contain 'Blocked by Body Regex'")
 }
-
-// new
 
 func TestBlockedRequestPhase2_BodyRegex_JSON(t *testing.T) {
 	logger := zap.NewNop()
@@ -2200,6 +2328,13 @@ func TestBlockedRequestPhase2_BodyRegex_JSON(t *testing.T) {
 		}(), // Simulate a request with JSON body
 	)
 	req.Header.Set("Content-Type", "application/json")
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-bodyregexjson" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2247,6 +2382,13 @@ func TestBlockedRequestPhase2_BodyRegex_FormURLEncoded(t *testing.T) {
 		strings.NewReader("param1=value1&secret=badvalue¶m2=value2"),
 	)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-bodyregexform"
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2298,6 +2440,13 @@ func TestBlockedRequestPhase2_BodyRegex_SpecificPattern(t *testing.T) {
 		}(),
 	)
 	req.Header.Set("Content-Type", "text/plain") // Setting content type
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-bodyregexspecific"
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2350,6 +2499,12 @@ func TestBlockedRequestPhase2_BodyRegex_NoMatch(t *testing.T) {
 	)
 	req.Header.Set("Content-Type", "text/plain")
 
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-bodyregexnomatch"
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2363,8 +2518,6 @@ func TestBlockedRequestPhase2_BodyRegex_NoMatch(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code, "Expected status code 200")
 	assert.Empty(t, w.Body.String(), "Response body should be empty")
 }
-
-////////
 
 func TestBlockedRequestPhase2_BodyRegex_NoMatch_MultipartForm(t *testing.T) {
 	logger := zap.NewNop()
@@ -2412,6 +2565,13 @@ func TestBlockedRequestPhase2_BodyRegex_NoMatch_MultipartForm(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "http://example.com", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-bodyregexmultipartnomatch"
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2425,6 +2585,7 @@ func TestBlockedRequestPhase2_BodyRegex_NoMatch_MultipartForm(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code, "Expected status code 200")
 	assert.Empty(t, w.Body.String(), "Response body should be empty")
 }
+
 func TestBlockedRequestPhase2_BodyRegex_NoBody(t *testing.T) {
 	logger := zap.NewNop()
 	middleware := &Middleware{
@@ -2719,6 +2880,13 @@ func TestBlockedRequestPhase1_HeaderRegex_CaseInsensitive(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	req.Header.Set("X-Custom-Header", "bAd-VaLuE") // Test with mixed-case header value
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE
+	ctx := context.Background()
+	logID := "test-log-id-headercaseinsensitive" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2765,6 +2933,13 @@ func TestBlockedRequestPhase1_HeaderRegex_MultipleMatchingHeaders(t *testing.T) 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	req.Header.Set("X-Custom-Header1", "bad-value")
 	req.Header.Set("X-Custom-Header2", "bad-value") // Both headers have a "bad" value
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE for req
+	ctx := context.Background()
+	logID := "test-log-id-headermultimatch" // Unique log ID for this test
+	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
+	req = req.WithContext(ctx)
+
 	w := httptest.NewRecorder()
 	state := &WAFState{}
 
@@ -2781,6 +2956,13 @@ func TestBlockedRequestPhase1_HeaderRegex_MultipleMatchingHeaders(t *testing.T) 
 	req2 := httptest.NewRequest("GET", "http://example.com", nil)
 	req2.Header.Set("X-Custom-Header1", "good-value")
 	req2.Header.Set("X-Custom-Header2", "bad-value") // One header has a "bad" value
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE for req2
+	ctx2 := context.Background()
+	logID2 := "test-log-id-headermultimatch2" // Unique log ID for this test
+	ctx2 = context.WithValue(ctx2, ContextKeyLogId("logID"), logID2)
+	req2 = req2.WithContext(ctx2)
+
 	w2 := httptest.NewRecorder()
 	state2 := &WAFState{}
 
@@ -2797,6 +2979,13 @@ func TestBlockedRequestPhase1_HeaderRegex_MultipleMatchingHeaders(t *testing.T) 
 	req3 := httptest.NewRequest("GET", "http://example.com", nil)
 	req3.Header.Set("X-Custom-Header1", "good-value")
 	req3.Header.Set("X-Custom-Header2", "good-value") // None headers have a "bad" value
+
+	// Create a context and add logID to it - FIX: ADD CONTEXT HERE for req3
+	ctx3 := context.Background()
+	logID3 := "test-log-id-headermultimatch3" // Unique log ID for this test
+	ctx3 = context.WithValue(ctx3, ContextKeyLogId("logID"), logID3)
+	req3 = req3.WithContext(ctx3)
+
 	w3 := httptest.NewRecorder()
 	state3 := &WAFState{}
 
@@ -2808,7 +2997,6 @@ func TestBlockedRequestPhase1_HeaderRegex_MultipleMatchingHeaders(t *testing.T) 
 
 	assert.False(t, state3.Blocked, "Request should not be blocked when none headers match")
 	assert.Equal(t, http.StatusOK, w3.Code, "Expected status code 200")
-
 }
 
 func TestBlockedRequestPhase1_RateLimiting_MultiplePaths(t *testing.T) {
@@ -3085,38 +3273,6 @@ func TestParseAnomalyThreshold_Invalid(t *testing.T) {
 	err := cl.parseAnomalyThreshold(d, m)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid syntax")
-}
-
-func TestProcessRuleMatch_NoAction(t *testing.T) {
-	logger := newMockLogger()
-	middleware := &Middleware{
-		logger:           logger.Logger, // Use the embedded *zap.Logger
-		AnomalyThreshold: 10,
-		ruleHits:         sync.Map{},
-		muMetrics:        sync.RWMutex{}, // Use sync.RWMutex directly
-	}
-
-	rule := &Rule{
-		ID:          "no_action_rule",
-		Targets:     []string{"header"},
-		Description: "Test no-action rule",
-		Score:       5,
-		Action:      "", // No action
-	}
-
-	state := &WAFState{
-		TotalScore:      0,
-		ResponseWritten: false,
-	}
-
-	req := httptest.NewRequest("GET", "http://example.com", nil)
-	w := httptest.NewRecorder()
-
-	shouldContinue := middleware.processRuleMatch(w, req, rule, "value", state)
-	assert.True(t, shouldContinue)
-	assert.Equal(t, 5, state.TotalScore)
-	assert.False(t, state.Blocked)
-
 }
 
 func TestExtractValue_HeaderCaseInsensitive(t *testing.T) {

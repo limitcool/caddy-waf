@@ -1,3 +1,4 @@
+// rules.go
 package caddywaf
 
 import (
@@ -9,18 +10,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, rule *Rule, value string, state *WAFState) bool {
-	logID, _ := r.Context().Value("logID").(string)
-	if logID == "" {
-		logID = uuid.New().String()
-	}
+	logID := r.Context().Value(ContextKeyLogId("logID")).(string)
 
-	m.logRequest(zapcore.DebugLevel, "Rule matched during evaluation", r,
+	m.logRequest(zapcore.DebugLevel, "Rule Matched", r, // More concise log message
 		zap.String("rule_id", string(rule.ID)),
 		zap.String("target", strings.Join(rule.Targets, ",")),
 		zap.String("value", value),
@@ -28,76 +25,54 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		zap.Int("score", rule.Score),
 	)
 
-	// Increment rule hit count
-	if count, ok := m.ruleHits.Load(rule.ID); ok {
-		newCount := count.(HitCount) + 1
-		m.ruleHits.Store(rule.ID, newCount)
-		m.logger.Debug("Incremented rule hit count",
-			zap.String("rule_id", string(rule.ID)),
-			zap.Int("new_count", int(newCount)),
-		)
-	} else {
-		m.ruleHits.Store(rule.ID, HitCount(1))
-		m.logger.Debug("Initialized rule hit count",
-			zap.String("rule_id", string(rule.ID)),
-			zap.Int("new_count", 1),
-		)
-	}
+	// Rule Hit Counter - Refactored for clarity
+	m.incrementRuleHitCount(RuleID(rule.ID))
 
-	// Increment rule hits by phase
-	m.muMetrics.Lock()
-	if m.ruleHitsByPhase == nil {
-		m.ruleHitsByPhase = make(map[int]int64)
-	}
-	m.ruleHitsByPhase[rule.Phase]++
-	m.muMetrics.Unlock()
+	// Metrics for Rule Hits by Phase - Refactored for clarity
+	m.incrementRuleHitsByPhaseMetric(rule.Phase)
 
 	oldScore := state.TotalScore
 	state.TotalScore += rule.Score
-	m.logRequest(zapcore.DebugLevel, "Increased anomaly score", r,
+	m.logRequest(zapcore.DebugLevel, "Anomaly score increased", r, // Corrected argument order - 'r' is now the third argument
 		zap.String("log_id", logID),
 		zap.String("rule_id", string(rule.ID)),
 		zap.Int("score_increase", rule.Score),
-		zap.Int("old_total_score", oldScore),
-		zap.Int("new_total_score", state.TotalScore),
+		zap.Int("old_score", oldScore),
+		zap.Int("new_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
 
-	shouldBlock := false
+	shouldBlock := !state.ResponseWritten && (state.TotalScore >= m.AnomalyThreshold || rule.Action == "block")
 	blockReason := ""
 
-	if !state.ResponseWritten {
-		if state.TotalScore >= m.AnomalyThreshold {
-			shouldBlock = true
-			blockReason = "Anomaly threshold exceeded"
-		} else if rule.Action == "block" {
-			shouldBlock = true
+	if shouldBlock {
+		blockReason = "Anomaly threshold exceeded"
+		if rule.Action == "block" {
 			blockReason = "Rule action is 'block'"
 		}
 	}
 
-	m.logger.Debug("Processing rule action",
-		zap.String("rule_id", string(rule.ID)),
+	m.logRequest(zapcore.DebugLevel, "Anomaly score increased", r, // 'r' is now the 3rd argument
 		zap.String("action", rule.Action),
 		zap.Bool("should_block", shouldBlock),
 		zap.String("block_reason", blockReason),
 	)
 
-	if shouldBlock && !state.ResponseWritten {
+	if shouldBlock {
 		m.blockRequest(w, r, state, http.StatusForbidden, blockReason, string(rule.ID), value,
 			zap.Int("total_score", state.TotalScore),
 			zap.Int("anomaly_threshold", m.AnomalyThreshold),
 		)
-		return false // Stop further processing
+		return false
 	}
 
 	if rule.Action == "log" {
-		m.logRequest(zapcore.InfoLevel, "Rule action is 'log', request allowed but logged", r,
+		m.logRequest(zapcore.InfoLevel, "Rule action: Log", r,
 			zap.String("log_id", logID),
 			zap.String("rule_id", string(rule.ID)),
 		)
 	} else if !shouldBlock && !state.ResponseWritten {
-		m.logRequest(zapcore.DebugLevel, "Rule matched, no blocking action taken", r,
+		m.logRequest(zapcore.DebugLevel, "Rule action: No Block", r,
 			zap.String("log_id", logID),
 			zap.String("rule_id", string(rule.ID)),
 			zap.String("action", rule.Action),
@@ -106,7 +81,30 @@ func (m *Middleware) processRuleMatch(w http.ResponseWriter, r *http.Request, ru
 		)
 	}
 
-	return true // Continue processing
+	return true
+}
+
+// incrementRuleHitCount increments the hit counter for a given rule ID.
+func (m *Middleware) incrementRuleHitCount(ruleID RuleID) {
+	hitCount := HitCount(1) // Default increment
+	if currentCount, loaded := m.ruleHits.Load(ruleID); loaded {
+		hitCount = currentCount.(HitCount) + 1
+	}
+	m.ruleHits.Store(ruleID, hitCount)
+	m.logger.Debug("Rule hit count updated",
+		zap.String("rule_id", string(ruleID)),
+		zap.Int("hit_count", int(hitCount)), // More descriptive log field
+	)
+}
+
+// incrementRuleHitsByPhaseMetric increments the rule hits by phase metric.
+func (m *Middleware) incrementRuleHitsByPhaseMetric(phase int) {
+	m.muMetrics.Lock()
+	if m.ruleHitsByPhase == nil {
+		m.ruleHitsByPhase = make(map[int]int64)
+	}
+	m.ruleHitsByPhase[phase]++
+	m.muMetrics.Unlock()
 }
 
 func validateRule(rule *Rule) error {
@@ -131,92 +129,109 @@ func validateRule(rule *Rule) error {
 	return nil
 }
 
-// loadRules updates the RuleCache when rules are loaded and sorts rules by priority.
+// loadRules updates the RuleCache and Rules map when rules are loaded and sorts rules by priority.
 func (m *Middleware) loadRules(paths []string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.logger.Debug("Loading rules from files", zap.Strings("rule_files", paths))
 
-	m.Rules = make(map[int][]Rule)
+	loadedRules := make(map[int][]Rule) // Temporary map to hold loaded rules
 	totalRules := 0
-	var invalidFiles []string
-	var allInvalidRules []string
+	invalidFiles := []string{}
+	allInvalidRules := []string{}
 	ruleIDs := make(map[string]bool)
 
 	for _, path := range paths {
-		content, err := os.ReadFile(path)
+		fileRules, fileInvalidRules, err := m.loadRulesFromFile(path, ruleIDs) // Load rules from a single file
 		if err != nil {
-			m.logger.Error("Failed to read rule file", zap.String("file", path), zap.Error(err))
+			m.logger.Error("Failed to load rule file", zap.String("file", path), zap.Error(err))
 			invalidFiles = append(invalidFiles, path)
-			continue
+			continue // Skip to the next file if loading fails
 		}
 
-		var rules []Rule
-		if err := json.Unmarshal(content, &rules); err != nil {
-			m.logger.Error("Failed to unmarshal rules from file", zap.String("file", path), zap.Error(err))
-			invalidFiles = append(invalidFiles, path)
-			continue
+		if len(fileInvalidRules) > 0 {
+			m.logger.Warn("Invalid rules in file", zap.String("file", path), zap.Strings("errors", fileInvalidRules))
+			allInvalidRules = append(allInvalidRules, fileInvalidRules...)
 		}
+		m.logger.Info("Rules loaded from file", zap.String("file", path), zap.Int("valid_rules", len(fileRules)), zap.Int("invalid_rules", len(fileInvalidRules)))
 
-		// Sort rules by priority (higher priority first)
-		sort.Slice(rules, func(i, j int) bool {
-			return rules[i].Priority > rules[j].Priority
-		})
-
-		var invalidRulesInFile []string
-		for i, rule := range rules {
-			if err := validateRule(&rule); err != nil {
-				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule at index %d: %v", i, err))
-				continue
-			}
-
-			if _, exists := ruleIDs[string(rule.ID)]; exists {
-				invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Duplicate rule ID '%s' at index %d", rule.ID, i))
-				continue
-			}
-			ruleIDs[string(rule.ID)] = true
-
-			// Check RuleCache first
-			if regex, exists := m.ruleCache.Get(rule.ID); exists {
-				rule.regex = regex
-			} else {
-				regex, err := regexp.Compile(rule.Pattern)
-				if err != nil {
-					m.logger.Error("Failed to compile regex for rule", zap.String("rule_id", string(rule.ID)), zap.String("pattern", rule.Pattern), zap.Error(err))
-					invalidRulesInFile = append(invalidRulesInFile, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
-					continue
-				}
-				rule.regex = regex
-				m.ruleCache.Set(rule.ID, regex) // Cache the compiled regex
-			}
-
-			if _, ok := m.Rules[rule.Phase]; !ok {
-				m.Rules[rule.Phase] = []Rule{}
-			}
-
-			m.Rules[rule.Phase] = append(m.Rules[rule.Phase], rule)
-			totalRules++
+		// Merge valid rules from the file into the temporary loadedRules map
+		for phase, rules := range fileRules {
+			loadedRules[phase] = append(loadedRules[phase], rules...)
 		}
-		if len(invalidRulesInFile) > 0 {
-			m.logger.Warn("Some rules failed validation", zap.String("file", path), zap.Strings("invalid_rules", invalidRulesInFile))
-			allInvalidRules = append(allInvalidRules, invalidRulesInFile...)
-		}
-
-		m.logger.Info("Rules loaded", zap.String("file", path), zap.Int("total_rules", len(rules)), zap.Int("invalid_rules", len(invalidRulesInFile)))
+		totalRules += len(fileRules[1]) + len(fileRules[2]) + len(fileRules[3]) + len(fileRules[4]) // Update total rule count
 	}
+
+	m.Rules = loadedRules // Atomically update m.Rules after loading all files
 
 	if len(invalidFiles) > 0 {
-		m.logger.Warn("Some rule files could not be loaded", zap.Strings("invalid_files", invalidFiles))
+		m.logger.Error("Failed to load rule files", zap.Strings("files", invalidFiles)) // Error level for file loading failures
 	}
 	if len(allInvalidRules) > 0 {
-		m.logger.Warn("Some rules across files failed validation", zap.Strings("invalid_rules", allInvalidRules))
+		m.logger.Warn("Validation errors in rules", zap.Strings("errors", allInvalidRules)) // More specific log message - "errors" field
 	}
 
-	if totalRules == 0 && len(invalidFiles) > 0 {
+	if totalRules == 0 && len(paths) > 0 { // Only return error if paths were provided
 		return fmt.Errorf("no valid rules were loaded from any file")
+	} else if totalRules == 0 && len(paths) == 0 {
+		m.logger.Warn("No rule files specified, WAF will run without rules.") // Warn if no rule files and no rules loaded
 	}
-	m.logger.Debug("Rules loaded successfully", zap.Int("total_rules", totalRules))
 
+	m.logger.Info("WAF rules loaded successfully", zap.Int("total_rules", totalRules))
 	return nil
+}
+
+// loadRulesFromFile loads and validates rules from a single file.
+func (m *Middleware) loadRulesFromFile(path string, ruleIDs map[string]bool) (validRules map[int][]Rule, invalidRules []string, err error) {
+	validRules = make(map[int][]Rule)
+	var fileInvalidRules []string
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read rule file: %w", err)
+	}
+
+	var rules []Rule
+	if err := json.Unmarshal(content, &rules); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal rules: %w", err)
+	}
+
+	// Sort rules by priority (higher priority first)
+	sort.Slice(rules, func(i, j int) bool {
+		return rules[i].Priority > rules[j].Priority
+	})
+
+	for i, rule := range rules {
+		if err := validateRule(&rule); err != nil {
+			fileInvalidRules = append(fileInvalidRules, fmt.Sprintf("Rule at index %d: %v", i, err))
+			continue
+		}
+
+		if _, exists := ruleIDs[string(rule.ID)]; exists {
+			fileInvalidRules = append(fileInvalidRules, fmt.Sprintf("Duplicate rule ID '%s' at index %d", rule.ID, i))
+			continue
+		}
+		ruleIDs[string(rule.ID)] = true // Track rule IDs to prevent duplicates
+
+		// RuleCache handling (compile and cache regex)
+		if cachedRegex, exists := m.ruleCache.Get(rule.ID); exists {
+			rule.regex = cachedRegex
+		} else {
+			compiledRegex, err := regexp.Compile(rule.Pattern)
+			if err != nil {
+				fileInvalidRules = append(fileInvalidRules, fmt.Sprintf("Rule '%s': invalid regex pattern: %v", rule.ID, err))
+				continue
+			}
+			rule.regex = compiledRegex
+			m.ruleCache.Set(rule.ID, compiledRegex) // Cache regex
+		}
+
+		if _, ok := validRules[rule.Phase]; !ok {
+			validRules[rule.Phase] = []Rule{}
+		}
+		validRules[rule.Phase] = append(validRules[rule.Phase], rule)
+	}
+
+	return validRules, fileInvalidRules, nil
 }

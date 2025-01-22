@@ -1,11 +1,11 @@
 package caddywaf
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -20,6 +20,37 @@ type RequestValueExtractor struct {
 
 // Define a custom type for context keys
 type ContextKeyLogId string
+
+// Extraction Target Constants - Improved Readability and Maintainability
+const (
+	TargetMethod                = "METHOD"
+	TargetRemoteIP              = "REMOTE_IP"
+	TargetProtocol              = "PROTOCOL"
+	TargetHost                  = "HOST"
+	TargetArgs                  = "ARGS"
+	TargetUserAgent             = "USER_AGENT"
+	TargetPath                  = "PATH"
+	TargetURI                   = "URI"
+	TargetBody                  = "BODY"
+	TargetHeaders               = "HEADERS"         // Full request headers
+	TargetRequestHeaders        = "REQUEST_HEADERS" // Alias for full request headers
+	TargetResponseHeaders       = "RESPONSE_HEADERS"
+	TargetResponseBody          = "RESPONSE_BODY"
+	TargetFileName              = "FILE_NAME"
+	TargetFileMIMEType          = "FILE_MIME_TYPE"
+	TargetCookies               = "COOKIES"         // All cookies
+	TargetRequestCookies        = "REQUEST_COOKIES" // Alias for all cookies (DUPLICATE - REMOVE ALIAS)
+	TargetURLParamPrefix        = "URL_PARAM:"
+	TargetJSONPathPrefix        = "JSON_PATH:"
+	TargetContentType           = "CONTENT_TYPE"
+	TargetURL                   = "URL"
+	TargetCookiesPrefix         = "COOKIES:"          // Dynamic cookie extraction prefix
+	TargetHeadersPrefix         = "HEADERS:"          // Dynamic header extraction prefix
+	TargetRequestHeadersPrefix  = "REQUEST_HEADERS:"  // Alias for dynamic header extraction prefix
+	TargetResponseHeadersPrefix = "RESPONSE_HEADERS:" // Dynamic response header extraction prefix
+)
+
+var sensitiveTargets = []string{"password", "token", "apikey", "authorization", "secret"} // Define sensitive targets for redaction as package variable
 
 // NewRequestValueExtractor creates a new RequestValueExtractor with a given logger
 func NewRequestValueExtractor(logger *zap.Logger, redactSensitiveData bool) *RequestValueExtractor {
@@ -56,249 +87,84 @@ func (rve *RequestValueExtractor) extractSingleValue(target string, r *http.Requ
 	var unredactedValue string
 	var err error
 
-	// Basic Cases (Keep as Before)
-	switch {
-	case target == "METHOD":
-		unredactedValue = r.Method
-	case target == "REMOTE_IP":
-		unredactedValue = r.RemoteAddr
-	case target == "PROTOCOL":
-		unredactedValue = r.Proto
-	case target == "HOST":
-		unredactedValue = r.Host
-	case target == "ARGS":
-		if r.URL.RawQuery == "" {
-			rve.logger.Debug("Query string is empty", zap.String("target", target))
-			return "", fmt.Errorf("query string is empty for target: %s", target)
-		}
-		unredactedValue = r.URL.RawQuery
-	case target == "USER_AGENT":
-		unredactedValue = r.UserAgent()
-		if unredactedValue == "" {
-			rve.logger.Debug("User-Agent is empty", zap.String("target", target))
-		}
-	case target == "PATH":
-		unredactedValue = r.URL.Path
-		if unredactedValue == "" {
-			rve.logger.Debug("Request path is empty", zap.String("target", target))
-		}
-	case target == "URI":
-		unredactedValue = r.URL.RequestURI()
-		if unredactedValue == "" {
-			rve.logger.Debug("Request URI is empty", zap.String("target", target))
-		}
-	case target == "BODY":
-		if r.Body == nil {
-			rve.logger.Warn("Request body is nil", zap.String("target", target))
-			return "", fmt.Errorf("request body is nil for target: %s", target)
-		}
-		if r.ContentLength == 0 {
-			rve.logger.Debug("Request body is empty", zap.String("target", target))
-			return "", fmt.Errorf("request body is empty for target: %s", target)
-		}
-		var bodyBytes []byte
-		bodyBytes, err = io.ReadAll(r.Body)
+	// Optimization: Use a map for target extraction logic
+	extractionLogic := map[string]func() (string, error){
+		TargetMethod:   func() (string, error) { return r.Method, nil },
+		TargetRemoteIP: func() (string, error) { return r.RemoteAddr, nil },
+		TargetProtocol: func() (string, error) { return r.Proto, nil },
+		TargetHost:     func() (string, error) { return r.Host, nil },
+		TargetArgs: func() (string, error) {
+			return r.URL.RawQuery, rve.checkEmpty(r.URL.RawQuery, target, "Query string is empty")
+		},
+		TargetUserAgent: func() (string, error) {
+			value := r.UserAgent()
+			rve.logIfEmpty(value, target, "User-Agent is empty")
+			return value, nil
+		},
+		TargetPath: func() (string, error) {
+			value := r.URL.Path
+			rve.logIfEmpty(value, target, "Request path is empty")
+			return value, nil
+		},
+		TargetURI: func() (string, error) {
+			value := r.URL.RequestURI()
+			rve.logIfEmpty(value, target, "Request URI is empty")
+			return value, nil
+		},
+		TargetBody:            func() (string, error) { return rve.extractBody(r, target) },                                  // Separate body extraction
+		TargetHeaders:         func() (string, error) { return rve.extractHeaders(r.Header, "Request headers", target) },     // Helper for headers
+		TargetRequestHeaders:  func() (string, error) { return rve.extractHeaders(r.Header, "Request headers", target) },     // Alias
+		TargetResponseHeaders: func() (string, error) { return rve.extractResponseHeaders(w, target) },                       // Helper for response headers
+		TargetResponseBody:    func() (string, error) { return rve.extractResponseBody(w, target) },                          // Helper for response body
+		TargetFileName:        func() (string, error) { return rve.extractFileName(r, target) },                              // Helper for filename
+		TargetFileMIMEType:    func() (string, error) { return rve.extractFileMIMEType(r, target) },                          // Helper for mime type
+		TargetCookies:         func() (string, error) { return rve.extractCookies(r.Cookies(), "No cookies found", target) }, // Helper for cookies
+		TargetRequestCookies:  func() (string, error) { return rve.extractCookies(r.Cookies(), "No cookies found", target) }, // Alias
+		TargetContentType: func() (string, error) {
+			return r.Header.Get("Content-Type"), rve.checkEmpty(r.Header.Get("Content-Type"), target, "Content-Type header not found")
+		},
+		TargetURL: func() (string, error) {
+			return r.URL.String(), rve.checkEmpty(r.URL.String(), target, "URL could not be extracted")
+		},
+	}
+
+	if extractor, exists := extractionLogic[target]; exists {
+		unredactedValue, err = extractor()
 		if err != nil {
-			rve.logger.Error("Failed to read request body", zap.Error(err))
-			return "", fmt.Errorf("failed to read request body for target %s: %w", target, err)
+			return "", err // Return error from extractor
 		}
-		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
-		unredactedValue = string(bodyBytes)
-
-	// Full Header Dump (Request)
-	case target == "HEADERS", target == "REQUEST_HEADERS":
-		if len(r.Header) == 0 {
-			rve.logger.Debug("Request headers are empty", zap.String("target", target))
-			return "", fmt.Errorf("request headers are empty for target: %s", target)
-		}
-		headers := make([]string, 0)
-		for name, values := range r.Header {
-			headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
-		}
-		unredactedValue = strings.Join(headers, "; ")
-
-	// Response Headers (Phase 3)
-	case target == "RESPONSE_HEADERS":
-		if w == nil {
-			return "", fmt.Errorf("response headers not accessible outside Phase 3 for target: %s", target)
-		}
-		headers := make([]string, 0)
-		for name, values := range w.Header() {
-			headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
-		}
-		unredactedValue = strings.Join(headers, "; ")
-
-	// Response Body (Phase 4)
-	case target == "RESPONSE_BODY":
-		if w == nil {
-			return "", fmt.Errorf("response body not accessible outside Phase 4 for target: %s", target)
-		}
-		if recorder, ok := w.(*responseRecorder); ok {
-			if recorder == nil {
-				return "", fmt.Errorf("response recorder is nil for target: %s", target)
-			}
-			if recorder.body.Len() == 0 {
-				rve.logger.Debug("Response body is empty", zap.String("target", target))
-				return "", fmt.Errorf("response body is empty for target: %s", target)
-			}
-			unredactedValue = recorder.BodyString()
-		} else {
-			return "", fmt.Errorf("response recorder not available for target: %s", target)
-		}
-
-	case target == "FILE_NAME":
-		// Extract file name from multipart form data
-		if r.MultipartForm != nil && r.MultipartForm.File != nil {
-			for _, files := range r.MultipartForm.File {
-				for _, file := range files {
-					unredactedValue = file.Filename
-					break
-				}
-			}
-		}
-		if unredactedValue == "" {
-			rve.logger.Debug("File name not found", zap.String("target", target))
-			return "", fmt.Errorf("file name not found for target: %s", target)
-		}
-
-	case target == "FILE_MIME_TYPE":
-		// Extract MIME type from multipart form data
-		if r.MultipartForm != nil && r.MultipartForm.File != nil {
-			for _, files := range r.MultipartForm.File {
-				for _, file := range files {
-					unredactedValue = file.Header.Get("Content-Type")
-					break
-				}
-			}
-		}
-		if unredactedValue == "" {
-			rve.logger.Debug("File MIME type not found", zap.String("target", target))
-			return "", fmt.Errorf("file MIME type not found for target: %s", target)
-		}
-
-	// Dynamic Header Extraction (Request)
-	case strings.HasPrefix(target, "HEADERS:"), strings.HasPrefix(target, "REQUEST_HEADERS:"):
-		headerName := strings.TrimPrefix(strings.TrimPrefix(target, "HEADERS:"), "REQUEST_HEADERS:") // Trim both prefixes
-		headerValue := r.Header.Get(headerName)
-		if headerValue == "" {
-			rve.logger.Debug("Header not found", zap.String("header", headerName))
-			return "", fmt.Errorf("header '%s' not found for target: %s", headerName, target)
-		}
-		unredactedValue = headerValue
-
-	// Dynamic Response Header Extraction (Phase 3)
-	case strings.HasPrefix(target, "RESPONSE_HEADERS:"):
-		if w == nil {
-			return "", fmt.Errorf("response headers not available during this phase for target: %s", target)
-		}
-		headerName := strings.TrimPrefix(target, "RESPONSE_HEADERS:")
-		headerValue := w.Header().Get(headerName)
-		if headerValue == "" {
-			rve.logger.Debug("Response header not found", zap.String("header", headerName))
-			return "", fmt.Errorf("response header '%s' not found for target: %s", headerName, target)
-		}
-		unredactedValue = headerValue
-
-	// Cookies Extraction
-	case target == "COOKIES":
-		cookies := make([]string, 0)
-		for _, c := range r.Cookies() {
-			cookies = append(cookies, fmt.Sprintf("%s=%s", c.Name, c.Value))
-		}
-		if len(cookies) == 0 {
-			rve.logger.Debug("No cookies found", zap.String("target", target))
-			return "", fmt.Errorf("no cookies found for target: %s", target)
-		}
-		unredactedValue = strings.Join(cookies, "; ")
-
-	case strings.HasPrefix(target, "COOKIES:"):
-		cookieName := strings.TrimPrefix(target, "COOKIES:")
-		cookie, err := r.Cookie(cookieName)
+	} else if strings.HasPrefix(target, TargetHeadersPrefix) || strings.HasPrefix(target, TargetRequestHeadersPrefix) {
+		unredactedValue, err = rve.extractDynamicHeader(r.Header, strings.TrimPrefix(strings.TrimPrefix(target, TargetHeadersPrefix), TargetRequestHeadersPrefix), target)
 		if err != nil {
-			rve.logger.Debug("Cookie not found", zap.String("cookie", cookieName))
-			return "", fmt.Errorf("cookie '%s' not found for target: %s", cookieName, target)
+			return "", err
 		}
-		unredactedValue = cookie.Value
-
-	// URL Parameter Extraction
-	case strings.HasPrefix(target, "URL_PARAM:"):
-		paramName := strings.TrimPrefix(target, "URL_PARAM:")
-		if paramName == "" {
-			return "", fmt.Errorf("URL parameter name is empty for target: %s", target)
-		}
-		if r.URL.Query().Get(paramName) == "" {
-			rve.logger.Debug("URL parameter not found", zap.String("parameter", paramName))
-			return "", fmt.Errorf("url parameter '%s' not found for target: %s", paramName, target)
-		}
-		unredactedValue = r.URL.Query().Get(paramName)
-
-	// JSON Path Extraction from Body
-	case strings.HasPrefix(target, "JSON_PATH:"):
-		jsonPath := strings.TrimPrefix(target, "JSON_PATH:")
-		if r.Body == nil {
-			rve.logger.Warn("Request body is nil", zap.String("target", target))
-			return "", fmt.Errorf("request body is nil for target: %s", target)
-		}
-		if r.ContentLength == 0 {
-			rve.logger.Debug("Request body is empty", zap.String("target", target))
-			return "", fmt.Errorf("request body is empty for target: %s", target)
-		}
-
-		bodyBytes, err := io.ReadAll(r.Body)
+	} else if strings.HasPrefix(target, TargetResponseHeadersPrefix) {
+		unredactedValue, err = rve.extractDynamicResponseHeader(w, strings.TrimPrefix(target, TargetResponseHeadersPrefix), target)
 		if err != nil {
-			rve.logger.Error("Failed to read request body", zap.Error(err))
-			return "", fmt.Errorf("failed to read request body for JSON_PATH target %s: %w", target, err)
+			return "", err
 		}
-		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset body for next read
-
-		// Use helper method to dynamically extract value based on JSON path (e.g., 'data.items.0.name').
-		unredactedValue, err = rve.extractJSONPath(string(bodyBytes), jsonPath)
+	} else if strings.HasPrefix(target, TargetCookiesPrefix) {
+		unredactedValue, err = rve.extractDynamicCookie(r, strings.TrimPrefix(target, TargetCookiesPrefix), target)
 		if err != nil {
-			rve.logger.Debug("Failed to extract value from JSON path", zap.String("target", target), zap.String("path", jsonPath), zap.Error(err))
-			return "", fmt.Errorf("failed to extract from JSON path '%s': %w", jsonPath, err)
+			return "", err
 		}
-
-	// New cases start here:
-	case target == "CONTENT_TYPE":
-		unredactedValue = r.Header.Get("Content-Type")
-		if unredactedValue == "" {
-			rve.logger.Debug("Content-Type header not found", zap.String("target", target))
-			return "", fmt.Errorf("content-type header not found for target: %s", target)
+	} else if strings.HasPrefix(target, TargetURLParamPrefix) {
+		unredactedValue, err = rve.extractURLParam(r.URL, strings.TrimPrefix(target, TargetURLParamPrefix), target)
+		if err != nil {
+			return "", err
 		}
-	case target == "URL":
-		unredactedValue = r.URL.String()
-		if unredactedValue == "" {
-			rve.logger.Debug("URL could not be extracted", zap.String("target", target))
-			return "", fmt.Errorf("url could not be extracted for target: %s", target)
+	} else if strings.HasPrefix(target, TargetJSONPathPrefix) {
+		unredactedValue, err = rve.extractValueForJSONPath(r, strings.TrimPrefix(target, TargetJSONPathPrefix), target)
+		if err != nil {
+			return "", err
 		}
-
-	case target == "REQUEST_COOKIES":
-		cookies := make([]string, 0)
-		for _, c := range r.Cookies() {
-			cookies = append(cookies, fmt.Sprintf("%s=%s", c.Name, c.Value))
-		}
-		unredactedValue = strings.Join(cookies, "; ")
-		if len(cookies) == 0 {
-			rve.logger.Debug("No cookies found", zap.String("target", target))
-			return "", fmt.Errorf("no cookies found for target: %s", target)
-		}
-
-	default:
+	} else {
 		rve.logger.Warn("Unknown extraction target", zap.String("target", target))
 		return "", fmt.Errorf("unknown extraction target: %s", target)
 	}
 
-	// Redact sensitive fields before returning the value
-	value := unredactedValue
-	if rve.redactSensitiveData {
-		sensitiveTargets := []string{"password", "token", "apikey", "authorization", "secret"}
-		for _, sensitive := range sensitiveTargets {
-			if strings.Contains(strings.ToLower(target), sensitive) {
-				value = "REDACTED"
-				break
-			}
-		}
-	}
+	// Redact sensitive fields before returning the value (as before)
+	value := rve.redactValueIfSensitive(target, unredactedValue)
 
 	// Log the extracted value (redacted if necessary)
 	rve.logger.Debug("Extracted value",
@@ -308,6 +174,202 @@ func (rve *RequestValueExtractor) extractSingleValue(target string, r *http.Requ
 
 	// Return the unredacted value for rule matching
 	return unredactedValue, nil
+}
+
+// Helper function to check for empty value and log debug message if empty
+func (rve *RequestValueExtractor) checkEmpty(value string, target, message string) error {
+	if value == "" {
+		rve.logger.Debug(message, zap.String("target", target))
+		return fmt.Errorf("%s for target: %s", message, target)
+	}
+	return nil
+}
+
+// Helper function to log debug message if value is empty
+func (rve *RequestValueExtractor) logIfEmpty(value string, target string, message string) {
+	if value == "" {
+		rve.logger.Debug(message, zap.String("target", target))
+	}
+}
+
+// Helper function to extract body
+func (rve *RequestValueExtractor) extractBody(r *http.Request, target string) (string, error) {
+	if r.Body == nil {
+		rve.logger.Warn("Request body is nil", zap.String("target", target))
+		return "", fmt.Errorf("request body is nil for target: %s", target)
+	}
+	if r.ContentLength == 0 {
+		rve.logger.Debug("Request body is empty", zap.String("target", target))
+		return "", fmt.Errorf("request body is empty for target: %s", target)
+	}
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		rve.logger.Error("Failed to read request body", zap.Error(err))
+		return "", fmt.Errorf("failed to read request body for target %s: %w", target, err)
+	}
+	r.Body = http.NoBody // Reset body for next read - using http.NoBody
+	return string(bodyBytes), nil
+}
+
+// Helper function to extract headers
+func (rve *RequestValueExtractor) extractHeaders(header http.Header, logMessage, target string) (string, error) {
+	if len(header) == 0 {
+		rve.logger.Debug(logMessage+" are empty", zap.String("target", target))
+		return "", fmt.Errorf("%s are empty for target: %s", logMessage, target)
+	}
+	headers := make([]string, 0)
+	for name, values := range header {
+		headers = append(headers, fmt.Sprintf("%s: %s", name, strings.Join(values, ",")))
+	}
+	return strings.Join(headers, "; "), nil
+}
+
+// Helper function to extract response headers (for phase 3)
+func (rve *RequestValueExtractor) extractResponseHeaders(w http.ResponseWriter, target string) (string, error) {
+	if w == nil {
+		return "", fmt.Errorf("response headers not accessible during this phase for target: %s", target)
+	}
+	return rve.extractHeaders(w.Header(), "Response headers", target)
+}
+
+// Helper function to extract response body (for phase 4)
+func (rve *RequestValueExtractor) extractResponseBody(w http.ResponseWriter, target string) (string, error) {
+	if w == nil {
+		return "", fmt.Errorf("response body not accessible outside Phase 4 for target: %s", target)
+	}
+	recorder, ok := w.(*responseRecorder)
+	if !ok || recorder == nil {
+		return "", fmt.Errorf("response recorder not available for target: %s", target)
+	}
+	if recorder.body.Len() == 0 {
+		rve.logger.Debug("Response body is empty", zap.String("target", target))
+		return "", fmt.Errorf("response body is empty for target: %s", target)
+	}
+	return recorder.BodyString(), nil
+}
+
+// Helper function to extract filename from multipart form
+func (rve *RequestValueExtractor) extractFileName(r *http.Request, target string) (string, error) {
+	if r.MultipartForm == nil || r.MultipartForm.File == nil {
+		rve.logger.Debug("Multipart form file not found", zap.String("target", target))
+		return "", fmt.Errorf("multipart form file not found for target: %s", target)
+	}
+	for _, files := range r.MultipartForm.File {
+		if len(files) > 0 { // Check if there are files
+			return files[0].Filename, nil // Return the first file's name
+		}
+	}
+	return "", fmt.Errorf("no files found in multipart form for target: %s", target) // No files found but form is present
+}
+
+// Helper function to extract MIME type from multipart form
+func (rve *RequestValueExtractor) extractFileMIMEType(r *http.Request, target string) (string, error) {
+	if r.MultipartForm == nil || r.MultipartForm.File == nil {
+		rve.logger.Debug("Multipart form file not found", zap.String("target", target))
+		return "", fmt.Errorf("multipart form file not found for target: %s", target)
+	}
+
+	for _, files := range r.MultipartForm.File {
+		if len(files) > 0 { // Check if files are present
+			return files[0].Header.Get("Content-Type"), nil // Return MIME type of the first file
+		}
+	}
+	return "", fmt.Errorf("no files found in multipart form for target: %s", target) // No files found even though form is present
+}
+
+// Helper function to extract dynamic header value
+func (rve *RequestValueExtractor) extractDynamicHeader(header http.Header, headerName, target string) (string, error) {
+	headerValue := header.Get(headerName)
+	if headerValue == "" {
+		rve.logger.Debug("Header not found", zap.String("header", headerName))
+		return "", fmt.Errorf("header '%s' not found for target: %s", headerName, target)
+	}
+	return headerValue, nil
+}
+
+// Helper function to extract dynamic response header value (for phase 3)
+func (rve *RequestValueExtractor) extractDynamicResponseHeader(w http.ResponseWriter, headerName, target string) (string, error) {
+	if w == nil {
+		return "", fmt.Errorf("response headers not available during this phase for target: %s", target)
+	}
+	headerValue := w.Header().Get(headerName)
+	if headerValue == "" {
+		rve.logger.Debug("Response header not found", zap.String("header", headerName))
+		return "", fmt.Errorf("response header '%s' not found for target: %s", headerName, target)
+	}
+	return headerValue, nil
+}
+
+// Helper function to extract cookie value
+func (rve *RequestValueExtractor) extractDynamicCookie(r *http.Request, cookieName string, target string) (string, error) {
+	cookie, err := r.Cookie(cookieName)
+	if err != nil {
+		rve.logger.Debug("Cookie not found", zap.String("cookie", cookieName))
+		return "", fmt.Errorf("cookie '%s' not found for target: %s", cookieName, target)
+	}
+	return cookie.Value, nil
+}
+
+// Helper function to extract URL parameter value
+func (rve *RequestValueExtractor) extractURLParam(url *url.URL, paramName string, target string) (string, error) {
+	paramValue := url.Query().Get(paramName)
+	if paramValue == "" {
+		rve.logger.Debug("URL parameter not found", zap.String("parameter", paramName))
+		return "", fmt.Errorf("url parameter '%s' not found for target: %s", paramName, target)
+	}
+	return paramValue, nil
+}
+
+// Helper function to extract value for JSON Path
+func (rve *RequestValueExtractor) extractValueForJSONPath(r *http.Request, jsonPath string, target string) (string, error) {
+	if r.Body == nil {
+		rve.logger.Warn("Request body is nil", zap.String("target", target))
+		return "", fmt.Errorf("request body is nil for target: %s", target)
+	}
+	if r.ContentLength == 0 {
+		rve.logger.Debug("Request body is empty", zap.String("target", target))
+		return "", fmt.Errorf("request body is empty for target: %s", target)
+	}
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		rve.logger.Error("Failed to read request body", zap.Error(err))
+		return "", fmt.Errorf("failed to read request body for JSON_PATH target %s: %w", target, err)
+	}
+	r.Body = http.NoBody // Reset body for next read
+
+	// Use helper method to dynamically extract value based on JSON path (e.g., 'data.items.0.name').
+	unredactedValue, err := rve.extractJSONPath(string(bodyBytes), jsonPath)
+	if err != nil {
+		rve.logger.Debug("Failed to extract value from JSON path", zap.String("target", target), zap.String("path", jsonPath), zap.Error(err))
+		return "", fmt.Errorf("failed to extract from JSON path '%s': %w", jsonPath, err)
+	}
+	return unredactedValue, nil
+}
+
+// Helper function to redact value if target is sensitive
+func (rve *RequestValueExtractor) redactValueIfSensitive(target string, value string) string {
+	if rve.redactSensitiveData {
+		for _, sensitive := range sensitiveTargets {
+			if strings.Contains(strings.ToLower(target), sensitive) {
+				return "REDACTED"
+			}
+		}
+	}
+	return value
+}
+
+// Helper function to extract cookies
+func (rve *RequestValueExtractor) extractCookies(cookies []*http.Cookie, logMessage string, target string) (string, error) {
+	if len(cookies) == 0 {
+		rve.logger.Debug(logMessage, zap.String("target", target))
+		return "", fmt.Errorf("%s for target: %s", logMessage, target)
+	}
+	cookieStrings := make([]string, 0)
+	for _, cookie := range cookies {
+		cookieStrings = append(cookieStrings, fmt.Sprintf("%s=%s", cookie.Name, cookie.Value))
+	}
+	return strings.Join(cookieStrings, "; "), nil
 }
 
 // Helper function for JSON path extraction.

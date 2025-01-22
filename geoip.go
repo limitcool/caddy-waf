@@ -44,20 +44,13 @@ func (gh *GeoIPHandler) LoadGeoIPDatabase(path string) (*maxminddb.Reader, error
 	if path == "" {
 		return nil, fmt.Errorf("no GeoIP database path specified")
 	}
-	gh.logger.Debug("Attempting to load GeoIP database",
-		zap.String("path", path),
-	)
+	gh.logger.Debug("Loading GeoIP database", zap.String("path", path)) // Slightly improved log message
 	reader, err := maxminddb.Open(path)
 	if err != nil {
-		gh.logger.Error("Failed to load GeoIP database",
-			zap.String("path", path),
-			zap.Error(err),
-		)
+		gh.logger.Error("Failed to load GeoIP database", zap.String("path", path), zap.Error(err))
 		return nil, fmt.Errorf("failed to load GeoIP database: %w", err)
 	}
-	gh.logger.Info("GeoIP database loaded successfully",
-		zap.String("path", path),
-	)
+	gh.logger.Info("GeoIP database loaded", zap.String("path", path)) // Slightly improved log message
 	return reader, nil
 }
 
@@ -69,6 +62,7 @@ func (gh *GeoIPHandler) IsCountryInList(remoteAddr string, countryList []string,
 	if geoIP == nil {
 		return false, fmt.Errorf("geoip database not loaded")
 	}
+
 	ip, err := gh.extractIPFromRemoteAddr(remoteAddr)
 	if err != nil {
 		return false, err
@@ -76,21 +70,16 @@ func (gh *GeoIPHandler) IsCountryInList(remoteAddr string, countryList []string,
 
 	parsedIP := net.ParseIP(ip)
 	if parsedIP == nil {
-		gh.logger.Error("invalid IP address", zap.String("ip", ip))
+		gh.logger.Warn("Invalid IP address", zap.String("ip", ip)) // Changed Error to Warn for invalid IP, as it might be client issue.
 		return false, fmt.Errorf("invalid IP address: %s", ip)
 	}
 
-	// Easy: Add caching of GeoIP lookups for performance.
+	// Check cache first
 	if gh.geoIPCache != nil {
 		gh.geoIPCacheMutex.RLock()
 		if record, ok := gh.geoIPCache[ip]; ok {
 			gh.geoIPCacheMutex.RUnlock()
-			for _, country := range countryList {
-				if strings.EqualFold(record.Country.ISOCode, country) {
-					return true, nil
-				}
-			}
-			return false, nil
+			return gh.isCountryInRecord(record, countryList), nil // Helper function for country check
 		}
 		gh.geoIPCacheMutex.RUnlock()
 	}
@@ -98,52 +87,16 @@ func (gh *GeoIPHandler) IsCountryInList(remoteAddr string, countryList []string,
 	var record GeoIPRecord
 	err = geoIP.Lookup(parsedIP, &record)
 	if err != nil {
-		gh.logger.Error("geoip lookup failed", zap.String("ip", ip), zap.Error(err))
-
-		// Critical: Handle cases where the GeoIP database lookup fails more gracefully.
-		switch gh.geoIPLookupFallbackBehavior {
-		case "default":
-			// Log and treat as not in the list
-			return false, nil
-		case "none":
-			return false, fmt.Errorf("geoip lookup failed: %w", err)
-		case "": // No fallback configured, maintain existing behavior
-			return false, fmt.Errorf("geoip lookup failed: %w", err)
-		default:
-			// Configurable fallback country code
-			for _, country := range countryList {
-				if strings.EqualFold(gh.geoIPLookupFallbackBehavior, country) {
-					return true, nil
-				}
-			}
-			return false, nil
-		}
-
+		gh.logger.Error("GeoIP lookup failed", zap.String("ip", ip), zap.Error(err))
+		return gh.handleGeoIPLookupError(err, countryList) // Helper function for error handling
 	}
 
-	// Easy: Add caching of GeoIP lookups for performance.
+	// Cache the record
 	if gh.geoIPCache != nil {
-		gh.geoIPCacheMutex.Lock()
-		gh.geoIPCache[ip] = record
-		gh.geoIPCacheMutex.Unlock()
-
-		// Invalidate cache entry after TTL (basic implementation)
-		if gh.geoIPCacheTTL > 0 {
-			time.AfterFunc(gh.geoIPCacheTTL, func() {
-				gh.geoIPCacheMutex.Lock()
-				delete(gh.geoIPCache, ip)
-				gh.geoIPCacheMutex.Unlock()
-			})
-		}
+		gh.cacheGeoIPRecord(ip, record) // Helper function for caching
 	}
 
-	for _, country := range countryList {
-		if strings.EqualFold(record.Country.ISOCode, country) {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return gh.isCountryInRecord(record, countryList), nil // Helper function for country check
 }
 
 // getCountryCode extracts the country code for logging purposes
@@ -162,11 +115,28 @@ func (gh *GeoIPHandler) GetCountryCode(remoteAddr string, geoIP *maxminddb.Reade
 	if parsedIP == nil {
 		return "N/A"
 	}
+
+	// Check cache first for GetCountryCode as well for consistency and potential perf gain
+	if gh.geoIPCache != nil {
+		gh.geoIPCacheMutex.RLock()
+		if record, ok := gh.geoIPCache[ip]; ok {
+			gh.geoIPCacheMutex.RUnlock()
+			return record.Country.ISOCode
+		}
+		gh.geoIPCacheMutex.RUnlock()
+	}
+
 	var record GeoIPRecord
 	err = geoIP.Lookup(parsedIP, &record)
 	if err != nil {
-		return "N/A"
+		return "N/A" // Simply return "N/A" on lookup error for GetCountryCode
 	}
+
+	// Cache the record for GetCountryCode as well
+	if gh.geoIPCache != nil {
+		gh.cacheGeoIPRecord(ip, record)
+	}
+
 	return record.Country.ISOCode
 }
 
@@ -177,4 +147,52 @@ func (gh *GeoIPHandler) extractIPFromRemoteAddr(remoteAddr string) (string, erro
 		return remoteAddr, nil // If it's not in host:port format, assume it's just the IP
 	}
 	return host, nil
+}
+
+// Helper function to check if the country in the record is in the country list
+func (gh *GeoIPHandler) isCountryInRecord(record GeoIPRecord, countryList []string) bool {
+	for _, country := range countryList {
+		if strings.EqualFold(record.Country.ISOCode, country) {
+			return true
+		}
+	}
+	return false
+}
+
+// Helper function to handle GeoIP lookup errors based on fallback behavior
+func (gh *GeoIPHandler) handleGeoIPLookupError(err error, countryList []string) (bool, error) {
+	switch gh.geoIPLookupFallbackBehavior {
+	case "default":
+		// Log at debug level as it's a fallback scenario, not necessarily an error for the overall operation
+		gh.logger.Debug("GeoIP lookup failed, using default fallback (not in list)", zap.Error(err))
+		return false, nil // Treat as not in the list
+	case "none":
+		return false, fmt.Errorf("geoip lookup failed: %w", err) // Propagate the error
+	case "": // No fallback configured, maintain existing behavior
+		return false, fmt.Errorf("geoip lookup failed: %w", err) // Propagate the error
+	default: // Configurable fallback country code
+		gh.logger.Debug("GeoIP lookup failed, using configured fallback", zap.String("fallbackCountry", gh.geoIPLookupFallbackBehavior), zap.Error(err))
+		for _, country := range countryList {
+			if strings.EqualFold(gh.geoIPLookupFallbackBehavior, country) {
+				return true, nil // Treat as in the list for the fallback country
+			}
+		}
+		return false, nil // Treat as not in the list if fallback country is not in the list
+	}
+}
+
+// Helper function to cache GeoIP record
+func (gh *GeoIPHandler) cacheGeoIPRecord(ip string, record GeoIPRecord) {
+	gh.geoIPCacheMutex.Lock()
+	gh.geoIPCache[ip] = record
+	gh.geoIPCacheMutex.Unlock()
+
+	// Invalidate cache entry after TTL
+	if gh.geoIPCacheTTL > 0 {
+		time.AfterFunc(gh.geoIPCacheTTL, func() {
+			gh.geoIPCacheMutex.Lock()
+			delete(gh.geoIPCache, ip)
+			gh.geoIPCacheMutex.Unlock()
+		})
+	}
 }

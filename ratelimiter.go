@@ -126,11 +126,11 @@ func (rl *RateLimiter) cleanupExpiredEntries() {
 // startCleanup starts the goroutine to periodically clean up expired entries.
 func (rl *RateLimiter) startCleanup() {
 	go func() {
-		// log.Println("[INFO] Starting rate limiter cleanup goroutine")
+		// log.Println("[INFO] Starting rate limiter cleanup goroutine")  <- Removed/commented out
 		ticker := time.NewTicker(rl.config.CleanupInterval)
 		defer func() {
 			ticker.Stop()
-			// log.Println("[INFO] Rate limiter cleanup goroutine stopped")
+			// log.Println("[INFO] Rate limiter cleanup goroutine stopped")  <- Removed/commented out
 		}()
 
 		for {

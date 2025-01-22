@@ -1,4 +1,3 @@
-// logging.go
 package caddywaf
 
 import (
@@ -11,155 +10,104 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const unknownValue = "unknown" // Define a constant for "unknown" values
+
+var sensitiveKeys = []string{"password", "token", "apikey", "authorization", "secret"} // Define sensitive keys for redaction as package variable
+
 func (m *Middleware) logRequest(level zapcore.Level, msg string, r *http.Request, fields ...zap.Field) {
-	if m.logger == nil {
-		return
+	if m.logger == nil || level < m.logLevel {
+		return // Early return if logger is nil or level is below threshold
 	}
 
-	// Skip logging if the level is below the threshold
-	if level < m.logLevel {
-		return
-	}
-
-	// Extract log ID or generate a new one
-	var logID string
-	var newFields []zap.Field
-	foundLogID := false
-
-	for _, field := range fields {
-		if field.Key == "log_id" {
-			logID = field.String
-			foundLogID = true
-		} else {
-			newFields = append(newFields, field)
-		}
-	}
-
-	if !foundLogID {
-		logID = uuid.New().String()
-	}
-
-	// Append log_id explicitly to newFields
-	newFields = append(newFields, zap.String("log_id", logID))
-
-	// Attach common request metadata only if not already set
-	commonFields := m.getCommonLogFields(r, newFields)
-	for _, commonField := range commonFields {
-		fieldExists := false
-		for _, existingField := range newFields {
-			if existingField.Key == commonField.Key {
-				fieldExists = true
-				break
-			}
-		}
-		if !fieldExists {
-			newFields = append(newFields, commonField)
-		}
-	}
+	allFields := m.prepareLogFields(r, fields) // Prepare all fields in one function - Corrected call: Removed 'level'
 
 	// Send the log entry to the buffered channel
 	select {
-	case m.logChan <- LogEntry{Level: level, Message: msg, Fields: newFields}:
+	case m.logChan <- LogEntry{Level: level, Message: msg, Fields: allFields}:
 		// Log entry successfully queued
 	default:
 		// If the channel is full, fall back to synchronous logging
 		m.logger.Warn("Log buffer full, falling back to synchronous logging",
 			zap.String("message", msg),
-			zap.Any("fields", newFields),
+			zap.Any("fields", allFields),
 		)
-		m.logger.Log(level, msg, newFields...)
+		m.logger.Log(level, msg, allFields...)
 	}
 }
 
-func (m *Middleware) getCommonLogFields(r *http.Request, fields []zap.Field) []zap.Field {
-	// Debug: Print the incoming fields
-	m.logger.Debug("Incoming fields to getCommonLogFields",
-		zap.Any("fields", fields),
-	)
+// prepareLogFields consolidates the logic for preparing log fields, including common fields and log_id.
+func (m *Middleware) prepareLogFields(r *http.Request, fields []zap.Field) []zap.Field { // Corrected signature: Removed 'level zapcore.Level'
+	var logID string
+	var customFields []zap.Field
 
-	// Extract or assign default values for metadata fields
-	var sourceIP string
-	var userAgent string
-	var requestMethod string
-	var requestPath string
-	var queryParams string
-	var statusCode int
+	// Extract log_id if present, otherwise generate a new one
+	logID, customFields = m.extractLogIDField(fields)
+	if logID == "" {
+		logID = uuid.New().String()
+	}
 
-	// Extract values from the incoming fields
+	// Get common log fields and merge with custom fields, prioritizing custom fields in case of duplicates
+	commonFields := m.getCommonLogFields(r)
+	allFields := m.mergeFields(customFields, commonFields, zap.String("log_id", logID)) // Ensure log_id is always present
+
+	return allFields
+}
+
+// extractLogIDField extracts the log_id from the given fields and returns it along with the remaining fields.
+func (m *Middleware) extractLogIDField(fields []zap.Field) (logID string, remainingFields []zap.Field) {
 	for _, field := range fields {
-		switch field.Key {
-		case "source_ip":
-			sourceIP = field.String
-		case "user_agent":
-			userAgent = field.String
-		case "request_method":
-			requestMethod = field.String
-		case "request_path":
-			requestPath = field.String
-		case "query_params":
-			queryParams = field.String
-		case "status_code":
-			statusCode = int(field.Integer)
+		if field.Key == "log_id" {
+			logID = field.String
+		} else {
+			remainingFields = append(remainingFields, field)
+		}
+	}
+	return logID, remainingFields
+}
+
+// mergeFields merges custom fields and common fields, with custom fields taking precedence and ensuring log_id is present.
+func (m *Middleware) mergeFields(customFields []zap.Field, commonFields []zap.Field, logIDField zap.Field) []zap.Field {
+	mergedFields := make([]zap.Field, 0, len(customFields)+len(commonFields)+1) //预分配容量
+	mergedFields = append(mergedFields, customFields...)
+
+	// Add common fields, skip if key already exists in custom fields
+	for _, commonField := range commonFields {
+		exists := false
+		for _, customField := range customFields {
+			if commonField.Key == customField.Key {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			mergedFields = append(mergedFields, commonField)
 		}
 	}
 
-	// If values are not provided in the fields, extract them from the request
-	if sourceIP == "" && r != nil {
+	mergedFields = append(mergedFields, logIDField) // Ensure log_id is always last or at least present
+	return mergedFields
+}
+
+func (m *Middleware) getCommonLogFields(r *http.Request) []zap.Field {
+	sourceIP := unknownValue
+	userAgent := unknownValue
+	requestMethod := unknownValue
+	requestPath := unknownValue
+	queryParams := "" // Initialize to empty string, not "unknown" - More accurate for query params
+	statusCode := 0   // Default status code is 0 if not explicitly set
+
+	if r != nil {
 		sourceIP = r.RemoteAddr
-	}
-	if userAgent == "" && r != nil {
 		userAgent = r.UserAgent()
-	}
-	if requestMethod == "" && r != nil {
 		requestMethod = r.Method
-	}
-	if requestPath == "" && r != nil {
 		requestPath = r.URL.Path
-	}
-	if queryParams == "" && r != nil {
 		queryParams = r.URL.RawQuery
 	}
 
-	// Debug: Print the extracted values
-	m.logger.Debug("Extracted values in getCommonLogFields",
-		zap.String("source_ip", sourceIP),
-		zap.String("user_agent", userAgent),
-		zap.String("request_method", requestMethod),
-		zap.String("request_path", requestPath),
-		zap.String("query_params", queryParams),
-		zap.Int("status_code", statusCode),
-	)
-
-	// Default values for missing fields
-	if sourceIP == "" {
-		sourceIP = "unknown"
-	}
-	if userAgent == "" {
-		userAgent = "unknown"
-	}
-	if requestMethod == "" {
-		requestMethod = "unknown"
-	}
-	if requestPath == "" {
-		requestPath = "unknown"
-	}
-
-	// Debug: Print the final values after applying defaults
-	m.logger.Debug("Final values after applying defaults",
-		zap.String("source_ip", sourceIP),
-		zap.String("user_agent", userAgent),
-		zap.String("request_method", requestMethod),
-		zap.String("request_path", requestPath),
-		zap.String("query_params", queryParams),
-		zap.Int("status_code", statusCode),
-	)
-
-	// Redact query parameters if required
 	if m.RedactSensitiveData {
 		queryParams = m.redactQueryParams(queryParams)
 	}
 
-	// Construct and return common fields
 	return []zap.Field{
 		zap.String("source_ip", sourceIP),
 		zap.String("user_agent", userAgent),
@@ -167,7 +115,7 @@ func (m *Middleware) getCommonLogFields(r *http.Request, fields []zap.Field) []z
 		zap.String("request_path", requestPath),
 		zap.String("query_params", queryParams),
 		zap.Int("status_code", statusCode),
-		zap.Time("timestamp", time.Now()), // Include a timestamp
+		zap.Time("timestamp", time.Now()),
 	}
 }
 
@@ -182,13 +130,22 @@ func (m *Middleware) redactQueryParams(queryParams string) string {
 			keyValue := strings.SplitN(part, "=", 2)
 			if len(keyValue) == 2 {
 				key := strings.ToLower(keyValue[0])
-				if strings.Contains(key, "password") || strings.Contains(key, "token") || strings.Contains(key, "apikey") || strings.Contains(key, "authorization") || strings.Contains(key, "secret") {
+				if m.isSensitiveQueryParamKey(key) { // Use helper function for sensitive key check
 					parts[i] = keyValue[0] + "=REDACTED"
 				}
 			}
 		}
 	}
 	return strings.Join(parts, "&")
+}
+
+func (m *Middleware) isSensitiveQueryParamKey(key string) bool {
+	for _, sensitiveKey := range sensitiveKeys { // Use package level sensitiveKeys variable
+		if strings.Contains(key, sensitiveKey) {
+			return true
+		}
+	}
+	return false
 }
 
 func caddyTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {

@@ -1,7 +1,7 @@
-// tor.go
 package caddywaf
 
 import (
+	"fmt" // Import fmt for improved error formatting
 	"io"
 	"net/http"
 	"os"
@@ -32,7 +32,7 @@ func (t *TorConfig) Provision(ctx caddy.Context) error {
 	t.logger = ctx.Logger()
 	if t.Enabled {
 		if err := t.updateTorExitNodes(); err != nil {
-			return err
+			return fmt.Errorf("provisioning tor: %w", err) // Improved error wrapping
 		}
 		go t.scheduleUpdates()
 	}
@@ -41,21 +41,27 @@ func (t *TorConfig) Provision(ctx caddy.Context) error {
 
 // updateTorExitNodes fetches the latest Tor exit nodes and updates the IP blacklist.
 func (t *TorConfig) updateTorExitNodes() error {
+	t.logger.Debug("Updating Tor exit nodes...") // Debug log at start of update
+
 	resp, err := http.Get(torExitNodeURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("http get failed for %s: %w", torExitNodeURL, err) // Improved error message with URL
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("http get returned status %s for %s", resp.Status, torExitNodeURL) // Check for non-200 status
+	}
+
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read response body from %s: %w", torExitNodeURL, err) // Improved error message with URL
 	}
 
 	torIPs := strings.Split(string(data), "\n")
 	existingIPs, err := t.readExistingBlacklist()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read existing blacklist file %s: %w", t.TORIPBlacklistFile, err) // Improved error message with filename
 	}
 
 	// Merge and deduplicate IPs
@@ -65,15 +71,15 @@ func (t *TorConfig) updateTorExitNodes() error {
 
 	// Write updated blacklist to file
 	if err := t.writeBlacklist(uniqueIPs); err != nil {
-		return err
+		return fmt.Errorf("failed to write updated blacklist to file %s: %w", t.TORIPBlacklistFile, err) // Improved error message with filename
 	}
 
 	t.lastUpdated = time.Now()
-	t.logger.Info("Updated Tor exit nodes in IP blacklist", zap.Int("count", len(uniqueIPs)))
+	t.logger.Info("Tor exit nodes updated", zap.Int("count", len(uniqueIPs))) // Improved log message
+	t.logger.Debug("Tor exit node update completed successfully")             // Debug log at end of update
 	return nil
 }
 
-// scheduleUpdates periodically updates the Tor exit node list.
 // scheduleUpdates periodically updates the Tor exit node list.
 func (t *TorConfig) scheduleUpdates() {
 	interval, err := time.ParseDuration(t.UpdateInterval)
@@ -96,13 +102,13 @@ func (t *TorConfig) scheduleUpdates() {
 
 	// Use for range to iterate over the ticker channel
 	for range ticker.C {
-		if err := t.updateTorExitNodes(); err != nil {
+		if updateErr := t.updateTorExitNodes(); updateErr != nil { // Renamed err to updateErr for clarity
 			if t.RetryOnFailure {
-				t.logger.Error("Failed to update Tor exit nodes, retrying shortly", zap.Error(err))
+				t.logger.Error("Failed to update Tor exit nodes, retrying shortly", zap.Error(updateErr)) // Use updateErr
 				time.Sleep(retryInterval)
 				continue
 			} else {
-				t.logger.Error("Failed to update Tor exit nodes, will retry at next scheduled interval", zap.Error(err))
+				t.logger.Error("Failed to update Tor exit nodes, will retry at next scheduled interval", zap.Error(updateErr)) // Use updateErr
 			}
 		}
 	}
@@ -113,9 +119,10 @@ func (t *TorConfig) readExistingBlacklist() ([]string, error) {
 	data, err := os.ReadFile(t.TORIPBlacklistFile)
 	if err != nil {
 		if os.IsNotExist(err) {
+			t.logger.Debug("Blacklist file does not exist, assuming empty list", zap.String("path", t.TORIPBlacklistFile)) // Debug log for non-existent file
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to read IP blacklist file %s: %w", t.TORIPBlacklistFile, err) // Improved error message with filename
 	}
 	return strings.Split(string(data), "\n"), nil
 }
@@ -123,7 +130,12 @@ func (t *TorConfig) readExistingBlacklist() ([]string, error) {
 // writeBlacklist writes the updated IP blacklist to the file.
 func (t *TorConfig) writeBlacklist(ips []string) error {
 	data := strings.Join(ips, "\n")
-	return os.WriteFile(t.TORIPBlacklistFile, []byte(data), 0644)
+	err := os.WriteFile(t.TORIPBlacklistFile, []byte(data), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write IP blacklist file %s: %w", t.TORIPBlacklistFile, err) // Improved error message with filename
+	}
+	t.logger.Debug("Blacklist file updated", zap.String("path", t.TORIPBlacklistFile), zap.Int("entry_count", len(ips))) // Debug log for file update
+	return nil
 }
 
 // unique removes duplicate entries from a slice of strings.
