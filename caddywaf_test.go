@@ -2646,7 +2646,7 @@ func TestBlockedRequestPhase3_ResponseHeaderRegex_NoSetCookie(t *testing.T) {
 					Phase:   3,
 					Score:   5,
 					Action:  "block",
-					regex:   regexp.MustCompile("(?i)Set-Cookie:.*?(%0d|\\r)%0a"),
+					regex:   regexp.MustCompile(`(?i)Set-Cookie:.*?(%0d|\r)%0a`),
 				},
 			},
 		},
