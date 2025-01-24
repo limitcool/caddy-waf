@@ -33,16 +33,65 @@ type RuleID string
 type HitCount int
 
 // ==================== Struct Definitions ====================
-
-// CIDRTrie is a trie structure for efficiently storing and looking up CIDR ranges.
-type CIDRTrie struct {
-	mu   sync.RWMutex
-	root *cidrTrieNode
+type TrieNode struct {
+	children map[byte]*TrieNode
+	isLeaf   bool
 }
 
-type cidrTrieNode struct {
-	children map[byte]*cidrTrieNode
-	isLeaf   bool
+func NewTrieNode() *TrieNode {
+	return &TrieNode{
+		children: make(map[byte]*TrieNode), // Initialize the map
+		isLeaf:   false,
+	}
+}
+
+type CIDRTrie struct {
+	ipv4Root *TrieNode
+	ipv6Root *TrieNode
+	mu       sync.RWMutex
+}
+
+func NewCIDRTrie() *CIDRTrie {
+	return &CIDRTrie{
+		ipv4Root: NewTrieNode(), // Initialize with a new TrieNode
+		ipv6Root: NewTrieNode(), // Initialize with a new TrieNode
+	}
+}
+
+func (t *CIDRTrie) Insert(cidr string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	ip, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return err
+	}
+
+	if ip.To4() != nil {
+		// IPv4
+		return t.insertIPv4(ipNet)
+	} else {
+		// IPv6
+		return t.insertIPv6(ipNet)
+	}
+}
+
+func (t *CIDRTrie) Contains(ipStr string) bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+
+	if ip.To4() != nil {
+		// IPv4
+		return t.containsIPv4(ip)
+	} else {
+		// IPv6
+		return t.containsIPv6(ip)
+	}
 }
 
 // RuleCache caches compiled regex patterns for rules.
@@ -150,78 +199,11 @@ type Middleware struct {
 
 // ==================== Constructors (New functions) ====================
 
-// NewCIDRTrie creates a new CIDRTrie.
-func NewCIDRTrie() *CIDRTrie {
-	return &CIDRTrie{
-		root: &cidrTrieNode{
-			children: make(map[byte]*cidrTrieNode),
-		},
-	}
-}
-
 // NewRuleCache creates a new RuleCache.
 func NewRuleCache() *RuleCache {
 	return &RuleCache{
 		rules: make(map[string]*regexp.Regexp),
 	}
-}
-
-// ==================== CIDRTrie Methods ====================
-
-// Insert adds a CIDR range to the trie.
-func (t *CIDRTrie) Insert(cidr string) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	_, ipNet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		return err
-	}
-
-	ip := ipNet.IP.To4()
-	if ip == nil {
-		return fmt.Errorf("only IPv4 CIDR ranges are supported")
-	}
-
-	mask, _ := ipNet.Mask.Size()
-	node := t.root
-
-	for i := 0; i < mask; i++ {
-		bit := (ip[i/8] >> (7 - uint(i%8))) & 1
-		if node.children[bit] == nil {
-			node.children[bit] = &cidrTrieNode{
-				children: make(map[byte]*cidrTrieNode),
-			}
-		}
-		node = node.children[bit]
-	}
-
-	node.isLeaf = true
-	return nil
-}
-
-// Contains checks if an IP address is within any CIDR range in the trie.
-func (t *CIDRTrie) Contains(ipStr string) bool {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-
-	ip := net.ParseIP(ipStr).To4()
-	if ip == nil {
-		return false
-	}
-
-	node := t.root
-	for i := 0; i < 32; i++ {
-		bit := (ip[i/8] >> (7 - uint(i%8))) & 1
-		if node.children[bit] == nil {
-			return false
-		}
-		node = node.children[bit]
-		if node.isLeaf {
-			return true
-		}
-	}
-	return false
 }
 
 // ==================== RuleCache Methods ====================
@@ -239,4 +221,86 @@ func (rc *RuleCache) Set(ruleID string, regex *regexp.Regexp) {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 	rc.rules[ruleID] = regex
+}
+
+func (t *CIDRTrie) insertIPv4(ipNet *net.IPNet) error {
+	ip := ipNet.IP.To4()
+	if ip == nil {
+		return fmt.Errorf("invalid IPv4 address")
+	}
+
+	mask, _ := ipNet.Mask.Size()
+	node := t.ipv4Root
+
+	for i := 0; i < mask; i++ {
+		bit := (ip[i/8] >> (7 - uint(i%8))) & 1
+		if node.children[bit] == nil {
+			node.children[bit] = NewTrieNode() // Initialize the child node
+		}
+		node = node.children[bit]
+	}
+
+	node.isLeaf = true
+	return nil
+}
+
+func (t *CIDRTrie) insertIPv6(ipNet *net.IPNet) error {
+	ip := ipNet.IP.To16()
+	if ip == nil {
+		return fmt.Errorf("invalid IPv6 address")
+	}
+
+	mask, _ := ipNet.Mask.Size()
+	node := t.ipv6Root
+
+	for i := 0; i < mask; i++ {
+		bit := (ip[i/8] >> (7 - uint(i%8))) & 1
+		if node.children[bit] == nil {
+			node.children[bit] = NewTrieNode() // Initialize the child node
+		}
+		node = node.children[bit]
+	}
+
+	node.isLeaf = true
+	return nil
+}
+
+func (t *CIDRTrie) containsIPv4(ip net.IP) bool {
+	ip = ip.To4()
+	if ip == nil {
+		return false
+	}
+
+	node := t.ipv4Root
+	for i := 0; i < len(ip)*8; i++ {
+		bit := (ip[i/8] >> (7 - uint(i%8))) & 1
+		if node.children[bit] == nil {
+			return false
+		}
+		node = node.children[bit]
+		if node.isLeaf {
+			return true
+		}
+	}
+	return node.isLeaf
+}
+
+func (t *CIDRTrie) containsIPv6(ip net.IP) bool {
+	ip = ip.To16()
+	if ip == nil {
+		return false
+	}
+
+	node := t.ipv6Root
+	for i := 0; i < len(ip)*8; i++ {
+		bit := (ip[i/8] >> (7 - uint(i%8))) & 1
+		if node.children[bit] == nil {
+			return false
+		}
+		node = node.children[bit]
+		if node.isLeaf {
+			return true
+		}
+	}
+	return node.isLeaf
 }

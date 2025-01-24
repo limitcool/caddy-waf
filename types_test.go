@@ -10,11 +10,17 @@ func TestNewCIDRTrie(t *testing.T) {
 	if trie == nil {
 		t.Fatal("NewCIDRTrie() returned nil")
 	}
-	if trie.root == nil {
-		t.Fatal("NewCIDRTrie() created a trie with nil root")
+	if trie.ipv4Root == nil {
+		t.Fatal("NewCIDRTrie() created a trie with nil ipv4Root")
 	}
-	if trie.root.children == nil {
-		t.Fatal("NewCIDRTrie() created a root with nil children map")
+	if trie.ipv6Root == nil {
+		t.Fatal("NewCIDRTrie() created a trie with nil ipv6Root")
+	}
+	if trie.ipv4Root.children == nil {
+		t.Fatal("NewCIDRTrie() created ipv4Root with nil children map")
+	}
+	if trie.ipv6Root.children == nil {
+		t.Fatal("NewCIDRTrie() created ipv6Root with nil children map")
 	}
 }
 
@@ -25,9 +31,10 @@ func TestCIDRTrie_Insert(t *testing.T) {
 		wantErr bool
 	}{
 		{"valid IPv4 CIDR", "192.168.1.0/24", false},
+		{"valid IPv6 CIDR", "2001:db8::/32", false}, // IPv6 is now supported
 		{"invalid CIDR", "invalid", true},
-		{"IPv6 CIDR", "2001:db8::/32", true},
-		{"invalid mask", "192.168.1.0/33", true},
+		{"invalid IPv4 mask", "192.168.1.0/33", true},
+		{"invalid IPv6 mask", "2001:db8::/129", true},
 	}
 
 	for _, tt := range tests {
@@ -44,16 +51,18 @@ func TestCIDRTrie_Insert(t *testing.T) {
 func TestCIDRTrie_Contains(t *testing.T) {
 	trie := NewCIDRTrie()
 	_ = trie.Insert("192.168.1.0/24")
+	_ = trie.Insert("2001:db8::/32") // Add an IPv6 CIDR
 
 	tests := []struct {
 		name string
 		ip   string
 		want bool
 	}{
-		{"IP in range", "192.168.1.1", true},
-		{"IP out of range", "192.168.2.1", false},
+		{"IPv4 in range", "192.168.1.1", true},
+		{"IPv4 out of range", "192.168.2.1", false},
 		{"Invalid IP", "invalid", false},
-		{"IPv6 address", "2001:db8::1", false},
+		{"IPv6 in range", "2001:db8::1", true},
+		{"IPv6 out of range", "2001:db9::1", false},
 	}
 
 	for _, tt := range tests {
