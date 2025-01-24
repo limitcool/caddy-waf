@@ -13,9 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	torExitNodeURL = "https://check.torproject.org/torbulkexitlist"
-)
+var torExitNodeURL = "https://check.torproject.org/torbulkexitlist"
 
 type TorConfig struct {
 	Enabled            bool   `json:"enabled,omitempty"`

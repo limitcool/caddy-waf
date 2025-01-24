@@ -117,3 +117,43 @@
 {"level":"INFO","ts":"2025/01/20 00:17:01.360","msg":"Reloading WAF configuration"}
 {"level":"ERROR","ts":"2025/01/20 00:17:01.360","msg":"Failed to read rule file","file":"testdata/rules.json","error":"open testdata/rules.json: no such file or directory"}
 {"level":"ERROR","ts":"2025/01/20 00:17:01.360","msg":"Failed to reload rules","error":"failed to read rule file: testdata/rules.json, error: open testdata/rules.json: no such file or directory"}
+{"level":"INFO","ts":"2025/01/24 23:14:59.307","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/24 23:14:59.307","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/24 23:14:59.307","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"WARN","ts":"2025/01/24 23:14:59.307","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/24 23:14:59.307","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/24 23:14:59.307","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/24 23:14:59.307","msg":"WAF request evaluation started","log_id":"5379c0d9-3b3e-49f2-8cc7-a747744c26ab","method":"GET","uri":"/test","remote_address":"192.0.2.1:1234","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/24 23:14:59.307","msg":"Starting phase evaluation","phase":1,"source_ip":"192.0.2.1:1234","user_agent":""}
+{"level":"INFO","ts":"2025/01/24 23:16:50.172","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/24 23:16:50.173","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/24 23:16:50.173","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"WARN","ts":"2025/01/24 23:16:50.173","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/24 23:16:50.173","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/24 23:16:50.173","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/24 23:16:50.173","msg":"WAF request evaluation started","log_id":"2d0a91bd-b7f0-4dba-ae6e-c69068c11811","method":"GET","uri":"/test","remote_address":"192.0.2.1:1234","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/24 23:16:50.173","msg":"Starting phase evaluation","phase":1,"source_ip":"192.0.2.1:1234","user_agent":""}
+{"level":"INFO","ts":"2025/01/24 23:17:42.298","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/24 23:17:42.298","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/24 23:17:42.298","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"WARN","ts":"2025/01/24 23:17:42.298","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/24 23:17:42.298","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/24 23:17:42.298","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/24 23:17:42.298","msg":"WAF request evaluation started","log_id":"5d24d4ba-5a3a-45d0-a9a3-aa33405bfba0","method":"GET","uri":"/test","remote_address":"192.0.2.1:1234","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/24 23:17:42.298","msg":"Starting phase evaluation","phase":1,"source_ip":"192.0.2.1:1234","user_agent":""}
+{"level":"INFO","ts":"2025/01/24 23:18:15.512","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/24 23:18:15.512","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/24 23:18:15.512","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"WARN","ts":"2025/01/24 23:18:15.512","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/24 23:18:15.512","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/24 23:18:15.512","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/24 23:18:15.512","msg":"WAF request evaluation started","log_id":"813cfd3d-aba2-48f8-b17f-dc0492a3bc25","method":"GET","uri":"/test","remote_address":"192.0.2.1:1234","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/24 23:18:15.512","msg":"Starting phase evaluation","phase":1,"source_ip":"192.0.2.1:1234","user_agent":""}
+{"level":"INFO","ts":"2025/01/24 23:19:42.563","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/24 23:19:42.563","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/24 23:19:42.563","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"WARN","ts":"2025/01/24 23:19:42.563","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/24 23:19:42.563","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/24 23:19:42.563","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/24 23:19:42.563","msg":"WAF request evaluation started","log_id":"29794d7f-7de8-4716-9d36-468a78f66324","method":"GET","uri":"/test","remote_address":"192.0.2.1:1234","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/24 23:19:42.564","msg":"Starting phase evaluation","phase":1,"source_ip":"192.0.2.1:1234","user_agent":""}

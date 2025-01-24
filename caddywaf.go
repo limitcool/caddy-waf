@@ -208,7 +208,8 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Load IP blacklist
-	m.ipBlacklist = NewCIDRTrie() // Initialize as CIDRTrie
+	m.ipBlacklist = NewCIDRTrie()                                                                   // Initialize as CIDRTrie
+	m.logger.Debug("ipBlacklist initialized in Provision", zap.Bool("isNil", m.ipBlacklist == nil)) // ADDED LOGGING - Check if nil right after initialization
 	if m.IPBlacklistFile != "" {
 		err = m.loadIPBlacklistIntoMap(m.IPBlacklistFile, m.ipBlacklist)
 		if err != nil {
@@ -226,8 +227,12 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Load WAF rules - calling the new external loadRules function
-	if err := m.loadRules(m.RuleFiles); err != nil {
-		return fmt.Errorf("failed to load rules: %w", err)
+	if len(m.RuleFiles) > 0 { // Modified condition to check for rule files before loading
+		if err := m.loadRules(m.RuleFiles); err != nil {
+			return fmt.Errorf("failed to load rules: %w", err)
+		}
+	} else {
+		m.logger.Warn("No rule files specified, WAF will run without rules.") // Log a warning instead of error
 	}
 
 	m.logger.Info("WAF middleware provisioned successfully")

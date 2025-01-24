@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"bytes"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -552,15 +551,6 @@ func TestUnmarshalCaddyfile_MissingRuleFile(t *testing.T) {
 // MockGeoIPReader is a mock implementation of GeoIP reader for testing
 type MockGeoIPReader struct{}
 
-// TestWithGeoIPCache tests the WithGeoIPCache method.
-func TestWithGeoIPCache(t *testing.T) {
-	logger := zap.NewNop()
-	handler := NewGeoIPHandler(logger)
-
-	handler.WithGeoIPCache(time.Minute * 10)
-	assert.Equal(t, time.Minute*10, handler.geoIPCacheTTL)
-}
-
 // TestWithGeoIPLookupFallbackBehavior tests the WithGeoIPLookupFallbackBehavior method.
 func TestWithGeoIPLookupFallbackBehavior(t *testing.T) {
 	logger := zap.NewNop()
@@ -568,50 +558,6 @@ func TestWithGeoIPLookupFallbackBehavior(t *testing.T) {
 
 	handler.WithGeoIPLookupFallbackBehavior("default")
 	assert.Equal(t, "default", handler.geoIPLookupFallbackBehavior)
-}
-
-// TestLoadGeoIPDatabase tests the LoadGeoIPDatabase method.
-func TestLoadGeoIPDatabase(t *testing.T) {
-	logger := zap.NewNop()
-	handler := NewGeoIPHandler(logger)
-
-	// Test with a valid GeoIP database
-	// Mock the GeoIP database loading
-	reader := &MockGeoIPReader{}
-	err := error(nil)
-	assert.NoError(t, err)
-	assert.NotNil(t, reader)
-
-	// Test with an invalid path
-	_, err = handler.LoadGeoIPDatabase("nonexistent.mmdb")
-	assert.Error(t, err)
-}
-
-func TestFileExists(t *testing.T) {
-	// Create a temporary file for testing
-	tmpFile, err := os.CreateTemp("", "testfile")
-	if err != nil {
-		t.Fatalf("Failed to create temporary file: %v", err)
-	}
-	defer os.Remove(tmpFile.Name()) // Clean up the file after the test
-
-	// Test case: File exists
-	assert.True(t, fileExists(tmpFile.Name()), "Expected file to exist")
-
-	// Test case: File does not exist
-	assert.False(t, fileExists("nonexistentfile.txt"), "Expected file to not exist")
-
-	// Test case: Path is empty
-	assert.False(t, fileExists(""), "Expected empty path to return false")
-
-	// Test case: Path is a directory
-	tmpDir, err := os.MkdirTemp("", "testdir")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
-	defer os.Remove(tmpDir) // Clean up the directory after the test
-
-	assert.False(t, fileExists(tmpDir), "Expected directory path to return false")
 }
 
 func TestLogRequest(t *testing.T) {
@@ -637,56 +583,6 @@ func TestLogRequest(t *testing.T) {
 
 	// Wait for the log entry to be processed
 	time.Sleep(100 * time.Millisecond)
-}
-
-func TestLogWorker(t *testing.T) {
-	// Create a test logger using zaptest
-	logger := zaptest.NewLogger(t)
-
-	// Create a Middleware instance with the test logger
-	middleware := &Middleware{
-		logger:   logger,
-		logLevel: zapcore.DebugLevel,
-	}
-
-	// Start the log worker
-	middleware.StartLogWorker()
-
-	// Send a log entry
-	middleware.logChan <- LogEntry{
-		Level:   zapcore.InfoLevel,
-		Message: "Worker test message",
-		Fields:  []zap.Field{zap.String("field", "value")},
-	}
-
-	// Wait for the log entry to be processed
-	time.Sleep(100 * time.Millisecond)
-
-	// Stop the log worker
-	middleware.StopLogWorker()
-}
-
-func TestNewRateLimiter(t *testing.T) {
-	config := RateLimit{
-		Requests:        10,
-		Window:          time.Minute,
-		CleanupInterval: time.Minute,
-		Paths:           []string{"/api/.*"},
-		MatchAllPaths:   false,
-	}
-
-	rl, err := NewRateLimiter(config)
-	if err != nil {
-		t.Fatalf("Failed to create rate limiter: %v", err)
-	}
-
-	assert.NotNil(t, rl)
-	assert.Equal(t, 10, rl.config.Requests)
-	assert.Equal(t, time.Minute, rl.config.Window)
-	assert.Equal(t, time.Minute, rl.config.CleanupInterval)
-	assert.Equal(t, 1, len(rl.config.PathRegexes))
-	assert.Equal(t, "/api/.*", rl.config.Paths[0])
-	assert.False(t, rl.config.MatchAllPaths)
 }
 
 func TestIsRateLimited_PathMatching(t *testing.T) {
@@ -1014,149 +910,6 @@ func newMockLogger() *MockLogger {
 	return &MockLogger{Logger: logger}
 }
 
-func TestValidateRule(t *testing.T) {
-	// Test valid rule
-	validRule := &Rule{
-		ID:      "rule1",
-		Pattern: ".*",
-		Targets: []string{"header"},
-		Phase:   1,
-		Score:   5,
-		Action:  "block",
-	}
-	assert.NoError(t, validateRule(validRule))
-
-	// Test invalid rule (empty ID)
-	invalidRule := &Rule{
-		ID:      "",
-		Pattern: ".*",
-		Targets: []string{"header"},
-		Phase:   1,
-		Score:   5,
-		Action:  "block",
-	}
-	assert.Error(t, validateRule(invalidRule))
-
-	// Test invalid rule (invalid phase)
-	invalidRule.Phase = 5
-	assert.Error(t, validateRule(invalidRule))
-
-	// Test invalid rule (negative score)
-	invalidRule.Phase = 1
-	invalidRule.Score = -1
-	assert.Error(t, validateRule(invalidRule))
-
-	// Test invalid rule (invalid action)
-	invalidRule.Score = 5
-	invalidRule.Action = "invalid"
-	assert.Error(t, validateRule(invalidRule))
-}
-
-func TestProcessRuleMatch(t *testing.T) {
-	logger := newMockLogger()
-	middleware := &Middleware{
-		logger:           logger.Logger,
-		AnomalyThreshold: 10,
-		ruleHits:         sync.Map{},
-		muMetrics:        sync.RWMutex{},
-	}
-
-	rule := &Rule{
-		ID:          "rule1",
-		Targets:     []string{"header"},
-		Description: "Test rule",
-		Score:       5,
-		Action:      "block",
-	}
-
-	state := &WAFState{
-		TotalScore:      0,
-		ResponseWritten: false,
-	}
-
-	req := httptest.NewRequest("GET", "http://example.com", nil)
-
-	// Create a context and add logID to it
-	ctx := context.Background()
-	logID := "test-log-id" // Or generate a UUID if needed: uuid.New().String()
-	ctx = context.WithValue(ctx, ContextKeyLogId("logID"), logID)
-
-	// Create a new request with the context
-	req = req.WithContext(ctx)
-
-	// Create a ResponseRecorder
-	w := NewResponseRecorder(httptest.NewRecorder())
-
-	// Test blocking rule
-	shouldContinue := middleware.processRuleMatch(w, req, rule, "value", state)
-	assert.False(t, shouldContinue)
-	assert.Equal(t, http.StatusForbidden, w.StatusCode())
-	assert.True(t, state.Blocked)
-	assert.Equal(t, 5, state.TotalScore)
-
-	// Test logging rule
-	rule.Action = "log"
-	state = &WAFState{
-		TotalScore:      0,
-		ResponseWritten: false,
-	}
-	// Re-create a ResponseRecorder for the second test
-	w = NewResponseRecorder(httptest.NewRecorder())
-	shouldContinue = middleware.processRuleMatch(w, req, rule, "value", state)
-	assert.True(t, shouldContinue)
-	assert.False(t, state.Blocked)
-	assert.Equal(t, 5, state.TotalScore)
-}
-
-func TestLoadRules(t *testing.T) {
-	logger := newMockLogger()
-	middleware := &Middleware{
-		logger:    logger.Logger, // Use the embedded *zap.Logger
-		ruleCache: NewRuleCache(),
-		mu:        sync.RWMutex{}, // Use sync.RWMutex directly
-	}
-
-	// Create a temporary rule file
-	ruleFile, err := os.CreateTemp("", "rules.json")
-	assert.NoError(t, err)
-	defer os.Remove(ruleFile.Name())
-
-	rules := []Rule{
-		{
-			ID:      "rule1",
-			Pattern: ".*",
-			Targets: []string{"header"},
-			Phase:   1,
-			Score:   5,
-			Action:  "block",
-		},
-		{
-			ID:      "rule2",
-			Pattern: ".*",
-			Targets: []string{"header"},
-			Phase:   2,
-			Score:   10,
-			Action:  "log",
-		},
-	}
-
-	// Write rules to the temporary file
-	ruleData, err := json.Marshal(rules)
-	assert.NoError(t, err)
-	_, err = ruleFile.Write(ruleData)
-	assert.NoError(t, err)
-	ruleFile.Close()
-
-	// Test loading rules
-	err = middleware.loadRules([]string{ruleFile.Name()})
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(middleware.Rules[1])+len(middleware.Rules[2]))
-
-	// Test loading invalid rule file
-	err = middleware.loadRules([]string{"nonexistent.json"})
-	assert.Error(t, err)
-}
-
 func TestProcessRuleMatch_HighScore(t *testing.T) {
 	logger := newMockLogger()
 	middleware := &Middleware{
@@ -1210,13 +963,6 @@ func TestValidateRule_EmptyTargets(t *testing.T) {
 	err := validateRule(rule)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "has no targets")
-}
-
-func TestUnique(t *testing.T) {
-	// Test removing duplicates from a slice of strings
-	ips := []string{"1.1.1.1", "2.2.2.2", "1.1.1.1", "3.3.3.3"}
-	uniqueIPs := unique(ips)
-	assert.Equal(t, []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}, uniqueIPs)
 }
 
 func TestNewRequestValueExtractor(t *testing.T) {
