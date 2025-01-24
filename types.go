@@ -15,6 +15,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Package caddywaf is a Caddy module providing web application firewall functionality.
+
 // ==================== Constants and Globals ====================
 
 var (
@@ -23,34 +25,30 @@ var (
 	_ caddyfile.Unmarshaler       = (*Middleware)(nil)
 )
 
+// Define a custom type for context keys
+type ContextKeyRule string
+
+// Define custom types for rule hits
+type RuleID string
+type HitCount int
+
 // ==================== Struct Definitions ====================
+
+// CIDRTrie is a trie structure for efficiently storing and looking up CIDR ranges.
+type CIDRTrie struct {
+	mu   sync.RWMutex
+	root *cidrTrieNode
+}
+
+type cidrTrieNode struct {
+	children map[byte]*cidrTrieNode
+	isLeaf   bool
+}
 
 // RuleCache caches compiled regex patterns for rules.
 type RuleCache struct {
 	mu    sync.RWMutex
 	rules map[string]*regexp.Regexp
-}
-
-// NewRuleCache creates a new RuleCache.
-func NewRuleCache() *RuleCache {
-	return &RuleCache{
-		rules: make(map[string]*regexp.Regexp),
-	}
-}
-
-// Get retrieves a compiled regex pattern from the cache.
-func (rc *RuleCache) Get(ruleID string) (*regexp.Regexp, bool) {
-	rc.mu.RLock()
-	defer rc.mu.RUnlock()
-	regex, exists := rc.rules[ruleID]
-	return regex, exists
-}
-
-// Set stores a compiled regex pattern in the cache.
-func (rc *RuleCache) Set(ruleID string, regex *regexp.Regexp) {
-	rc.mu.Lock()
-	defer rc.mu.Unlock()
-	rc.rules[ruleID] = regex
 }
 
 // CountryAccessFilter struct
@@ -87,6 +85,14 @@ type CustomBlockResponse struct {
 	StatusCode int
 	Headers    map[string]string
 	Body       string
+}
+
+// WAFState struct
+type WAFState struct {
+	TotalScore      int
+	Blocked         bool
+	StatusCode      int
+	ResponseWritten bool
 }
 
 // Middleware struct
@@ -141,31 +147,7 @@ type Middleware struct {
 	ruleCache *RuleCache // New field for RuleCache
 }
 
-// WAFState struct
-type WAFState struct {
-	TotalScore      int
-	Blocked         bool
-	StatusCode      int
-	ResponseWritten bool
-}
-
-// Define a custom type for context keys
-type ContextKeyRule string
-
-// Define custom types for rule hits
-type RuleID string
-type HitCount int
-
-// CIDRTrie is a trie structure for efficiently storing and looking up CIDR ranges.
-type CIDRTrie struct {
-	mu   sync.RWMutex
-	root *cidrTrieNode
-}
-
-type cidrTrieNode struct {
-	children map[byte]*cidrTrieNode
-	isLeaf   bool
-}
+// ==================== Constructors (New functions) ====================
 
 // NewCIDRTrie creates a new CIDRTrie.
 func NewCIDRTrie() *CIDRTrie {
@@ -175,6 +157,15 @@ func NewCIDRTrie() *CIDRTrie {
 		},
 	}
 }
+
+// NewRuleCache creates a new RuleCache.
+func NewRuleCache() *RuleCache {
+	return &RuleCache{
+		rules: make(map[string]*regexp.Regexp),
+	}
+}
+
+// ==================== CIDRTrie Methods ====================
 
 // Insert adds a CIDR range to the trie.
 func (t *CIDRTrie) Insert(cidr string) error {
@@ -230,4 +221,21 @@ func (t *CIDRTrie) Contains(ipStr string) bool {
 		}
 	}
 	return false
+}
+
+// ==================== RuleCache Methods ====================
+
+// Get retrieves a compiled regex pattern from the cache.
+func (rc *RuleCache) Get(ruleID string) (*regexp.Regexp, bool) {
+	rc.mu.RLock()
+	defer rc.mu.RUnlock()
+	regex, exists := rc.rules[ruleID]
+	return regex, exists
+}
+
+// Set stores a compiled regex pattern in the cache.
+func (rc *RuleCache) Set(ruleID string, regex *regexp.Regexp) {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	rc.rules[ruleID] = regex
 }
