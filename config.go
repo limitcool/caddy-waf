@@ -23,11 +23,11 @@ func NewConfigLoader(logger *zap.Logger) *ConfigLoader {
 // parseMetricsEndpoint parses the metrics_endpoint directive.
 func (cl *ConfigLoader) parseMetricsEndpoint(d *caddyfile.Dispenser, m *Middleware) error {
 	if !d.NextArg() {
-		return d.ArgErr() // More specific error type
+		return d.ArgErr()
 	}
 	m.MetricsEndpoint = d.Val()
-	cl.logger.Debug("Metrics endpoint configured", // Improved log message
-		zap.String("endpoint", m.MetricsEndpoint), // More descriptive log field
+	cl.logger.Debug("Metrics endpoint configured",
+		zap.String("endpoint", m.MetricsEndpoint),
 		zap.String("file", d.File()),
 		zap.Int("line", d.Line()),
 	)
@@ -37,11 +37,11 @@ func (cl *ConfigLoader) parseMetricsEndpoint(d *caddyfile.Dispenser, m *Middlewa
 // parseLogPath parses the log_path directive.
 func (cl *ConfigLoader) parseLogPath(d *caddyfile.Dispenser, m *Middleware) error {
 	if !d.NextArg() {
-		return d.ArgErr() // More specific error type
+		return d.ArgErr()
 	}
 	m.LogFilePath = d.Val()
-	cl.logger.Debug("Log file path configured", // Improved log message
-		zap.String("path", m.LogFilePath), // More descriptive log field
+	cl.logger.Debug("Log file path configured",
+		zap.String("path", m.LogFilePath),
 		zap.String("file", d.File()),
 		zap.Int("line", d.Line()),
 	)
@@ -51,7 +51,7 @@ func (cl *ConfigLoader) parseLogPath(d *caddyfile.Dispenser, m *Middleware) erro
 // parseRateLimit parses the rate_limit directive.
 func (cl *ConfigLoader) parseRateLimit(d *caddyfile.Dispenser, m *Middleware) error {
 	if m.RateLimit.Requests > 0 {
-		return d.Err("rate_limit directive already specified") // Improved error message
+		return d.Err("rate_limit directive already specified")
 	}
 
 	rl := RateLimit{
@@ -91,10 +91,10 @@ func (cl *ConfigLoader) parseRateLimit(d *caddyfile.Dispenser, m *Middleware) er
 		case "paths":
 			paths := d.RemainingArgs()
 			if len(paths) == 0 {
-				return d.Err("paths option requires at least one path") // Improved error message
+				return d.Err("paths option requires at least one path")
 			}
 			rl.Paths = paths
-			cl.logger.Debug("Rate limit paths configured", zap.Strings("paths", rl.Paths)) // Improved log message
+			cl.logger.Debug("Rate limit paths configured", zap.Strings("paths", rl.Paths))
 
 		case "match_all_paths":
 			matchAllPaths, err := cl.parseBool(d, "match_all_paths")
@@ -105,16 +105,16 @@ func (cl *ConfigLoader) parseRateLimit(d *caddyfile.Dispenser, m *Middleware) er
 			cl.logger.Debug("Rate limit match_all_paths set", zap.Bool("match_all_paths", rl.MatchAllPaths))
 
 		default:
-			return d.Errf("unrecognized rate_limit option: %s", option) // More specific error message
+			return d.Errf("unrecognized rate_limit option: %s", option)
 		}
 	}
 
 	if rl.Requests <= 0 || rl.Window <= 0 {
-		return d.Err("requests and window in rate_limit must be positive values") // Improved error message
+		return d.Err("requests and window in rate_limit must be positive values")
 	}
 
 	m.RateLimit = rl
-	cl.logger.Debug("Rate limit configuration applied", zap.Any("rate_limit", m.RateLimit))
+	cl.logger.Debug("Rate limit configuration applied", zap.Any("rate_limit", m.RateLimit), zap.String("file", d.File()), zap.Int("line", d.Line()))
 	return nil
 }
 
@@ -133,7 +133,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 		RetryInterval:      "5m",                // Default retry interval
 	}
 
-	cl.logger.Debug("Parsing WAF configuration", zap.String("file", d.File()), zap.Int("line", d.Line())) // Improved log message
+	cl.logger.Debug("Parsing WAF configuration", zap.String("file", d.File()), zap.Int("line", d.Line()))
 
 	// Set default values
 	m.LogSeverity = "info"
@@ -143,6 +143,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 	m.CountryWhitelist.Enabled = false
 	m.LogFilePath = "debug.json"
 	m.RedactSensitiveData = false
+	m.LogBuffer = 1000
 
 	directiveHandlers := map[string]func(d *caddyfile.Dispenser, m *Middleware) error{
 		"metrics_endpoint":      cl.parseMetricsEndpoint,
@@ -159,6 +160,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 		"custom_response":       cl.parseCustomResponse,
 		"redact_sensitive_data": cl.parseRedactSensitiveData,
 		"tor":                   cl.parseTorBlock,
+		"log_buffer":            cl.parseLogBuffer,
 	}
 
 	for d.Next() {
@@ -167,7 +169,7 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 			handler, exists := directiveHandlers[directive]
 			if !exists {
 				cl.logger.Warn("Unrecognized WAF directive", zap.String("directive", directive), zap.String("file", d.File()), zap.Int("line", d.Line()))
-				return fmt.Errorf("file: %s, line: %d: unrecognized directive: %s", d.File(), d.Line(), directive)
+				return d.Errf("unrecognized directive: %s", directive)
 			}
 			if err := handler(d, m); err != nil {
 				return err // Handler already provides context in error
@@ -176,27 +178,27 @@ func (cl *ConfigLoader) UnmarshalCaddyfile(d *caddyfile.Dispenser, m *Middleware
 	}
 
 	if len(m.RuleFiles) == 0 {
-		return fmt.Errorf("no rule files specified for WAF") // More direct error
+		return fmt.Errorf("no rule files specified for WAF")
 	}
 
-	cl.logger.Debug("WAF configuration parsed successfully", zap.String("file", d.File())) // Success log
+	cl.logger.Debug("WAF configuration parsed successfully", zap.String("file", d.File()))
 	return nil
 }
 
 func (cl *ConfigLoader) parseRuleFile(d *caddyfile.Dispenser, m *Middleware) error {
 	if !d.NextArg() {
-		return d.ArgErr() // More specific error type
+		return d.ArgErr()
 	}
 	ruleFile := d.Val()
 	m.RuleFiles = append(m.RuleFiles, ruleFile)
 
 	if m.MetricsEndpoint != "" && !strings.HasPrefix(m.MetricsEndpoint, "/") {
-		return fmt.Errorf("metrics_endpoint must start with a leading '/'") // Improved error message
+		return d.Err("metrics_endpoint must start with a leading '/'")
 	}
 
-	cl.logger.Info("Loading WAF rule file", // Improved log message
-		zap.String("path", ruleFile), // More descriptive log field
-		zap.String("caddyfile", d.File()),
+	cl.logger.Info("Loading WAF rule file",
+		zap.String("path", ruleFile),
+		zap.String("file", d.File()),
 		zap.Int("line", d.Line()),
 	)
 	return nil
@@ -208,7 +210,7 @@ func (cl *ConfigLoader) parseCustomResponse(d *caddyfile.Dispenser, m *Middlewar
 	}
 
 	if !d.NextArg() {
-		return d.ArgErr() // More specific error type
+		return d.ArgErr()
 	}
 	statusCode, err := cl.parseStatusCode(d)
 	if err != nil {
@@ -216,7 +218,7 @@ func (cl *ConfigLoader) parseCustomResponse(d *caddyfile.Dispenser, m *Middlewar
 	}
 
 	if _, exists := m.CustomResponses[statusCode]; exists {
-		return d.Errf("custom_response for status code %d already defined", statusCode) // Prevent duplicate status codes
+		return d.Errf("custom_response for status code %d already defined", statusCode)
 	}
 
 	resp := CustomBlockResponse{
@@ -225,7 +227,7 @@ func (cl *ConfigLoader) parseCustomResponse(d *caddyfile.Dispenser, m *Middlewar
 	}
 
 	if !d.NextArg() {
-		return d.ArgErr() // More specific error type
+		return d.ArgErr()
 	}
 	contentTypeOrFile := d.Val()
 
@@ -239,9 +241,9 @@ func (cl *ConfigLoader) parseCustomResponse(d *caddyfile.Dispenser, m *Middlewar
 		resp.Body = content
 		cl.logger.Debug("Loaded custom response from file",
 			zap.Int("status_code", statusCode),
-			zap.String("file_path", filePath), // More descriptive log field
+			zap.String("file_path", filePath),
 			zap.String("content_type", contentTypeOrFile),
-			zap.String("caddyfile", d.File()),
+			zap.String("file", d.File()),
 			zap.Int("line", d.Line()),
 		)
 	} else {
@@ -255,7 +257,7 @@ func (cl *ConfigLoader) parseCustomResponse(d *caddyfile.Dispenser, m *Middlewar
 			zap.Int("status_code", statusCode),
 			zap.String("content_type", contentTypeOrFile),
 			zap.String("body", body),
-			zap.String("caddyfile", d.File()),
+			zap.String("file", d.File()),
 			zap.Int("line", d.Line()),
 		)
 	}
@@ -275,7 +277,7 @@ func (cl *ConfigLoader) parseCountryBlockDirective(isBlock bool) func(d *caddyfi
 		target.Enabled = true
 
 		if !d.NextArg() {
-			return d.ArgErr() // More specific error type
+			return d.ArgErr()
 		}
 		target.GeoIPDBPath = d.Val()
 		target.CountryList = []string{}
@@ -285,12 +287,13 @@ func (cl *ConfigLoader) parseCountryBlockDirective(isBlock bool) func(d *caddyfi
 			target.CountryList = append(target.CountryList, country)
 		}
 
-		cl.logger.Debug("Country list configured", // Improved log message
-			zap.String("directive", directiveName), // Log directive name
+		cl.logger.Debug("Country list configured",
+			zap.String("directive", directiveName),
 			zap.Bool("block_mode", isBlock),
 			zap.Strings("countries", target.CountryList),
 			zap.String("geoip_db_path", target.GeoIPDBPath),
-			zap.String("file", d.File()), zap.Int("line", d.Line()),
+			zap.String("file", d.File()),
+			zap.Int("line", d.Line()),
 		)
 		return nil
 	}
@@ -298,7 +301,7 @@ func (cl *ConfigLoader) parseCountryBlockDirective(isBlock bool) func(d *caddyfi
 
 func (cl *ConfigLoader) parseLogSeverity(d *caddyfile.Dispenser, m *Middleware) error {
 	if !d.NextArg() {
-		return d.ArgErr() // More specific error type
+		return d.ArgErr()
 	}
 	severity := d.Val()
 	validSeverities := []string{"debug", "info", "warn", "error"} // Define valid severities
@@ -310,13 +313,14 @@ func (cl *ConfigLoader) parseLogSeverity(d *caddyfile.Dispenser, m *Middleware) 
 		}
 	}
 	if !isValid {
-		return d.Errf("invalid log_severity value '%s', must be one of: %s", severity, strings.Join(validSeverities, ", ")) // Improved error message
+		return d.Errf("invalid log_severity value '%s', must be one of: %s", severity, strings.Join(validSeverities, ", "))
 	}
 
 	m.LogSeverity = severity
-	cl.logger.Debug("Log severity set", // Improved log message
+	cl.logger.Debug("Log severity set",
 		zap.String("severity", m.LogSeverity),
-		zap.String("file", d.File()), zap.Int("line", d.Line()),
+		zap.String("file", d.File()),
+		zap.Int("line", d.Line()),
 	)
 	return nil
 }
@@ -325,28 +329,25 @@ func (cl *ConfigLoader) parseLogSeverity(d *caddyfile.Dispenser, m *Middleware) 
 func (cl *ConfigLoader) parseBlacklistFileDirective(isIP bool) func(d *caddyfile.Dispenser, m *Middleware) error {
 	return func(d *caddyfile.Dispenser, m *Middleware) error {
 		if !d.NextArg() {
-			return d.ArgErr() // More specific error type
+			return d.ArgErr()
 		}
 		filePath := d.Val()
 		directiveName := "dns_blacklist_file"
 		if isIP {
 			directiveName = "ip_blacklist_file"
 		}
-
 		if err := cl.ensureBlacklistFileExists(d, filePath, isIP); err != nil {
 			return err
 		}
-
 		// Assign the file path to the appropriate field
 		if isIP {
 			m.IPBlacklistFile = filePath
 		} else {
 			m.DNSBlacklistFile = filePath
 		}
-
-		cl.logger.Info("Blacklist file configured", // Improved log message
-			zap.String("directive", directiveName), // Log directive name
-			zap.String("path", filePath),           // More descriptive log field
+		cl.logger.Info("Blacklist file configured",
+			zap.String("directive", directiveName),
+			zap.String("path", filePath),
 			zap.Bool("is_ip_type", isIP),
 		)
 		return nil
@@ -359,7 +360,7 @@ func (cl *ConfigLoader) parseAnomalyThreshold(d *caddyfile.Dispenser, m *Middlew
 		return err
 	}
 	m.AnomalyThreshold = threshold
-	cl.logger.Debug("Anomaly threshold set", zap.Int("threshold", threshold))
+	cl.logger.Debug("Anomaly threshold set", zap.Int("threshold", threshold), zap.String("file", d.File()), zap.Int("line", d.Line()))
 	return nil
 }
 
@@ -368,29 +369,29 @@ func (cl *ConfigLoader) parseTorBlock(d *caddyfile.Dispenser, m *Middleware) err
 		subDirective := d.Val()
 		switch subDirective {
 		case "enabled":
-			enabled, err := cl.parseBool(d, "tor enabled") // More descriptive arg name
+			enabled, err := cl.parseBool(d, "tor enabled")
 			if err != nil {
 				return err
 			}
 			m.Tor.Enabled = enabled
 			cl.logger.Debug("Tor blocking enabled", zap.Bool("enabled", m.Tor.Enabled))
 
-		case "tor_ip_blacklist_file": // Updated field name
+		case "tor_ip_blacklist_file":
 			if !d.NextArg() {
 				return d.ArgErr()
 			}
-			m.Tor.TORIPBlacklistFile = d.Val()                                                              // Updated field name
-			cl.logger.Debug("Tor IP blacklist file set", zap.String("file_path", m.Tor.TORIPBlacklistFile)) // More descriptive log field
+			m.Tor.TORIPBlacklistFile = d.Val()
+			cl.logger.Debug("Tor IP blacklist file set", zap.String("file_path", m.Tor.TORIPBlacklistFile))
 
 		case "update_interval":
 			if !d.NextArg() {
 				return d.ArgErr()
 			}
 			m.Tor.UpdateInterval = d.Val()
-			cl.logger.Debug("Tor update interval set", zap.String("interval", m.Tor.UpdateInterval)) // More descriptive log field
+			cl.logger.Debug("Tor update interval set", zap.String("interval", m.Tor.UpdateInterval))
 
 		case "retry_on_failure":
-			retryOnFailure, err := cl.parseBool(d, "tor retry_on_failure") // More descriptive arg name
+			retryOnFailure, err := cl.parseBool(d, "tor retry_on_failure")
 			if err != nil {
 				return err
 			}
@@ -402,10 +403,10 @@ func (cl *ConfigLoader) parseTorBlock(d *caddyfile.Dispenser, m *Middleware) err
 				return d.ArgErr()
 			}
 			m.Tor.RetryInterval = d.Val()
-			cl.logger.Debug("Tor retry interval set", zap.String("interval", m.Tor.RetryInterval)) // More descriptive log field
+			cl.logger.Debug("Tor retry interval set", zap.String("interval", m.Tor.RetryInterval))
 
 		default:
-			return d.Errf("unrecognized tor subdirective: %s", subDirective) // More specific error message
+			return d.Errf("unrecognized tor subdirective: %s", subDirective)
 		}
 	}
 	return nil
@@ -423,20 +424,30 @@ func (cl *ConfigLoader) parseRedactSensitiveData(d *caddyfile.Dispenser, m *Midd
 	return nil
 }
 
+func (cl *ConfigLoader) parseLogBuffer(d *caddyfile.Dispenser, m *Middleware) error {
+	buffer, err := cl.parsePositiveInteger(d, "log_buffer")
+	if err != nil {
+		return err
+	}
+	m.LogBuffer = buffer
+	cl.logger.Debug("Log buffer size set", zap.Int("size", buffer), zap.String("file", d.File()), zap.Int("line", d.Line()))
+	return nil
+}
+
 // --- Helper Functions ---
 
 // parsePositiveInteger parses a directive argument as a positive integer.
 func (cl *ConfigLoader) parsePositiveInteger(d *caddyfile.Dispenser, directiveName string) (int, error) {
 	if !d.NextArg() {
-		return 0, d.ArgErr() // More specific error type
+		return 0, d.ArgErr()
 	}
 	valStr := d.Val()
 	val, err := strconv.Atoi(valStr)
 	if err != nil {
-		return 0, d.Errf("invalid %s value '%s': %v", directiveName, valStr, err) // More descriptive error message
+		return 0, d.Errf("invalid %s value '%s': %v", directiveName, valStr, err)
 	}
 	if val <= 0 {
-		return 0, d.Errf("%s must be a positive integer, but got '%d'", directiveName, val) // More descriptive error message
+		return 0, d.Errf("%s must be a positive integer, but got '%d'", directiveName, val)
 	}
 	return val, nil
 }
@@ -444,12 +455,12 @@ func (cl *ConfigLoader) parsePositiveInteger(d *caddyfile.Dispenser, directiveNa
 // parseDuration parses a directive argument as a time duration.
 func (cl *ConfigLoader) parseDuration(d *caddyfile.Dispenser, directiveName string) (time.Duration, error) {
 	if !d.NextArg() {
-		return 0, d.ArgErr() // More specific error type
+		return 0, d.ArgErr()
 	}
 	durationStr := d.Val()
 	duration, err := time.ParseDuration(durationStr)
 	if err != nil {
-		return 0, d.Errf("invalid %s value '%s': %v", directiveName, durationStr, err) // More descriptive error message
+		return 0, d.Errf("invalid %s value '%s': %v", directiveName, durationStr, err)
 	}
 	return duration, nil
 }
@@ -457,12 +468,12 @@ func (cl *ConfigLoader) parseDuration(d *caddyfile.Dispenser, directiveName stri
 // parseBool parses a directive argument as a boolean.
 func (cl *ConfigLoader) parseBool(d *caddyfile.Dispenser, directiveName string) (bool, error) {
 	if !d.NextArg() {
-		return false, d.ArgErr() // More specific error type
+		return false, d.ArgErr()
 	}
 	boolStr := d.Val()
 	val, err := strconv.ParseBool(boolStr)
 	if err != nil {
-		return false, d.Errf("invalid %s value '%s': %v, must be 'true' or 'false'", directiveName, boolStr, err) // More descriptive error message
+		return false, d.Errf("invalid %s value '%s': %v, must be 'true' or 'false'", directiveName, boolStr, err)
 	}
 	return val, nil
 }
@@ -472,10 +483,10 @@ func (cl *ConfigLoader) parseStatusCode(d *caddyfile.Dispenser) (int, error) {
 	statusCodeStr := d.Val()
 	statusCode, err := strconv.Atoi(statusCodeStr)
 	if err != nil {
-		return 0, fmt.Errorf("file: %s, line: %d: invalid status code '%s': %v", d.File(), d.Line(), statusCodeStr, err) // Include file and line in error
+		return 0, d.Errf("invalid status code '%s': %v", statusCodeStr, err)
 	}
 	if statusCode < 100 || statusCode > 599 {
-		return 0, fmt.Errorf("file: %s, line: %d: status code '%d' out of range, must be between 100 and 599", d.File(), d.Line(), statusCode) // Include file and line in error
+		return 0, d.Errf("status code '%d' out of range, must be between 100 and 599", statusCode)
 	}
 	return statusCode, nil
 }
@@ -484,7 +495,7 @@ func (cl *ConfigLoader) parseStatusCode(d *caddyfile.Dispenser) (int, error) {
 func (cl *ConfigLoader) readResponseFromFile(d *caddyfile.Dispenser, filePath string) (string, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return "", fmt.Errorf("file: %s, line: %d: could not read custom response file '%s': %v", d.File(), d.Line(), filePath, err) // Include file and line in error
+		return "", d.Errf("could not read custom response file '%s': %v", filePath, err)
 	}
 	return string(content), nil
 }
@@ -493,7 +504,7 @@ func (cl *ConfigLoader) readResponseFromFile(d *caddyfile.Dispenser, filePath st
 func (cl *ConfigLoader) parseInlineResponseBody(d *caddyfile.Dispenser) (string, error) {
 	remaining := d.RemainingArgs()
 	if len(remaining) == 0 {
-		return "", fmt.Errorf("file: %s, line: %d: missing custom response body", d.File(), d.Line()) // Include file and line in error
+		return "", d.Err("missing custom response body")
 	}
 	return strings.Join(remaining, " "), nil
 }
@@ -507,20 +518,20 @@ func (cl *ConfigLoader) ensureBlacklistFileExists(d *caddyfile.Dispenser, filePa
 			if isIP {
 				fileType = "IP"
 			}
-			return fmt.Errorf("file: %s, line: %d: could not create %s blacklist file '%s': %v", d.File(), d.Line(), fileType, filePath, err) // More descriptive error
+			return d.Errf("could not create %s blacklist file '%s': %v", fileType, filePath, err)
 		}
 		file.Close()
 		fileType := "DNS"
 		if isIP {
 			fileType = "IP"
 		}
-		cl.logger.Warn("%s blacklist file does not exist, created an empty file", zap.String("type", fileType), zap.String("path", filePath)) // Improved log
+		cl.logger.Warn("%s blacklist file does not exist, created an empty file", zap.String("type", fileType), zap.String("path", filePath))
 	} else if err != nil {
 		fileType := "DNS"
 		if isIP {
 			fileType = "IP"
 		}
-		return fmt.Errorf("file: %s, line: %d: could not access %s blacklist file '%s': %v", d.File(), d.Line(), fileType, filePath, err) // Improved error
+		return d.Errf("could not access %s blacklist file '%s': %v", fileType, filePath, err)
 	}
 	return nil
 }

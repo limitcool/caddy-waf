@@ -10,8 +10,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const unknownValue = "unknown" // Define a constant for "unknown" values
-
 var sensitiveKeys = []string{"password", "token", "apikey", "authorization", "secret"} // Define sensitive keys for redaction as package variable
 
 func (m *Middleware) logRequest(level zapcore.Level, msg string, r *http.Request, fields ...zap.Field) {
@@ -19,7 +17,7 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, r *http.Request
 		return // Early return if logger is nil or level is below threshold
 	}
 
-	allFields := m.prepareLogFields(r, fields) // Prepare all fields in one function - Corrected call: Removed 'level'
+	allFields := m.prepareLogFields(r, fields) // Prepare all fields in one function
 
 	// Send the log entry to the buffered channel
 	select {
@@ -33,6 +31,7 @@ func (m *Middleware) logRequest(level zapcore.Level, msg string, r *http.Request
 		)
 		m.logger.Log(level, msg, allFields...)
 	}
+
 }
 
 // redactSensitiveFields redacts sensitive information in the log fields.
@@ -55,74 +54,13 @@ func (m *Middleware) redactSensitiveFields(fields []zap.Field) []zap.Field {
 }
 
 // prepareLogFields consolidates the logic for preparing log fields, including common fields and log_id.
-func (m *Middleware) prepareLogFields(r *http.Request, fields []zap.Field) []zap.Field { // Corrected signature: Removed 'level zapcore.Level'
+func (m *Middleware) prepareLogFields(r *http.Request, fields []zap.Field) []zap.Field {
 	var logID string
-	var customFields []zap.Field
+	var allFields []zap.Field
 
-	// Extract log_id if present, otherwise generate a new one
-	logID, customFields = m.extractLogIDField(fields)
-	if logID == "" {
-		logID = uuid.New().String()
-	}
-
-	// Get common log fields and merge with custom fields, prioritizing custom fields in case of duplicates
-	commonFields := m.getCommonLogFields(r)
-	allFields := m.mergeFields(customFields, commonFields, zap.String("log_id", logID)) // Ensure log_id is always present
-
-	// Redact sensitive information in the log fields
-	allFields = m.redactSensitiveFields(allFields)
-
-	return allFields
-}
-
-// extractLogIDField extracts the log_id from the given fields and returns it along with the remaining fields.
-func (m *Middleware) extractLogIDField(fields []zap.Field) (logID string, remainingFields []zap.Field) {
-	for _, field := range fields {
-		if field.Key == "log_id" {
-			logID = field.String
-		} else {
-			remainingFields = append(remainingFields, field)
-		}
-	}
-	return logID, remainingFields
-}
-
-// mergeFields merges custom fields and common fields, with custom fields taking precedence and ensuring log_id is present.
-func (m *Middleware) mergeFields(customFields []zap.Field, commonFields []zap.Field, logIDField zap.Field) []zap.Field {
-	// Check for potential overflow
-	if len(customFields) > (int(^uint(0) >> 1) - len(commonFields) - 1) {
-		m.logger.Error("Field lengths too large, potential overflow detected")
-		return nil
-	}
-	mergedFields := make([]zap.Field, 0, len(customFields)+len(commonFields)+1) //预分配容量
-	mergedFields = append(mergedFields, customFields...)
-
-	// Add common fields, skip if key already exists in custom fields
-	for _, commonField := range commonFields {
-		exists := false
-		for _, customField := range customFields {
-			if commonField.Key == customField.Key {
-				exists = true
-				break
-			}
-		}
-		if !exists {
-			mergedFields = append(mergedFields, commonField)
-		}
-	}
-
-	mergedFields = append(mergedFields, logIDField) // Ensure log_id is always last or at least present
-	return mergedFields
-}
-
-func (m *Middleware) getCommonLogFields(r *http.Request) []zap.Field {
-	sourceIP := unknownValue
-	userAgent := unknownValue
-	requestMethod := unknownValue
-	requestPath := unknownValue
-	queryParams := "" // Initialize to empty string, not "unknown" - More accurate for query params
-	statusCode := 0   // Default status code is 0 if not explicitly set
-
+	// Initialize with common fields
+	var sourceIP, userAgent, requestMethod, requestPath, queryParams string
+	var statusCode int
 	if r != nil {
 		sourceIP = r.RemoteAddr
 		userAgent = r.UserAgent()
@@ -130,12 +68,11 @@ func (m *Middleware) getCommonLogFields(r *http.Request) []zap.Field {
 		requestPath = r.URL.Path
 		queryParams = r.URL.RawQuery
 	}
-
 	if m.RedactSensitiveData {
 		queryParams = m.redactQueryParams(queryParams)
 	}
 
-	return []zap.Field{
+	commonFields := []zap.Field{
 		zap.String("source_ip", sourceIP),
 		zap.String("user_agent", userAgent),
 		zap.String("request_method", requestMethod),
@@ -144,6 +81,36 @@ func (m *Middleware) getCommonLogFields(r *http.Request) []zap.Field {
 		zap.Int("status_code", statusCode),
 		zap.Time("timestamp", time.Now()),
 	}
+
+	// Extract log_id from given fields and prepare all fields
+	mergedFields := make(map[string]zap.Field)
+	for _, field := range fields {
+		if field.Key == "log_id" {
+			logID = field.String
+		}
+		mergedFields[field.Key] = field
+	}
+
+	if logID == "" {
+		logID = uuid.New().String()
+	}
+
+	for _, common := range commonFields {
+		if _, present := mergedFields[common.Key]; !present {
+			mergedFields[common.Key] = common
+		}
+	}
+
+	mergedFields["log_id"] = zap.String("log_id", logID)
+
+	for _, field := range mergedFields {
+		allFields = append(allFields, field)
+	}
+
+	// Redact sensitive information in the log fields
+	allFields = m.redactSensitiveFields(allFields)
+
+	return allFields
 }
 
 func (m *Middleware) redactQueryParams(queryParams string) string {
@@ -188,7 +155,10 @@ type LogEntry struct {
 
 // StartLogWorker initializes the background logging worker.
 func (m *Middleware) StartLogWorker() {
-	m.logChan = make(chan LogEntry, 1000) // Buffer size can be adjusted
+	if m.LogBuffer == 0 {
+		m.LogBuffer = 1000 // Setting default log buffer
+	}
+	m.logChan = make(chan LogEntry, m.LogBuffer) // Buffer size can be adjusted
 	m.logDone = make(chan struct{})
 
 	go func() {

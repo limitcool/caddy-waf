@@ -250,7 +250,7 @@
       "ARGS",
       "BODY",
       "HEADERS",
-      "REQUEST_COOKIES"
+      "COOKIES"
     ],
     "severity": "HIGH",
     "action": "block",

@@ -15,62 +15,54 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 
 	m.logRequestStart(r, logID)
 
+	// Propagate log ID within the request context for logging
 	ctx := context.WithValue(r.Context(), ContextKeyLogId("logID"), logID)
 	r = r.WithContext(ctx)
 
 	m.incrementTotalRequestsMetric()
 
+	// Initialize WAF state for this request
 	state := m.initializeWAFState()
 
-	if m.isPhaseBlocked(w, r, 1, state) { // Phase 1: Pre-request checks
-		return nil // Request blocked in Phase 1, short-circuit
+	// Phase 1: Pre-request checks and blocking
+	if m.isPhaseBlocked(w, r, 1, state) {
+		return nil // Request blocked, short-circuit
 	}
 
-	if m.isPhaseBlocked(w, r, 2, state) { // Phase 2: Request analysis
-		return nil // Request blocked in Phase 2, short-circuit
+	// Phase 2: Request analysis and blocking
+	if m.isPhaseBlocked(w, r, 2, state) {
+		return nil // Request blocked, short-circuit
 	}
 
+	// Response capture and processing
 	recorder := NewResponseRecorder(w)
 	err := next.ServeHTTP(recorder, r)
 
-	if m.isResponseHeaderPhaseBlocked(recorder, r, 3, state) { // Phase 3: Response Header analysis
+	// Phase 3: Response Header analysis
+	if m.isResponseHeaderPhaseBlocked(recorder, r, 3, state) {
 		return nil // Request blocked in Phase 3, short-circuit
 	}
 
-	m.handleResponseBodyPhase(recorder, r, state) // Phase 4: Response Body analysis (if not blocked yet)
+	// Phase 4: Response Body analysis (if not already blocked)
+	m.handleResponseBodyPhase(recorder, r, state)
 
 	if state.Blocked {
-		m.incrementBlockedRequestsMetric() // Potential overcounting here
+		// Metrics and response handling if blocked after headers phase
+		m.incrementBlockedRequestsMetric()
 		m.writeCustomResponse(recorder, state.StatusCode)
-		return nil // Short circuit if blocked in any phase after headers
+		return nil
 	}
 
 	m.incrementAllowedRequestsMetric()
 
+	// Handle metrics request separately
 	if m.isMetricsRequest(r) {
-		return m.handleMetricsRequest(w, r) // Handle metrics requests separately
+		return m.handleMetricsRequest(w, r)
 	}
 
 	// If not blocked, copy recorded response back to original writer
 	if !state.Blocked {
-		// Copy headers from recorder to original writer
-		header := w.Header()
-		for key, values := range recorder.Header() {
-			for _, value := range values {
-				header.Add(key, value)
-			}
-		}
-		w.WriteHeader(recorder.StatusCode()) // Set status code from recorder
-
-		// Write body from recorder to original writer
-		_, writeErr := w.Write(recorder.body.Bytes())
-		if writeErr != nil {
-			m.logger.Error("Failed to write recorded response body to client", zap.Error(writeErr), zap.String("log_id", logID))
-			// We should still return the original error from next.ServeHTTP if available, or a new error if writing body failed and next didn't return error.
-			if err == nil {
-				return writeErr // If original handler didn't error, return body write error.
-			}
-		}
+		m.copyResponse(w, recorder, r)
 	}
 
 	m.logRequestCompletion(logID, state)
@@ -185,4 +177,20 @@ func (m *Middleware) logRequestCompletion(logID string, state *WAFState) {
 		zap.Bool("blocked", state.Blocked),
 		zap.Int("status_code", state.StatusCode),
 	)
+}
+
+// copyResponse copies the captured response from the recorder to the original writer
+func (m *Middleware) copyResponse(w http.ResponseWriter, recorder *responseRecorder, r *http.Request) {
+	header := w.Header()
+	for key, values := range recorder.Header() {
+		for _, value := range values {
+			header.Add(key, value)
+		}
+	}
+	w.WriteHeader(recorder.StatusCode())
+
+	_, err := w.Write(recorder.body.Bytes()) // Copy body from recorder to original writer
+	if err != nil {
+		m.logger.Error("Failed to write recorded response body to client", zap.Error(err), zap.String("log_id", r.Context().Value("logID").(string)))
+	}
 }

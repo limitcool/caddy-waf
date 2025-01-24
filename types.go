@@ -119,6 +119,7 @@ type Middleware struct {
 
 	CustomResponses     map[int]CustomBlockResponse `json:"custom_responses,omitempty"`
 	LogFilePath         string
+	LogBuffer           int  `json:"log_buffer,omitempty"` // Add the LogBuffer field
 	RedactSensitiveData bool `json:"redact_sensitive_data,omitempty"`
 
 	ruleHits        sync.Map `json:"-"`
