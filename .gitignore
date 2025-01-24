@@ -14,3 +14,5 @@ large_body.txt
 small_body.txt
 sqli_payload.txt
 xxe_payload.xml
+dns_blacklist.txt
+ip_blacklist.txt

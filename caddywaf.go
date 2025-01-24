@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -208,8 +209,8 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Load IP blacklist
-	m.ipBlacklist = NewCIDRTrie()                                                                   // Initialize as CIDRTrie
-	m.logger.Debug("ipBlacklist initialized in Provision", zap.Bool("isNil", m.ipBlacklist == nil)) // ADDED LOGGING - Check if nil right after initialization
+	m.ipBlacklist = NewCIDRTrie()
+	m.logger.Debug("ipBlacklist initialized in Provision", zap.Bool("isNil", m.ipBlacklist == nil))
 	if m.IPBlacklistFile != "" {
 		err = m.loadIPBlacklistIntoMap(m.IPBlacklistFile, m.ipBlacklist)
 		if err != nil {
@@ -460,8 +461,35 @@ func (m *Middleware) loadIPBlacklistIntoMap(path string, blacklistMap *CIDRTrie)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		if err := blacklistMap.Insert(line); err != nil {
-			m.logger.Warn("Failed to insert CIDR into trie", zap.String("cidr", line), zap.Error(err))
+
+		cidrStr := line // Initially assume the line is the CIDR
+
+		if !strings.Contains(line, "/") { // No netmask provided
+			ip := net.ParseIP(line)
+			if ip != nil {
+				if ip.To4() != nil { // IPv4
+					cidrStr = line + "/32"
+				} else { // IPv6
+					cidrStr = line + "/128"
+				}
+			} else {
+				m.logger.Warn("Skipping invalid IP address format in blacklist", zap.String("address", line))
+				continue // Skip invalid lines
+			}
+		}
+
+		ip, _, err := net.ParseCIDR(cidrStr) // Parse to check validity and type
+		if err != nil {
+			m.logger.Warn("Skipping invalid CIDR format in blacklist", zap.String("cidr", cidrStr), zap.Error(err))
+			continue
+		}
+
+		if ip.To4() != nil { // IPv4 - Proceed to insert into IPv4-only trie
+			if err := blacklistMap.Insert(cidrStr); err != nil {
+				m.logger.Warn("Failed to insert IPv4 CIDR into trie", zap.String("cidr", cidrStr), zap.Error(err)) // More specific log
+			}
+		} else { // IPv6 - Log warning that IPv6 is not supported by CIDRTrie
+			m.logger.Warn("Skipping IPv6 CIDR - IPv6 CIDR ranges are not supported by current IP blacklist implementation", zap.String("cidr", cidrStr)) // Informative warning
 		}
 	}
 	return nil
