@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
@@ -168,4 +169,13 @@ func TestGetCountryCode(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestWithGeoIPLookupFallbackBehaviorSetup tests the WithGeoIPLookupFallbackBehavior method setup.
+func TestWithGeoIPLookupFallbackBehaviorSetup(t *testing.T) {
+	logger := zap.NewNop()
+	handler := NewGeoIPHandler(logger)
+
+	handler.WithGeoIPLookupFallbackBehavior("default")
+	assert.Equal(t, "default", handler.geoIPLookupFallbackBehavior)
 }

@@ -2,6 +2,7 @@ package caddywaf
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
@@ -10,6 +11,31 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest"
 )
+
+func TestLogRequest(t *testing.T) {
+	// Create a test logger using zaptest
+	logger := zaptest.NewLogger(t)
+
+	// Create a Middleware instance with the test logger
+	middleware := &Middleware{
+		logger:   logger,
+		logLevel: zapcore.DebugLevel,
+		logChan:  make(chan LogEntry, 100),
+	}
+
+	// Create a test request
+	req := httptest.NewRequest("GET", "/test?foo=bar", nil)
+	req.RemoteAddr = "192.168.1.1:12345"
+	req.Header.Set("User-Agent", "test-agent")
+
+	// Log a test message
+	middleware.logRequest(zapcore.InfoLevel, "Test message", req,
+		zap.String("custom_field", "custom_value"),
+	)
+
+	// Wait for the log entry to be processed
+	time.Sleep(100 * time.Millisecond)
+}
 
 func TestRedactSensitiveFields(t *testing.T) {
 	m := &Middleware{}
