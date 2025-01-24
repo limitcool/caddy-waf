@@ -675,7 +675,10 @@ func TestNewRateLimiter(t *testing.T) {
 		MatchAllPaths:   false,
 	}
 
-	rl := NewRateLimiter(config)
+	rl, err := NewRateLimiter(config)
+	if err != nil {
+		t.Fatalf("Failed to create rate limiter: %v", err)
+	}
 
 	assert.NotNil(t, rl)
 	assert.Equal(t, 10, rl.config.Requests)
@@ -695,11 +698,14 @@ func TestIsRateLimited_PathMatching(t *testing.T) {
 		MatchAllPaths:   false,
 	}
 
-	rl := NewRateLimiter(config)
+	rl, err := NewRateLimiter(config)
+	if err != nil {
+		t.Fatalf("Failed to create rate limiter: %v", err)
+	}
 
 	// Test path matching
 	assert.False(t, rl.isRateLimited("192.168.1.1", "/api/test")) // Path matches
-	assert.False(t, rl.isRateLimited("192.168.1.1", "/api/test")) // Second request
+	assert.False(t, rl.isRateLimited("192.168.1.1", "/api/test")) // second request
 	assert.True(t, rl.isRateLimited("192.168.1.1", "/api/test"))  // Third request, rate limited
 
 	// Test path not matching
@@ -714,7 +720,10 @@ func TestIsRateLimited_MatchAllPaths(t *testing.T) {
 		MatchAllPaths:   true,
 	}
 
-	rl := NewRateLimiter(config)
+	rl, err := NewRateLimiter(config)
+	if err != nil {
+		t.Fatalf("Failed to create rate limiter: %v", err)
+	}
 
 	// Test rate limiting for all paths
 	assert.False(t, rl.isRateLimited("192.168.1.1", "/api/test"))  // First request
@@ -731,7 +740,10 @@ func TestIsRateLimited_WindowExpiry(t *testing.T) {
 		MatchAllPaths:   true,
 	}
 
-	rl := NewRateLimiter(config)
+	rl, err := NewRateLimiter(config)
+	if err != nil {
+		t.Fatalf("Failed to create rate limiter: %v", err)
+	}
 
 	// Test rate limiting within the window
 	assert.False(t, rl.isRateLimited("192.168.1.1", "/api/test")) // First request
@@ -753,7 +765,10 @@ func TestCleanupExpiredEntries(t *testing.T) {
 		MatchAllPaths:   true,
 	}
 
-	rl := NewRateLimiter(config)
+	rl, err := NewRateLimiter(config)
+	if err != nil {
+		t.Fatalf("Failed to create rate limiter: %v", err)
+	}
 
 	// Add some entries
 	rl.isRateLimited("192.168.1.1", "/api/test")
@@ -779,7 +794,10 @@ func TestStartCleanup(t *testing.T) {
 		MatchAllPaths:   true,
 	}
 
-	rl := NewRateLimiter(config)
+	rl, err := NewRateLimiter(config)
+	if err != nil {
+		t.Fatalf("Failed to create rate limiter: %v", err)
+	}
 
 	// Start the cleanup goroutine
 	rl.startCleanup()
@@ -808,7 +826,10 @@ func TestSignalStopCleanup(t *testing.T) {
 		MatchAllPaths:   true,
 	}
 
-	rl := NewRateLimiter(config)
+	rl, err := NewRateLimiter(config)
+	if err != nil {
+		t.Fatalf("Failed to create rate limiter: %v", err)
+	}
 
 	// Start the cleanup goroutine
 	rl.startCleanup()
@@ -817,9 +838,13 @@ func TestSignalStopCleanup(t *testing.T) {
 	rl.signalStopCleanup()
 
 	// Verify that the stopCleanup channel is closed
-	rl.Lock()
-	assert.Nil(t, rl.stopCleanup)
-	rl.Unlock()
+	select {
+	case <-rl.stopCleanup:
+		// channel was closed correctly
+	default:
+		t.Error("Expected channel to be closed")
+
+	}
 }
 
 func TestConcurrentAccess(t *testing.T) {
@@ -830,7 +855,10 @@ func TestConcurrentAccess(t *testing.T) {
 		MatchAllPaths:   true,
 	}
 
-	rl := NewRateLimiter(config)
+	rl, err := NewRateLimiter(config)
+	if err != nil {
+		t.Fatalf("Failed to create rate limiter: %v", err)
+	}
 
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
@@ -1386,11 +1414,17 @@ func TestConcurrentRuleEvaluation(t *testing.T) {
 		ipBlacklist:           NewCIDRTrie(),
 		dnsBlacklist:          map[string]struct{}{},
 		requestValueExtractor: NewRequestValueExtractor(logger, false),
-		rateLimiter: NewRateLimiter(RateLimit{
-			Requests:        10,
-			Window:          time.Minute,
-			CleanupInterval: time.Minute,
-		}),
+		rateLimiter: func() *RateLimiter {
+			rl, err := NewRateLimiter(RateLimit{
+				Requests:        10,
+				Window:          time.Minute,
+				CleanupInterval: time.Minute,
+			})
+			if err != nil {
+				t.Fatalf("Failed to create rate limiter: %v", err)
+			}
+			return rl
+		}(),
 		CustomResponses: map[int]CustomBlockResponse{
 			403: {
 				StatusCode: http.StatusForbidden,
@@ -1491,13 +1525,19 @@ func TestBlockedRequestPhase1_RateLimiting(t *testing.T) {
 	logger := zap.NewNop()
 	middleware := &Middleware{
 		logger: logger,
-		rateLimiter: NewRateLimiter(RateLimit{
-			Requests:        1, // Allow only 1 request
-			Window:          time.Minute,
-			CleanupInterval: time.Minute,
-			Paths:           []string{"/api/.*"}, // Match paths starting with /api
-			MatchAllPaths:   false,               // Only match specified paths
-		}),
+		rateLimiter: func() *RateLimiter {
+			rl, err := NewRateLimiter(RateLimit{
+				Requests:        1, // Allow only 1 request
+				Window:          time.Minute,
+				CleanupInterval: time.Minute,
+				Paths:           []string{"/api/.*"}, // Match paths starting with /api
+				MatchAllPaths:   false,               // Only match specified paths
+			})
+			if err != nil {
+				t.Fatalf("Failed to create rate limiter: %v", err)
+			}
+			return rl
+		}(),
 		CustomResponses: map[int]CustomBlockResponse{
 			429: {
 				StatusCode: http.StatusTooManyRequests,
@@ -2999,17 +3039,31 @@ func TestBlockedRequestPhase1_HeaderRegex_MultipleMatchingHeaders(t *testing.T) 
 	assert.Equal(t, http.StatusOK, w3.Code, "Expected status code 200")
 }
 
+// RequestLimit represents the rate limit state for a specific request
+type RequestLimit struct {
+	Count     int
+	LastReset time.Time
+}
+
 func TestBlockedRequestPhase1_RateLimiting_MultiplePaths(t *testing.T) {
 	logger := zap.NewNop()
 	middleware := &Middleware{
 		logger: logger,
-		rateLimiter: NewRateLimiter(RateLimit{
-			Requests:        1,
-			Window:          time.Minute,
-			CleanupInterval: time.Minute,
-			Paths:           []string{"/api/v1/.*", "/admin/.*"},
-			MatchAllPaths:   false,
-		}),
+		rateLimiter: func() *RateLimiter {
+			rl := &RateLimiter{
+				config: RateLimit{
+					Requests:        1,
+					Window:          time.Minute,
+					CleanupInterval: time.Minute,
+					Paths:           []string{"/api/v1/.*", "/admin/.*"},
+					MatchAllPaths:   false,
+				},
+				requests:    make(map[string]map[string]*requestCounter),
+				stopCleanup: make(chan struct{}),
+			}
+			rl.startCleanup()
+			return rl
+		}(),
 		CustomResponses: map[int]CustomBlockResponse{
 			429: {
 				StatusCode: http.StatusTooManyRequests,
@@ -3068,12 +3122,18 @@ func TestBlockedRequestPhase1_RateLimiting_DifferentIPs(t *testing.T) {
 	logger := zap.NewNop()
 	middleware := &Middleware{
 		logger: logger,
-		rateLimiter: NewRateLimiter(RateLimit{
-			Requests:        1,
-			Window:          time.Minute,
-			CleanupInterval: time.Minute,
-			MatchAllPaths:   true,
-		}),
+		rateLimiter: func() *RateLimiter {
+			rl, err := NewRateLimiter(RateLimit{
+				Requests:        1,
+				Window:          time.Minute,
+				CleanupInterval: time.Minute,
+				MatchAllPaths:   true,
+			})
+			if err != nil {
+				t.Fatalf("Failed to create rate limiter: %v", err)
+			}
+			return rl
+		}(),
 		CustomResponses: map[int]CustomBlockResponse{
 			429: {
 				StatusCode: http.StatusTooManyRequests,
@@ -3115,12 +3175,18 @@ func TestBlockedRequestPhase1_RateLimiting_MatchAllPaths(t *testing.T) {
 	logger := zap.NewNop()
 	middleware := &Middleware{
 		logger: logger,
-		rateLimiter: NewRateLimiter(RateLimit{
-			Requests:        1,
-			Window:          time.Minute,
-			CleanupInterval: time.Minute,
-			MatchAllPaths:   true,
-		}),
+		rateLimiter: func() *RateLimiter {
+			rl, err := NewRateLimiter(RateLimit{
+				Requests:        1,
+				Window:          time.Minute,
+				CleanupInterval: time.Minute,
+				MatchAllPaths:   true,
+			})
+			if err != nil {
+				t.Fatalf("Failed to create rate limiter: %v", err)
+			}
+			return rl
+		}(),
 		CustomResponses: map[int]CustomBlockResponse{
 			429: {
 				StatusCode: http.StatusTooManyRequests,

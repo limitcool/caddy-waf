@@ -152,7 +152,11 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 			zap.Strings("paths", m.RateLimit.Paths),
 			zap.Bool("match_all_paths", m.RateLimit.MatchAllPaths),
 		)
-		m.rateLimiter = NewRateLimiter(m.RateLimit)
+		var err error
+		m.rateLimiter, err = NewRateLimiter(m.RateLimit)
+		if err != nil {
+			return fmt.Errorf("failed to create rate limiter: %w", err)
+		}
 		m.rateLimiter.startCleanup()
 	} else {
 		m.logger.Info("Rate limiting is disabled")

@@ -1,6 +1,7 @@
 package caddywaf
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 	"sync"
@@ -32,7 +33,7 @@ type RateLimiter struct {
 }
 
 // NewRateLimiter creates a new RateLimiter instance.
-func NewRateLimiter(config RateLimit) *RateLimiter {
+func NewRateLimiter(config RateLimit) (*RateLimiter, error) {
 	// Compile path regexes if paths are provided
 	if len(config.Paths) > 0 {
 		config.PathRegexes = make([]*regexp.Regexp, len(config.Paths))
@@ -40,7 +41,7 @@ func NewRateLimiter(config RateLimit) *RateLimiter {
 			var err error
 			config.PathRegexes[i], err = regexp.Compile(path)
 			if err != nil {
-				log.Fatalf("failed to compile regex for path %s: %v", path, err)
+				return nil, fmt.Errorf("failed to compile regex for path %s: %v", path, err)
 			}
 		}
 	}
@@ -49,21 +50,21 @@ func NewRateLimiter(config RateLimit) *RateLimiter {
 		requests:    make(map[string]map[string]*requestCounter),
 		config:      config,
 		stopCleanup: make(chan struct{}), // Initialize the stopCleanup channel
-	}
+	}, nil
 }
 
 // isRateLimited checks if a given IP is rate limited for a specific path.
 func (rl *RateLimiter) isRateLimited(ip, path string) bool {
 	now := time.Now()
 
-	rl.Lock()
+	rl.Lock() // Use Lock for write operations or potential creation of nested maps.
 	defer rl.Unlock()
 
 	var key string
 	if rl.config.MatchAllPaths {
 		key = ip
 	} else {
-		//Check if path is matching
+		// Check if path is matching
 		if len(rl.config.PathRegexes) > 0 {
 			matched := false
 			for _, regex := range rl.config.PathRegexes {
@@ -80,12 +81,11 @@ func (rl *RateLimiter) isRateLimited(ip, path string) bool {
 	}
 
 	// Initialize the nested map if it doesn't exist
-
 	if _, exists := rl.requests[ip]; !exists {
 		rl.requests[ip] = make(map[string]*requestCounter)
 	}
 
-	// Get or create the counter for the specific path
+	// Get or create the counter for the specific key (path + ip)
 	counter, exists := rl.requests[ip][key]
 	if exists {
 		if now.Sub(counter.window) > rl.config.Window {
@@ -126,11 +126,11 @@ func (rl *RateLimiter) cleanupExpiredEntries() {
 // startCleanup starts the goroutine to periodically clean up expired entries.
 func (rl *RateLimiter) startCleanup() {
 	go func() {
-		// log.Println("[INFO] Starting rate limiter cleanup goroutine")  <- Removed/commented out
+		// log.Println("[INFO] Starting rate limiter cleanup goroutine")
 		ticker := time.NewTicker(rl.config.CleanupInterval)
 		defer func() {
 			ticker.Stop()
-			// log.Println("[INFO] Rate limiter cleanup goroutine stopped")  <- Removed/commented out
+			// log.Println("[INFO] Rate limiter cleanup goroutine stopped")
 		}()
 
 		for {
@@ -149,9 +149,11 @@ func (rl *RateLimiter) signalStopCleanup() {
 	rl.Lock()
 	defer rl.Unlock()
 
-	if rl.stopCleanup != nil {
+	select {
+	case <-rl.stopCleanup:
+		// Channel already closed, do nothing
+	default:
 		log.Println("[INFO] Signaling rate limiter cleanup goroutine to stop")
 		close(rl.stopCleanup)
-		rl.stopCleanup = nil // Prevent double-closing
 	}
 }
