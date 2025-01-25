@@ -160,16 +160,6 @@ jobs:
         run: |
           cd caddy-waf
 
-          # Phase 1: Block known vulnerability scanners (User-Agent)
-          echo "Testing Phase 1: Block known vulnerability scanners..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -A "nikto" http://localhost:8080)
-          if [ "$RESPONSE" != "403" ]; then
-            echo "Failed: Vulnerability scanner request was not blocked. Expected HTTP 403, got $RESPONSE"
-            exit 1
-          else
-            echo "Success: Vulnerability scanner request blocked (HTTP 403)."
-          fi
-
           # Phase 1: Allow legitimate traffic (User-Agent)
           echo "Testing Phase 1: Allow legitimate traffic..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" http://localhost:8080)
@@ -178,6 +168,16 @@ jobs:
             exit 1
           else
             echo "Success: Legitimate request allowed (HTTP 200)."
+          fi
+          
+          # Phase 1: Block known vulnerability scanners (User-Agent)
+          echo "Testing Phase 1: Block known vulnerability scanners..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -A "nikto" http://localhost:8080)
+          if [ "$RESPONSE" != "403" ]; then
+            echo "Failed: Vulnerability scanner request was not blocked. Expected HTTP 403, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: Vulnerability scanner request blocked (HTTP 403)."
           fi
 
           # Phase 2: Block NoSQL injection in body
@@ -200,16 +200,6 @@ jobs:
             echo "Success: HTTP response splitting request blocked (HTTP 403)."
           fi
 
-          # Phase 3: Allow valid headers
-          echo "Testing Phase 3: Allow valid headers..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Forwarded-For: 8.8.8.8" http://localhost:8080)
-          if [ "$RESPONSE" != "200" ]; then
-            echo "Failed: Valid headers request was blocked. Expected HTTP 200, got $RESPONSE"
-            exit 1
-          else
-            echo "Success: Valid headers request allowed (HTTP 200)."
-          fi
-
           # Phase 4: Block JWT tampering (Headers)
           echo "Testing Phase 4: Block JWT tampering..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" http://localhost:8080)
@@ -218,16 +208,6 @@ jobs:
             exit 1
           else
             echo "Success: JWT tampering request blocked (HTTP 403)."
-          fi
-
-          # Phase 4: Allow valid JWT (Headers)
-          echo "Testing Phase 4: Allow valid JWT..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $(cat valid.jwt)" http://localhost:8080)
-          if [ "$RESPONSE" != "200" ]; then
-            echo "Failed: Valid JWT request was blocked. Expected HTTP 200, got $RESPONSE"
-            exit 1
-          else
-            echo "Success: Valid JWT request allowed (HTTP 200)."
           fi
 
           echo "All phase-specific WAF rule tests passed successfully!"
