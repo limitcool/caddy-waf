@@ -1,4 +1,26 @@
-# 🚀 Installation
+# Installation
+
+## Quick Start
+
+```bash
+curl -fsSL -H "Pragma: no-cache" https://raw.githubusercontent.com/fabriziosalmi/caddy-waf/refs/heads/main/install.sh | bash
+```
+
+**Example Output:**
+
+```
+INFO    Provisioning WAF middleware     {"log_level": "info", "log_path": "debug.json", "log_json": true, "anomaly_threshold": 10}
+INFO    http.handlers.waf       Updated Tor exit nodes in IP blacklist  {"count": 1077}
+INFO    WAF middleware version  {"version": "v0.0.0-20250115164938-7f35253f2ffc"}
+INFO    Rate limit configuration        {"requests": 100, "window": 10, "cleanup_interval": 300, "paths": ["/api/v1/.*", "/admin/.*"], "match_all_paths": false}
+WARN    GeoIP database not found. Country blocking/whitelisting will be disabled        {"path": "GeoLite2-Country.mmdb"}
+INFO    IP blacklist loaded successfully        {"file": "ip_blacklist.txt", "valid_entries": 3, "total_lines": 3}
+INFO    DNS blacklist loaded successfully       {"file": "dns_blacklist.txt", "valid_entries": 2, "total_lines": 2}
+INFO    Rules loaded    {"file": "rules.json", "total_rules": 70, "invalid_rules": 0}
+INFO    WAF middleware provisioned successfully
+```
+
+## Step by step installation
 
 ```bash
 # Step 1: Clone the caddy-waf repository from GitHub
