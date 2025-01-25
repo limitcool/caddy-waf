@@ -88,16 +88,16 @@ jobs:
       - name: Retrieve and Initialize IP and DNS Blacklists
         run: |
           cd caddy-waf
-          echo "Running get_blacklisted_ip.go..."
-          python3 get_blacklisted_ip.go
+          echo "Running get_blacklisted_ip.py..."
+          python3 get_blacklisted_ip.py
           if [ $? -ne 0 ]; then
             echo "Failed to retrieve or initialize IP blacklist"
             exit 1
           fi
           echo "IP blacklist retrieved and initialized successfully."
 
-          echo "Running get_blacklisted_dns.go..."
-          python3 get_blacklisted_dns.go
+          echo "Running get_blacklisted_dns.py..."
+          python3 get_blacklisted_dns.py
           if [ $? -ne 0 ]; then
             echo "Failed to retrieve or initialize DNS blacklist"
             exit 1
