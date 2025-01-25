@@ -44,7 +44,8 @@ jobs:
         run: |
           python3 -m venv venv
           source venv/bin/activate
-          pip install tqdm
+          pip install --upgrade pip
+          pip install tqdm          
 
       - name: Cache Python Dependencies
         id: cache-pip
@@ -85,6 +86,26 @@ jobs:
             echo "GeoLite2 database download failed"
             exit 1
           fi
+
+      - name: Retrieve and Initialize IP and DNS Blacklists
+        run: |
+          cd caddy-waf
+          source ../venv/bin/activate  # Activate the virtual environment
+          echo "Running get_blacklisted_ip.py..."
+          python3 get_blacklisted_ip.py
+          if [ $? -ne 0 ]; then
+            echo "Failed to retrieve or initialize IP blacklist"
+            exit 1
+          fi
+          echo "IP blacklist retrieved and initialized successfully."
+  
+          echo "Running get_blacklisted_dns.py..."
+          python3 get_blacklisted_dns.py
+          if [ $? -ne 0 ]; then
+            echo "Failed to retrieve or initialize DNS blacklist"
+            exit 1
+          fi
+          echo "DNS blacklist retrieved and initialized successfully."
 
       - name: Build Caddy with caddy-waf
         run: |
