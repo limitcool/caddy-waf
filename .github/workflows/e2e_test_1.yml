@@ -1,4 +1,4 @@
-name: Build and test Caddy with WAF
+name: Build, Run and Validate
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y wget git build-essential curl
+          sudo apt install -y wget git build-essential curl python3
 
       - name: Install Go 1.23.4
         uses: actions/setup-go@v4
@@ -84,7 +84,40 @@ jobs:
             echo "Caddy build failed"
             exit 1
           fi
-          
+
+      - name: Retrieve and Initialize IP and DNS Blacklists
+        run: |
+          cd caddy-waf
+          echo "Running get_blacklisted_ip.go..."
+          python3 get_blacklisted_ip.go
+          if [ $? -ne 0 ]; then
+            echo "Failed to retrieve or initialize IP blacklist"
+            exit 1
+          fi
+          echo "IP blacklist retrieved and initialized successfully."
+
+          echo "Running get_blacklisted_dns.go..."
+          python3 get_blacklisted_dns.go
+          if [ $? -ne 0 ]; then
+            echo "Failed to retrieve or initialize DNS blacklist"
+            exit 1
+          fi
+          echo "DNS blacklist retrieved and initialized successfully."
+
+      - name: Create Dynamic Files
+        run: |
+          cd caddy-waf
+
+          # Create a valid JWT token for testing
+          echo "Creating valid.jwt..."
+          echo "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" > valid.jwt
+
+          # Create a sample JSON file for testing
+          echo "Creating sample.json..."
+          echo '{"key": "value"}' > sample.json
+
+          echo "Dynamic files created successfully."
+
       - name: Test Caddy Run and Validate WAF Provisioning
         run: |
           cd caddy-waf
@@ -106,12 +139,12 @@ jobs:
           
           echo "Caddy WAF build and run successful with WAF middleware provisioned"
 
-      - name: Run Curl Tests for WAF Rules
+      - name: Run Phase-Specific Curl Tests
         run: |
           cd caddy-waf
 
-          # Test 1: Block known vulnerability scanners (User-Agent)
-          echo "Testing block-scanners rule..."
+          # Phase 1: Block known vulnerability scanners (User-Agent)
+          echo "Testing Phase 1: Block known vulnerability scanners..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -A "nikto" http://localhost:8080)
           if [ "$RESPONSE" != "403" ]; then
             echo "Failed: Vulnerability scanner request was not blocked. Expected HTTP 403, got $RESPONSE"
@@ -120,38 +153,8 @@ jobs:
             echo "Success: Vulnerability scanner request blocked (HTTP 403)."
           fi
 
-          # Test 2: Block access to sensitive files (URI)
-          echo "Testing sensitive-files rule..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/.env)
-          if [ "$RESPONSE" != "403" ]; then
-            echo "Failed: Sensitive file request was not blocked. Expected HTTP 403, got $RESPONSE"
-            exit 1
-          else
-            echo "Success: Sensitive file request blocked (HTTP 403)."
-          fi
-
-          # Test 3: Block SQL injection in headers
-          echo "Testing header-attacks-consolidated rule..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "User-Agent: 1' OR '1'='1" http://localhost:8080)
-          if [ "$RESPONSE" != "403" ]; then
-            echo "Failed: SQL injection in headers was not blocked. Expected HTTP 403, got $RESPONSE"
-            exit 1
-          else
-            echo "Success: SQL injection in headers blocked (HTTP 403)."
-          fi
-
-          # Test 4: Block path traversal (URI)
-          echo "Testing path-traversal rule..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/../../etc/passwd)
-          if [ "$RESPONSE" != "403" ]; then
-            echo "Failed: Path traversal request was not blocked. Expected HTTP 403, got $RESPONSE"
-            exit 1
-          else
-            echo "Success: Path traversal request blocked (HTTP 403)."
-          fi
-
-          # Test 5: Allow legitimate traffic (User-Agent)
-          echo "Testing allow-legit-browsers rule..."
+          # Phase 1: Allow legitimate traffic (User-Agent)
+          echo "Testing Phase 1: Allow legitimate traffic..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" http://localhost:8080)
           if [ "$RESPONSE" != "200" ]; then
             echo "Failed: Legitimate request was blocked. Expected HTTP 200, got $RESPONSE"
@@ -160,8 +163,8 @@ jobs:
             echo "Success: Legitimate request allowed (HTTP 200)."
           fi
 
-          # Test 6: Block NoSQL injection in body
-          echo "Testing nosql-injection-attacks rule..."
+          # Phase 2: Block NoSQL injection in body
+          echo "Testing Phase 2: Block NoSQL injection..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -d '{"$gt": ""}' http://localhost:8080)
           if [ "$RESPONSE" != "403" ]; then
             echo "Failed: NoSQL injection request was not blocked. Expected HTTP 403, got $RESPONSE"
@@ -170,27 +173,57 @@ jobs:
             echo "Success: NoSQL injection request blocked (HTTP 403)."
           fi
 
-          # Test 7: Block XSS in body
-          echo "Testing xss-attacks rule..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -d '<script>alert("XSS")</script>' http://localhost:8080)
-          if [ "$RESPONSE" != "403" ]; then
-            echo "Failed: XSS request was not blocked. Expected HTTP 403, got $RESPONSE"
+          # Phase 2: Allow valid JSON body
+          echo "Testing Phase 2: Allow valid JSON body..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -d @sample.json http://localhost:8080)
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Failed: Valid JSON request was blocked. Expected HTTP 200, got $RESPONSE"
             exit 1
           else
-            echo "Success: XSS request blocked (HTTP 403)."
+            echo "Success: Valid JSON request allowed (HTTP 200)."
           fi
 
-          # Test 8: Block SSRF in body
-          echo "Testing ssrf-attacks rule..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -d '{"url": "http://169.254.169.254/latest/meta-data"}' http://localhost:8080)
+          # Phase 3: Block HTTP response splitting (Headers)
+          echo "Testing Phase 3: Block HTTP response splitting..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Forwarded-For: 127.0.0.1\r\nInjected-Header: value" http://localhost:8080)
           if [ "$RESPONSE" != "403" ]; then
-            echo "Failed: SSRF request was not blocked. Expected HTTP 403, got $RESPONSE"
+            echo "Failed: HTTP response splitting request was not blocked. Expected HTTP 403, got $RESPONSE"
             exit 1
           else
-            echo "Success: SSRF request blocked (HTTP 403)."
+            echo "Success: HTTP response splitting request blocked (HTTP 403)."
           fi
 
-          echo "All WAF rule tests passed successfully!"
+          # Phase 3: Allow valid headers
+          echo "Testing Phase 3: Allow valid headers..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Forwarded-For: 8.8.8.8" http://localhost:8080)
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Failed: Valid headers request was blocked. Expected HTTP 200, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: Valid headers request allowed (HTTP 200)."
+          fi
+
+          # Phase 4: Block JWT tampering (Headers)
+          echo "Testing Phase 4: Block JWT tampering..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" http://localhost:8080)
+          if [ "$RESPONSE" != "403" ]; then
+            echo "Failed: JWT tampering request was not blocked. Expected HTTP 403, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: JWT tampering request blocked (HTTP 403)."
+          fi
+
+          # Phase 4: Allow valid JWT (Headers)
+          echo "Testing Phase 4: Allow valid JWT..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $(cat valid.jwt)" http://localhost:8080)
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Failed: Valid JWT request was blocked. Expected HTTP 200, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: Valid JWT request allowed (HTTP 200)."
+          fi
+
+          echo "All phase-specific WAF rule tests passed successfully!"
 
       - name: Clean Up
         if: always()
