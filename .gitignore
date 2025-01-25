@@ -16,3 +16,5 @@ sqli_payload.txt
 xxe_payload.xml
 dns_blacklist.txt
 ip_blacklist.txt
+waf_test_results_alt.log
+waf_test_results_extended.log

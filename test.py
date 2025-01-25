@@ -706,8 +706,104 @@ test_cases = [
     ("GraphQL", f"{TARGET_URL}/graphql", "GraphQL (Level 9) -  Input Object Injection", 403, {"Content-Type": "application/json"}, '{"query":"mutation { updateUser(id:1, data: { username: \\"test\\", email: \\"test@example.com\\"}) { id } }"}'),
      ("GraphQL", f"{TARGET_URL}/graphql", "GraphQL (Level 10) -  Directive Injection", 403, {"Content-Type": "application/json"}, '{"query":"query getUser { user(id:1) @include(if: true) { username } }"}'),
 
+    ## Some missing test..
+        # HTTP Verb Tampering Tests (Extended)
+    ("Verb Tampering", f"{TARGET_URL}/api/items", "Verb Tampering (Level 11) - POST with PUT override param", 405, None, "X-HTTP-Method-Override=PUT&data=test"), # or 400 if body parsing fails before override
+    ("Verb Tampering", f"{TARGET_URL}/api/delete_user", "Verb Tampering (Level 12) - POST instead of DELETE (admin)", 405, {"X-HTTP-Method-Override": "POST"}, None),
+    ("Verb Tampering", f"{TARGET_URL}/report", "Verb Tampering (Level 13) - HEAD to download report", 405, {"X-HTTP-Method-Override": "HEAD"}, None), #  HEAD on download endpoint
+    ("Verb Tampering", f"{TARGET_URL}/update_settings", "Verb Tampering (Level 14) - GET to update settings (instead of POST)", 405, {"X-HTTP-Method-Override": "GET"}, "setting1=newvalue&setting2=othervalue"),
+    ("Verb Tampering", f"{TARGET_URL}/view_config", "Verb Tampering (Level 15) - PATCH to view config", 405, {"X-HTTP-Method-Override": "PATCH"}, None), # Patch for read action
+    ("Verb Tampering", f"{TARGET_URL}/admin/action", "Verb Tampering (Level 16) - TRACE to admin action", 405, {"X-HTTP-Method-Override": "TRACE"}, None),
+    ("Verb Tampering", f"{TARGET_URL}/api/search_data", "Verb Tampering (Level 17) - DELETE for search", 405, {"X-HTTP-Method-Override": "DELETE"}, "query=searchTerm"),
+    ("Verb Tampering", f"{TARGET_URL}/login", "Verb Tampering (Level 18) - OPTIONS to login", 405, {"X-HTTP-Method-Override": "OPTIONS"}, "username=test&password=pass"),
+    ("Verb Tampering", f"{TARGET_URL}/admin/backup", "Verb Tampering (Level 19) - PUT to admin backup trigger", 405, {"X-HTTP-Method-Override": "PUT"}, None), # Put instead of GET for backup trigger
+    ("Verb Tampering", f"{TARGET_URL}/submit_feedback", "Verb Tampering (Level 20) - HEAD instead of POST feedback", 405, {"X-HTTP-Method-Override": "HEAD"}, "feedback=test feedback"),
+
+    # Business Logic Attacks (Extended)
+    ("Business Logic", f"{TARGET_URL}/signup", "Business Logic (Level 11) - Reusing existing username", 403, None, "username=testuser&password=newpassword"), # Assuming 'testuser' was used before
+    ("Business Logic", f"{TARGET_URL}/signup", "Business Logic (Level 12) - Weak password 'password'", 403, None, "username=weakuser&password=password"),
+    ("Business Logic", f"{TARGET_URL}/signup", "Business Logic (Level 13) - Username similar to admin (admin1)", 403, None, "username=admin1&password=password123"),
+    ("Business Logic", f"{TARGET_URL}/login", "Business Logic (Level 14) - Login with default credentials (test:test)", 403, None, "username=test&password=test"),
+    ("Business Logic", f"{TARGET_URL}/login", "Business Logic (Level 15) - Login with common password '123456'", 403, None, "username=testuser&password=123456"),
+    ("Business Logic", f"{TARGET_URL}/reset_password", "Business Logic (Level 16) - Multiple password reset for same account", 403, None, "new_password=newpass_v2"), # Repeat reset after level 6 attempt
+    ("Business Logic", f"{TARGET_URL}/transfer_funds", "Business Logic (Level 17) - Transfer amount exceeds limit", 403, None, "amount=1000000&to=victim"), # Large amount
+    ("Business Logic", f"{TARGET_URL}/apply_discount", "Business Logic (Level 18) - Expired Discount Code", 403, None, "discount_code=EXPIRED2023"), # Assume 'EXPIRED2023' is known expired code
+    ("Business Logic", f"{TARGET_URL}/change_email", "Business Logic (Level 19) - Change Email to Disposable Domain (tempmail.org)", 403, None, "new_email=test@tempmail.org"), # Disposable email domain
+    ("Business Logic", f"{TARGET_URL}/create_post", "Business Logic (Level 20) - Post with too many tags", 403, None, "title=Test Post&content=content&tags=" + ",".join(["tag"]*50)), # Many tags
+
+    # CSP Bypass (Extended - Still basic curl tests)
+    ("CSP Bypass", f"{TARGET_URL}/", "CSP Bypass (Level 11) - Data URI script (Blocked in strict CSP)", 403, None, "<script>eval('alert(1)')</script>"), # Expect block if strict CSP, otherwise may pass with 200 if no CSP
+    ("CSP Bypass", f"{TARGET_URL}/", "CSP Bypass (Level 12) - Unsafe-eval attempt (Blocked in strict CSP)", 403, None, "<script>setTimeout('alert(1)', 0)</script>"), # Expect block if strict CSP blocks unsafe-eval
+    ("CSP Bypass", f"{TARGET_URL}/", "CSP Bypass (Level 13) -  WASM in object (object-src check)", 403, None, "<object data='malicious.wasm'></object>"), # Wasm object might be controlled by object-src
+    ("CSP Bypass", f"{TARGET_URL}/", "CSP Bypass (Level 14) - Form action to data URI (form-action policy)", 403, None, "<form action='data:text/html;base64,...'><input type=submit></form>"), # Form to data URI
+    ("CSP Bypass", f"{TARGET_URL}/", "CSP Bypass (Level 15) -  Sandboxed iframe escape attempt (If sandbox attr used, try breaking)", 403, None, "<iframe src='{TARGET_URL}' sandbox='allow-scripts allow-same-origin'><script>top.location='http://evil.com'</script></iframe>"), # Attempt to break sandbox with top.location. Expect block still by WAF if payload is recognized.  Full sandbox bypass requires browser context usually for effective testing.
+    ("CSP Bypass", f"{TARGET_URL}/", "CSP Bypass (Level 16) -  Plugin type (plugin-types policy, e.g. application/x-shockwave-flash)", 403, None, "<embed type='application/x-shockwave-flash' src='malicious.swf'>"), #  Flash embed might be restricted via plugin-types policy.
+    ("CSP Bypass", f"{TARGET_URL}/", "CSP Bypass (Level 17) - Frame-ancestors 'none' bypass (Try framing even if 'none')", 403, None, "<iframe src='{TARGET_URL}'></iframe>"), # Even if frame-ancestors is 'none', still try to frame - might be misconfigured. Expect block, or 403 from clickjacking protection ideally, rather than CSP purely blocking framing - CSP blocks resource load usually inside the iframe. Clickjacking is about preventing framing in first place.
+    ("CSP Bypass", f"{TARGET_URL}/", "CSP Bypass (Level 18) -  Connect-src to evil.com (check logs if connect blocked)", 200, {"Content-Security-Policy": "default-src 'self'; connect-src http://evil.com; report-uri /csp_report"}, None), # If connect-src is set to specific domain, and we try to fetch from others, should report or ideally block (more likely report-only for initial setup). Check logs of target for violations.
+    ("CSP Bypass", f"{TARGET_URL}/", "CSP Bypass (Level 19) -  Default-src 'self', inline script event handler (onerror etc.)", 403, None, "<img src='#' onerror='alert(1)'>"), # Default-src self should block inline event handlers unless 'unsafe-inline' or nonce/hash present for script-src.
+    ("CSP Bypass", f"{TARGET_URL}/", "CSP Bypass (Level 20) -  Trusted types policy violation (If CSP with trusted-types)", 403, {"Content-Security-Policy": "require-trusted-types-for 'script'"}, "<script>document.body.innerHTML = '<p>Test</p>';</script>"), # If trusted types enforced, direct DOM manipulation with innerHTML from inline script may be blocked. This one is very dependent on target CSP policy. WAF detection based on header, or payload likely.
+
+    # Open Redirect Tests (Extended)
+    ("Open Redirect", f"{TARGET_URL}/redirect?url=http://evil.com..", "Open Redirect (Level 11) - Double Dot Pathing", 302, None, None), # Double dot in domain name
+    ("Open Redirect", f"{TARGET_URL}/redirect?url=http://evil.com%20", "Open Redirect (Level 12) - Whitespace in URL", 302, None, None), # Whitespace after domain
+    ("Open Redirect", f"{TARGET_URL}/redirect?url=http://evil.com/", "Open Redirect (Level 13) - Unicode domain bypass (punycode if applicable, depends on curl handling)", 302, None, None), # unicode domain representation if curl supports punycode
+    ("Open Redirect", f"{TARGET_URL}/redirect?url=http://0evil.com", "Open Redirect (Level 14) - Leading Zero", 302, None, None), # Leading zero before domain
+    ("Open Redirect", f"{TARGET_URL}/redirect?url=http://evil.com\\", "Open Redirect (Level 15) - Trailing Backslash", 302, None, None), # Trailing backslash
+    ("Open Redirect", f"{TARGET_URL}/redirect?url=http://evil.com\t", "Open Redirect (Level 16) - Tab character", 302, None, None), # Tab char after domain
+    ("Open Redirect", f"{TARGET_URL}/redirect?url=http://evil.com%00", "Open Redirect (Level 17) - Null byte injection", 302, None, None), # Null byte after domain, may truncate
+    ("Open Redirect", f"{TARGET_URL}/redirect?url=http://@evil.com", "Open Redirect (Level 18) - Authority component bypass", 302, None, None), # Authority component bypass (@)
+    ("Open Redirect", f"{TARGET_URL}/redirect?url=http://user:pass@evil.com", "Open Redirect (Level 19) - Credential in URL", 302, None, None), # Credential in URL, another version, more explicit
+    ("Open Redirect", f"{TARGET_URL}/redirect?url=http://[::ffff:192.168.1.1]", "Open Redirect (Level 20) - IPv6 Mapped IPv4 Address", 302, None, None), # IPv6 Mapped IPv4 Address
+
+    # Information Disclosure - Files (Extended)
+    ("Info Disclosure", f"{TARGET_URL}/.DS_Store", "Info Disclosure (Level 11) - .DS_Store macOS files", 403, None, None), # macOS metadata file
+    ("Info Disclosure", f"{TARGET_URL}/WEB-INF/jboss-web.xml", "Info Disclosure (Level 12) - JBoss web config", 403, None, None), # JBoss config file
+    ("Info Disclosure", f"{TARGET_URL}/Tomcat/conf/server.xml", "Info Disclosure (Level 13) - Tomcat server config", 403, None, None), # Tomcat config
+    ("Info Disclosure", f"{TARGET_URL}/dump.rdb", "Info Disclosure (Level 14) - Redis DB dump", 403, None, None), # Redis dump file
+    ("Info Disclosure", f"{TARGET_URL}/.bash_history", "Info Disclosure (Level 15) - Bash History", 403, None, None), # Shell history
+    ("Info Disclosure", f"{TARGET_URL}/htdocs/WEB-INF/web.xml", "Info Disclosure (Level 16) - Alternate WEB-INF path", 403, None, None), # Alternative WEB-INF
+    ("Info Disclosure", f"{TARGET_URL}/wp-config.php", "Info Disclosure (Level 17) - WordPress config", 403, None, None), # WP config file
+    ("Info Disclosure", f"{TARGET_URL}/sites/default/settings.php", "Info Disclosure (Level 18) - Drupal settings", 403, None, None), # Drupal config
+    ("Info Disclosure", f"{TARGET_URL}/configuration.php", "Info Disclosure (Level 19) - Joomla config", 403, None, None), # Joomla config
+    ("Info Disclosure", f"{TARGET_URL}/BACKUP_config.php", "Info Disclosure (Level 20) - Backup config file name", 403, None, None), # Backup config filename
+
+    # Client-Side/HTML Injection (Basic, server response focused still)
+    ("HTML Injection", f"{TARGET_URL}/?param=<b>test</b>", "HTML Injection (Level 1) - Bold Tag", 403, None, None), # Basic HTML tag in parameter
+    ("HTML Injection", f"{TARGET_URL}/?param=<p>Paragraph</p>", "HTML Injection (Level 2) - Paragraph Tag", 403, None, None), # Paragraph
+    ("HTML Injection", f"{TARGET_URL}/?param=<h1>Header</h1>", "HTML Injection (Level 3) - Header Tag", 403, None, None), # Header
+    ("HTML Injection", f"{TARGET_URL}/?param=<hr>", "HTML Injection (Level 4) - Horizontal Rule", 403, None, None), # HR
+    ("HTML Injection", f"{TARGET_URL}/?param=<br>", "HTML Injection (Level 5) - Line Break", 403, None, None), # BR
+    ("HTML Injection", f"{TARGET_URL}/?param=<ul><li>Item</li></ul>", "HTML Injection (Level 6) - Unordered List", 403, None, None), # UL/LI list
+    ("HTML Injection", f"{TARGET_URL}/?param=<ol><li>Item</li></ol>", "HTML Injection (Level 7) - Ordered List", 403, None, None), # OL/LI list
+    ("HTML Injection", f"{TARGET_URL}/?param=<table border=1><tr><td>Cell</td></tr></table>", "HTML Injection (Level 8) - Table", 403, None, None), # Table
+    ("HTML Injection", f"{TARGET_URL}/?param=<div><span>Span</span></div>", "HTML Injection (Level 10) - Div and Span", 403, None, None), # Div/Span
+
+    # Parameter Pollution Tests
+    ("Parameter Pollution", f"{TARGET_URL}/search?q=value1&q=value2", "Param Pollution (Level 1) - Duplicate Parameter", 403, None, None), # Simple dup param
+    ("Parameter Pollution", f"{TARGET_URL}/search?q=value1;value2", "Param Pollution (Level 2) - Separator Pollution (;)", 403, None, None), # Separator-based
+    ("Parameter Pollution", f"{TARGET_URL}/search?q=value1,value2", "Param Pollution (Level 3) - Separator Pollution (,)", 403, None, None), # comma separator
+    ("Parameter Pollution", f"{TARGET_URL}/search?q[]=value1&q[]=value2", "Param Pollution (Level 4) - Array Notation", 403, None, None), # Array [] notation
+    ("Parameter Pollution", f"{TARGET_URL}/search?q[0]=value1&q[1]=value2", "Param Pollution (Level 5) - Indexed Array", 403, None, None), # Indexed array notation
+    ("Parameter Pollution", f"{TARGET_URL}/search?param1=val1¶m1=sqli'--", "Param Pollution (Level 6) - Polluted with SQLi", 403, None, None), # SQLi in polluted param
+    ("Parameter Pollution", f"{TARGET_URL}/search?param2=val2¶m2=<script>alert</script>", "Param Pollution (Level 7) - Polluted with XSS", 403, None, None), # XSS
+    ("Parameter Pollution", f"{TARGET_URL}/api/process", "Param Pollution (Level 8) - POST body pollution - same key twice", 403, None, "data=value1&data=value2"), # POST body pollution
+    ("Parameter Pollution", f"{TARGET_URL}/api/config", "Param Pollution (Level 9) - Header param pollution (custom header)", 403, {"X-Custom-Param": "value1,value2"}, None), # Header pollution via custom header
+    ("Parameter Pollution", f"{TARGET_URL}/filter", "Param Pollution (Level 10) - URL encoded dup param", 403, None, "q=test1&q%3Dtest2"), # URL encoded dup param in URL
+
+    # File Upload (Extended Extensions/Types)
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 16) - .pht double extension", 403, None, "FAKE_PHP_CONTENT"), # pht double extension variant
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 17) - PHp7 extension", 403, None, "FAKE_PHP_CONTENT"), # PHP7 extension
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 18) - .phar PHP archive", 403, None, "FAKE_PHAR_CONTENT"), # PHAR archive, if processed as PHP in some configs
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 19) - .inc include file for PHP", 403, None, "FAKE_PHP_CONTENT"), # .inc include file
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 20) -  Text file with MIME type application/x-php", 403, {"Content-Type": "application/x-php"}, "FAKE_TEXT_CONTENT"), # MIME type override attempt
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 21) - Image file with MIME type text/html", 403, {"Content-Type": "text/html"}, "FAKE_IMAGE_CONTENT"), # MIME type text/html for image - content type spoofing for HTML/script injection.
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 22) - .config file type", 403, None, "FAKE_CONFIG_CONTENT"), # Generic config type, if target tries to parse configs directly from uploads, potential info leak/DoS
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 23) -  Large file upload (DoS test - expect block or timeout)", 403, None, "LARGE_FILE_CONTENT"), # Placeholder for large content for DoS - will require creating large file content if real DoS test needed. Expect 403 or timeout if WAF blocks based on size, otherwise could pass if server crashes from size.  WAF might block large uploads at network level too.
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 24) -  Zip bomb (Denial of Service via decompression)", 403, None, "ZIP_BOMB_CONTENT"), # Placeholder for zip bomb - again, needs generating actual zip bomb for real test. WAF may detect zip bombs based on compression ratios/characteristics, expect block or timeout.
+    ("File Upload", f"{TARGET_URL}/upload.php", "File Upload (Level 25) -  .jspx - JSP XML file type", 403, None, "FAKE_JSPX_CONTENT"), # .jspx variant for JSP
+
     # Valid Requests
-    ("Valid", f"{TARGET_URL}/", "Valid (Level 1) - Homepage", 200, None, None),
+    ("Valid", f"{TARGET_URL}/", "Valid (Level 1) - Homepage", 200, None, None)
     
 ]
 
