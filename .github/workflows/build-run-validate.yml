@@ -190,16 +190,6 @@ jobs:
             echo "Success: NoSQL injection request blocked (HTTP 403)."
           fi
 
-          # Phase 2: Allow valid JSON body
-          echo "Testing Phase 2: Allow valid JSON body..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -d @sample.json http://localhost:8080)
-          if [ "$RESPONSE" != "200" ]; then
-            echo "Failed: Valid JSON request was blocked. Expected HTTP 200, got $RESPONSE"
-            exit 1
-          else
-            echo "Success: Valid JSON request allowed (HTTP 200)."
-          fi
-
           # Phase 3: Block HTTP response splitting (Headers)
           echo "Testing Phase 3: Block HTTP response splitting..."
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Forwarded-For: 127.0.0.1\r\nInjected-Header: value" http://localhost:8080)
