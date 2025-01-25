@@ -22,6 +22,8 @@
 			block_countries GeoLite2-Country.mmdb RU CN KP
 			# whitelist_countries GeoLite2-Country.mmdb US
 
+			# custom_response 403 application/json error.json
+
 			# rate limiter
 			rate_limit {
 				requests 100
