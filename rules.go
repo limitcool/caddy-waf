@@ -141,7 +141,7 @@ func (m *Middleware) loadRules(paths []string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.logger.Debug("Loading rules from files", zap.Strings("rule_files", paths))
+	m.logger.Debug("Loading rules", zap.Strings("rule_files", paths))
 
 	loadedRules := make(map[int][]Rule) // Temporary map to hold loaded rules
 	totalRules := 0
@@ -161,13 +161,17 @@ func (m *Middleware) loadRules(paths []string) error {
 			m.logger.Warn("Invalid rules in file", zap.String("file", path), zap.Strings("errors", fileInvalidRules))
 			allInvalidRules = append(allInvalidRules, fileInvalidRules...)
 		}
-		m.logger.Info("Rules loaded from file", zap.String("file", path), zap.Int("valid_rules", len(fileRules)), zap.Int("invalid_rules", len(fileInvalidRules)))
+		fileTotalRules := 0
+		for phase := 1; phase <= 4; phase++ { // Correctly calculate fileTotalRules
+			fileTotalRules += len(fileRules[phase])
+		}
+		m.logger.Info("Rules loaded from file", zap.String("file", path), zap.Int("valid_rules", fileTotalRules), zap.Int("invalid_rules", len(fileInvalidRules)))
 
 		// Merge valid rules from the file into the temporary loadedRules map
 		for phase, rules := range fileRules {
 			loadedRules[phase] = append(loadedRules[phase], rules...)
 		}
-		totalRules += len(fileRules[1]) + len(fileRules[2]) + len(fileRules[3]) + len(fileRules[4]) // Update total rule count
+		totalRules += fileTotalRules // Update total rule count with fileTotalRules
 	}
 
 	m.Rules = loadedRules // Atomically update m.Rules after loading all files
@@ -191,6 +195,7 @@ func (m *Middleware) loadRules(paths []string) error {
 
 // loadRulesFromFile loads and validates rules from a single file.
 func (m *Middleware) loadRulesFromFile(path string, ruleIDs map[string]bool) (validRules map[int][]Rule, invalidRules []string, err error) {
+	m.logger.Debug("Loading rules from file", zap.String("file", path)) // Log file being loaded
 	validRules = make(map[int][]Rule)
 	var fileInvalidRules []string
 
@@ -239,6 +244,12 @@ func (m *Middleware) loadRulesFromFile(path string, ruleIDs map[string]bool) (va
 		}
 		validRules[rule.Phase] = append(validRules[rule.Phase], rule)
 	}
+
+	ruleCounts := ""
+	for phase := 1; phase <= 4; phase++ {
+		ruleCounts += fmt.Sprintf("Phase %d: %d rules, ", phase, len(validRules[phase]))
+	}
+	m.logger.Debug("Rules loaded from file by phase", zap.String("file", path), zap.String("counts", ruleCounts)) // Log rules count per phase
 
 	return validRules, fileInvalidRules, nil
 }
