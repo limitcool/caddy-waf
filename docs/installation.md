@@ -54,3 +54,6 @@ caddy fmt --overwrite
 # Step 8: Run the compiled Caddy server
 ./caddy run
 ```
+
+Go to the [configuration](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/configuration.md) documentation section.
+
