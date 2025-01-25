@@ -1,0 +1,199 @@
+name: Build and test Caddy with WAF
+
+permissions:
+  contents: read
+  pull-requests: write
+  
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and Test Caddy WAF
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y wget git build-essential curl
+
+      - name: Install Go 1.23.4
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23.4'
+
+      - name: Validate Go Installation
+        run: |
+          go version
+          if ! go version | grep -q "go1.23.4"; then
+            echo "Go installation failed or incorrect version"
+            exit 1
+          fi
+
+      - name: Clone caddy-waf Repository
+        run: |
+          git clone https://github.com/fabriziosalmi/caddy-waf.git
+          cd caddy-waf
+
+      - name: Validate Repository Cloning
+        run: |
+          if [ ! -d "caddy-waf" ]; then
+            echo "Repository cloning failed"
+            exit 1
+          fi
+
+      - name: Install Go Dependencies
+        run: |
+          cd caddy-waf
+          go mod tidy
+          go get -v github.com/fabriziosalmi/caddy-waf github.com/caddyserver/caddy/v2 github.com/oschwald/maxminddb-golang
+
+      - name: Download GeoLite2 Country Database
+        run: |
+          cd caddy-waf
+          wget https://git.io/GeoLite2-Country.mmdb
+
+      - name: Validate GeoLite2 Download
+        run: |
+          cd caddy-waf
+          if [ ! -f "GeoLite2-Country.mmdb" ]; then
+            echo "GeoLite2 database download failed"
+            exit 1
+          fi
+
+      - name: Build Caddy with caddy-waf
+        run: |
+          cd caddy-waf
+          go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+          xcaddy build --with github.com/fabriziosalmi/caddy-waf=./
+
+      - name: Validate Build
+        run: |
+          cd caddy-waf
+          if [ ! -f "caddy" ]; then
+            echo "Caddy build failed"
+            exit 1
+          fi
+          
+      - name: Test Caddy Run and Validate WAF Provisioning
+        run: |
+          cd caddy-waf
+          chmod +x caddy
+          ./caddy run > caddy_output.log 2>&1 &
+          sleep 5
+          
+          if ! pgrep -f "caddy run"; then
+            echo "Caddy run failed"
+            cat caddy_output.log
+            exit 1
+          fi
+          
+          if ! grep -q "WAF middleware provisioned successfully" caddy_output.log; then
+            echo "WAF provisioning log not found"
+            cat caddy_output.log
+            exit 1
+          fi
+          
+          echo "Caddy WAF build and run successful with WAF middleware provisioned"
+
+      - name: Run Curl Tests for WAF Rules
+        run: |
+          cd caddy-waf
+
+          # Test 1: Block known vulnerability scanners (User-Agent)
+          echo "Testing block-scanners rule..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -A "nikto" http://localhost:8080)
+          if [ "$RESPONSE" != "403" ]; then
+            echo "Failed: Vulnerability scanner request was not blocked. Expected HTTP 403, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: Vulnerability scanner request blocked (HTTP 403)."
+          fi
+
+          # Test 2: Block access to sensitive files (URI)
+          echo "Testing sensitive-files rule..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/.env)
+          if [ "$RESPONSE" != "403" ]; then
+            echo "Failed: Sensitive file request was not blocked. Expected HTTP 403, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: Sensitive file request blocked (HTTP 403)."
+          fi
+
+          # Test 3: Block SQL injection in headers
+          echo "Testing header-attacks-consolidated rule..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "User-Agent: 1' OR '1'='1" http://localhost:8080)
+          if [ "$RESPONSE" != "403" ]; then
+            echo "Failed: SQL injection in headers was not blocked. Expected HTTP 403, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: SQL injection in headers blocked (HTTP 403)."
+          fi
+
+          # Test 4: Block path traversal (URI)
+          echo "Testing path-traversal rule..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/../../etc/passwd)
+          if [ "$RESPONSE" != "403" ]; then
+            echo "Failed: Path traversal request was not blocked. Expected HTTP 403, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: Path traversal request blocked (HTTP 403)."
+          fi
+
+          # Test 5: Allow legitimate traffic (User-Agent)
+          echo "Testing allow-legit-browsers rule..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" http://localhost:8080)
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Failed: Legitimate request was blocked. Expected HTTP 200, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: Legitimate request allowed (HTTP 200)."
+          fi
+
+          # Test 6: Block NoSQL injection in body
+          echo "Testing nosql-injection-attacks rule..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -d '{"$gt": ""}' http://localhost:8080)
+          if [ "$RESPONSE" != "403" ]; then
+            echo "Failed: NoSQL injection request was not blocked. Expected HTTP 403, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: NoSQL injection request blocked (HTTP 403)."
+          fi
+
+          # Test 7: Block XSS in body
+          echo "Testing xss-attacks rule..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -d '<script>alert("XSS")</script>' http://localhost:8080)
+          if [ "$RESPONSE" != "403" ]; then
+            echo "Failed: XSS request was not blocked. Expected HTTP 403, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: XSS request blocked (HTTP 403)."
+          fi
+
+          # Test 8: Block SSRF in body
+          echo "Testing ssrf-attacks rule..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST -d '{"url": "http://169.254.169.254/latest/meta-data"}' http://localhost:8080)
+          if [ "$RESPONSE" != "403" ]; then
+            echo "Failed: SSRF request was not blocked. Expected HTTP 403, got $RESPONSE"
+            exit 1
+          else
+            echo "Success: SSRF request blocked (HTTP 403)."
+          fi
+
+          echo "All WAF rule tests passed successfully!"
+
+      - name: Clean Up
+        if: always()
+        run: |
+          pkill -f "caddy run" || true
+          echo "Cleaned up running Caddy instances"
