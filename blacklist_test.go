@@ -218,3 +218,43 @@ func TestExtractIP(t *testing.T) {
 	ip = extractIP(remoteAddr, logger)
 	assert.Equal(t, "invalid.address", ip)
 }
+
+func TestIsIPBlacklisted_MetricIncrement(t *testing.T) {
+	logger := zap.NewNop() // Or use a more verbose logger if needed
+	m := &Middleware{
+		logger:      logger,
+		ipBlacklist: NewCIDRTrie(), // Initialize ipBlacklist
+	}
+	m.ipBlacklist.Insert("192.168.1.1/32") // Blacklist a specific IP
+
+	initialCount := m.IPBlacklistBlockCount
+
+	isBlacklisted := m.isIPBlacklisted("192.168.1.1")
+	assert.True(t, isBlacklisted, "isIPBlacklisted should return true for blacklisted IP")
+	assert.Equal(t, initialCount+1, m.IPBlacklistBlockCount, "ipBlacklistBlockCount should be incremented")
+
+	isBlacklistedNonBlacklisted := m.isIPBlacklisted("192.168.2.2")
+	assert.False(t, isBlacklistedNonBlacklisted, "isIPBlacklisted should return false for non-blacklisted IP")
+	assert.Equal(t, initialCount+1, m.IPBlacklistBlockCount, "ipBlacklistBlockCount should NOT be incremented again for non-blacklisted IP in this test run")
+
+}
+
+func TestIsDNSBlacklisted_MetricIncrement(t *testing.T) {
+	logger := zap.NewNop()
+	m := &Middleware{
+		logger:       logger,
+		dnsBlacklist: make(map[string]struct{}), // Initialize dnsBlacklist
+	}
+	m.dnsBlacklist["test.domain"] = struct{}{} // Add an entry to the blacklist
+
+	initialCount := m.DNSBlacklistBlockCount
+
+	isBlacklisted := m.isDNSBlacklisted("test.domain")
+	assert.True(t, isBlacklisted, "isDNSBlacklisted should return true for blacklisted domain")
+	assert.Equal(t, initialCount+1, m.DNSBlacklistBlockCount, "dnsBlacklistBlockCount should be incremented")
+
+	isNotBlacklisted := m.isDNSBlacklisted("good.domain")
+	assert.False(t, isNotBlacklisted, "isDNSBlacklisted should return false for non-blacklisted domain")
+	assert.Equal(t, initialCount+1, m.DNSBlacklistBlockCount, "dnsBlacklistBlockCount should NOT be incremented again for non-blacklisted domain in this test run")
+
+}

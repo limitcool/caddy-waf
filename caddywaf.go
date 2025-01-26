@@ -537,6 +537,8 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 		"rule_hits":          ruleHits,
 		"rule_hits_by_phase": m.ruleHitsByPhase, // Include rule hits by phase
 		"geoip_stats":        m.geoIPStats,
+		"ip_blacklist_hits":  m.IPBlacklistBlockCount,  // Add IP blacklist hits metric
+		"dns_blacklist_hits": m.DNSBlacklistBlockCount, // Add DNS blacklist hits metric
 	}
 
 	jsonMetrics, err := json.Marshal(metrics)

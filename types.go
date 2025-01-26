@@ -195,6 +195,11 @@ type Middleware struct {
 	logDone chan struct{} // Signal to stop the logging worker
 
 	ruleCache *RuleCache // New field for RuleCache
+
+	IPBlacklistBlockCount  int64 `json:"ip_blacklist_hits"`
+	muIPBlacklistMetrics   sync.Mutex
+	DNSBlacklistBlockCount int64 `json:"dns_blacklist_hits"`
+	muDNSBlacklistMetrics  sync.Mutex
 }
 
 // ==================== Constructors (New functions) ====================

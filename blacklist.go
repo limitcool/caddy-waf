@@ -64,7 +64,17 @@ func (bl *BlacklistLoader) LoadDNSBlacklistFromFile(path string, dnsBlacklist ma
 }
 
 func (m *Middleware) isIPBlacklisted(ip string) bool {
-	return m.ipBlacklist.Contains(ip)
+	if m.ipBlacklist == nil { // Defensive check: ensure ipBlacklist is not nil
+		return false
+	}
+	if m.ipBlacklist.Contains(ip) {
+		m.muIPBlacklistMetrics.Lock()                            // Acquire lock before accessing shared counter
+		m.IPBlacklistBlockCount++                                // Increment the counter
+		m.muIPBlacklistMetrics.Unlock()                          // Release lock after accessing counter
+		m.logger.Debug("IP blacklist hit", zap.String("ip", ip)) // Keep existing debug log
+		return true                                              // Indicate that the IP is blacklisted
+	}
+	return false // Indicate that the IP is NOT blacklisted
 }
 
 // isCountryInList checks if the IP's country is in the provided list using the GeoIP database.
@@ -87,6 +97,9 @@ func (m *Middleware) isDNSBlacklisted(host string) bool {
 	defer m.mu.RUnlock()
 
 	if _, exists := m.dnsBlacklist[normalizedHost]; exists {
+		m.muDNSBlacklistMetrics.Lock() // Acquire lock before accessing shared counter
+		m.DNSBlacklistBlockCount++
+		m.muDNSBlacklistMetrics.Unlock() // Release lock after accessing counter
 		m.logger.Debug("DNS blacklist hit",
 			zap.String("host", host),
 			zap.String("blacklisted_domain", normalizedHost),
