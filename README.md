@@ -18,6 +18,9 @@ A robust, highly customizable, and feature-rich **Web Application Firewall (WAF)
 *   **Dynamic Config Reloads:** Seamless updates without restarts.
 *   **File Watchers:** Automatic reloads on rule/blacklist changes.
 
+_Simple at a glance UI :)_
+![demo](https://i.imgur.com/I5Lif68.png)
+
 ## 🚀 Quick Start
 
 ```bash
