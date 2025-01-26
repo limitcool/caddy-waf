@@ -205,7 +205,31 @@
             <canvas id="timeline-chart"></canvas> <!-- Changed div to canvas for Chart.js -->
         </div>
 
+        <div class="section">
+            <div class="section-header">
+                <i class="section-icon fas fa-layer-group"></i>
+                <h2>Rule Hits by Phase</h2>
+            </div>
+            <div id="phase-hits">
+                <div id="phase-hits">
+                    <div class="metric-group">
+                    <div class="metric">
+                        <p><i class="metric-icon fas fa-1" style="color: var(--accent-color);"></i> <span id="phase-1-hits" style="font-size: 1.7em;">0</span></p>
+                    </div>
+                    <div class="metric">
+                        <p><i class="metric-icon fas fa-2" style="color: var(--accent-color);"></i> <span id="phase-2-hits" style="font-size: 1.7em;">0</span></p>
+                    </div>
+                    <div class="metric">
+                        <p><i class="metric-icon fas fa-3" style="color: var(--accent-color);"></i> <span id="phase-3-hits" style="font-size: 1.7em;">0</span></p>
+                    </div>
+                    <div class="metric">
+                        <p><i class="metric-icon fas fa-4" style="color: var(--accent-color);"></i> <span id="phase-4-hits" style="font-size: 1.7em;">0</span></p>
 
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <div class="section">
             <div class="section-header">
                 <i class="section-icon fas fa-shield-alt"></i>
@@ -225,19 +249,6 @@
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <div class="section">
-            <div class="section-header">
-                <i class="section-icon fas fa-layer-group"></i>
-                <h2>Rule Hits by Phase</h2>
-            </div>
-            <div id="phase-hits">
-                <p>Phase 1: <span id="phase-1-hits">0</span></p>
-                <p>Phase 2: <span id="phase-2-hits">0</span></p>
-                <p>Phase 3: <span id="phase-3-hits">0</span></p>
-                <p>Phase 4: <span id="phase-4-hits">0</span></p>
             </div>
         </div>
 
