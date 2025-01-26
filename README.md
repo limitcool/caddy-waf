@@ -19,7 +19,7 @@ A robust, highly customizable, and feature-rich **Web Application Firewall (WAF)
 *   **File Watchers:** Automatic reloads on rule/blacklist changes.
 
 _Simple at a glance UI :)_
-![demo](https://i.imgur.com/I5Lif68.png)
+![demo](https://i.imgur.com/sIxxRAE.png)  
 
 ## 🚀 Quick Start
 
