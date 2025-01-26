@@ -1,0 +1,392 @@
+[
+    {
+        "id": "test-phase1-method-log",
+        "phase": 1,
+        "pattern": "POST",
+        "targets": ["METHOD"],
+        "severity": "LOW",
+        "action": "log",
+        "score": 1,
+        "description": "Test log action for request method in Phase 1."
+    },
+   {
+        "id": "test-phase1-method-block",
+        "phase": 1,
+        "pattern": "POST",
+        "targets": ["METHOD"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 11,
+        "description": "Test block action for request method in Phase 1."
+    },
+    {
+        "id": "test-phase1-remoteip-log",
+        "phase": 1,
+        "pattern": "127.0.0.1",
+        "targets": ["REMOTE_IP"],
+        "severity": "LOW",
+        "action": "log",
+        "score": 1,
+        "description": "Test log action for remote IP in Phase 1."
+    },
+   {
+        "id": "test-phase1-remoteip-block",
+        "phase": 1,
+        "pattern": "127.0.0.1",
+        "targets": ["REMOTE_IP"],
+         "severity": "HIGH",
+        "action": "block",
+        "score": 11,
+        "description": "Test block action for remote IP in Phase 1."
+    },
+    {
+        "id": "test-phase1-protocol-log",
+        "phase": 1,
+        "pattern": "HTTP/1.1",
+        "targets": ["PROTOCOL"],
+        "severity": "LOW",
+        "action": "log",
+        "score": 1,
+         "description": "Test log action for protocol in Phase 1."
+    },
+   {
+        "id": "test-phase1-protocol-block",
+        "phase": 1,
+        "pattern": "HTTP/1.1",
+        "targets": ["PROTOCOL"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 11,
+         "description": "Test block action for protocol in Phase 1."
+    },
+    {
+        "id": "test-phase1-host-log",
+        "phase": 1,
+        "pattern": "your-target-url.com",
+        "targets": ["HOST"],
+        "severity": "LOW",
+        "action": "log",
+        "score": 1,
+         "description": "Test log action for host in Phase 1."
+    },
+   {
+        "id": "test-phase1-host-block",
+        "phase": 1,
+        "pattern": "your-target-url.com",
+        "targets": ["HOST"],
+         "severity": "HIGH",
+        "action": "block",
+        "score": 11,
+         "description": "Test block action for host in Phase 1."
+    },
+  {
+    "id": "test-phase1-header-log",
+    "phase": 1,
+    "pattern": "test-header-value",
+    "targets": ["HEADERS:Test-Header"],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1,
+    "description": "Test log action for headers in Phase 1."
+  },
+    {
+    "id": "test-phase1-header-block",
+    "phase": 1,
+    "pattern": "test-header-block",
+    "targets": ["HEADERS:Test-Header-Block"],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 11,
+    "description": "Test block action for headers in Phase 1."
+   },
+     {
+    "id": "test-phase1-uri-log",
+    "phase": 1,
+    "pattern": "/test-uri",
+    "targets": ["URI"],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1,
+    "description": "Test log action for URI in Phase 1."
+   },
+     {
+    "id": "test-phase1-uri-block",
+    "phase": 1,
+    "pattern": "/test-uri-block",
+     "targets": ["URI"],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 11,
+     "description": "Test block action for URI in Phase 1."
+   },
+   {
+    "id": "test-phase1-cookies-log",
+     "phase": 1,
+    "pattern": "test-cookie-value",
+    "targets": ["COOKIES:Test-Cookie"],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1,
+     "description": "Test log action for cookies in Phase 1."
+  },
+ {
+    "id": "test-phase1-cookies-block",
+    "phase": 1,
+    "pattern": "test-cookie-block",
+    "targets": ["COOKIES:Test-Cookie-Block"],
+    "severity": "HIGH",
+    "action": "block",
+    "score": 11,
+    "description": "Test block action for cookies in Phase 1."
+  },
+  {
+    "id": "test-phase1-all-cookies-log",
+    "phase": 1,
+    "pattern": "test-cookie-value2=test-cookie-value",
+    "targets": ["COOKIES"],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1,
+    "description": "Test log action for all cookies in Phase 1."
+   },
+  {
+    "id": "test-phase1-url-log",
+    "phase": 1,
+    "pattern": "https://your-target-url.com/test",
+    "targets": ["URL"],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1,
+    "description": "Test log action for URL in Phase 1."
+  },
+   {
+        "id": "test-phase1-url-block",
+        "phase": 1,
+        "pattern": "https://your-target-url.com/test",
+        "targets": ["URL"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 11,
+        "description": "Test block action for URL in Phase 1."
+    },
+   {
+    "id": "test-phase1-header-all-log",
+    "phase": 1,
+    "pattern": "Test-Header: test-header-value",
+    "targets": ["HEADERS"],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1,
+     "description": "Test log action for all headers in Phase 1."
+   },
+     {
+        "id": "test-phase1-header-all-block",
+        "phase": 1,
+        "pattern": "Test-Header: test-header-value",
+        "targets": ["HEADERS"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 11,
+         "description": "Test block action for all headers in Phase 1."
+    },
+    {
+        "id": "test-phase1-url-param-log",
+        "phase": 1,
+        "pattern": "test-param-value",
+        "targets": ["URL_PARAM:test-param"],
+        "severity": "LOW",
+        "action": "log",
+        "score": 1,
+         "description": "Test log action for URL param in Phase 1."
+    },
+    {
+        "id": "test-phase1-url-param-block",
+        "phase": 1,
+        "pattern": "test-param-value",
+        "targets": ["URL_PARAM:test-param"],
+        "severity": "HIGH",
+        "action": "block",
+         "score": 11,
+         "description": "Test block action for URL param in Phase 1."
+    },
+ {
+        "id": "test-phase1-json-path-log",
+        "phase": 1,
+        "pattern": "test-json-value",
+        "targets": ["JSON_PATH:data.value"],
+        "severity": "LOW",
+        "action": "log",
+        "score": 1,
+         "description": "Test log action for JSON path in Phase 1."
+    },
+     {
+        "id": "test-phase1-json-path-block",
+       "phase": 1,
+        "pattern": "test-json-value",
+         "targets": ["JSON_PATH:data.value"],
+         "severity": "HIGH",
+       "action": "block",
+        "score": 11,
+         "description": "Test block action for JSON path in Phase 1."
+    },
+    {
+        "id": "test-phase1-content-type-log",
+       "phase": 1,
+        "pattern": "application/json",
+        "targets": ["CONTENT_TYPE"],
+        "severity": "LOW",
+        "action": "log",
+         "score": 1,
+         "description": "Test log action for Content-Type in Phase 1."
+    },
+     {
+         "id": "test-phase1-content-type-block",
+        "phase": 1,
+        "pattern": "application/json",
+       "targets": ["CONTENT_TYPE"],
+        "severity": "HIGH",
+        "action": "block",
+         "score": 11,
+         "description": "Test block action for Content-Type in Phase 1."
+     },
+    {
+    "id": "test-phase2-body-log",
+    "phase": 2,
+    "pattern": "test-body-value",
+     "targets": ["BODY"],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1,
+    "description": "Test log action for body in Phase 2."
+    },
+    {
+      "id": "test-phase2-body-block",
+     "phase": 2,
+      "pattern": "test-body-block",
+      "targets": ["BODY"],
+     "severity": "HIGH",
+      "action": "block",
+      "score": 11,
+       "description": "Test block action for body in Phase 2."
+     },
+   {
+    "id": "test-phase2-args-log",
+    "phase": 2,
+    "pattern": "test_arg=test-value",
+    "targets": ["ARGS"],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1,
+    "description": "Test log action for args in Phase 2."
+    },
+    {
+    "id": "test-phase2-args-block",
+    "phase": 2,
+    "pattern": "test_arg=test-block",
+    "targets": ["ARGS"],
+     "severity": "HIGH",
+     "action": "block",
+     "score": 11,
+    "description": "Test block action for args in Phase 2."
+   },
+     {
+      "id": "test-phase2-filename-log",
+      "phase": 2,
+      "pattern": "test-file.txt",
+     "targets": ["FILE_NAME"],
+     "severity": "LOW",
+      "action": "log",
+      "score": 1,
+       "description": "Test log action for filename in Phase 2."
+    },
+     {
+        "id": "test-phase2-filename-block",
+        "phase": 2,
+       "pattern": "test-file.txt",
+        "targets": ["FILE_NAME"],
+        "severity": "HIGH",
+       "action": "block",
+         "score": 11,
+        "description": "Test block action for filename in Phase 2."
+       },
+     {
+        "id": "test-phase2-filemime-log",
+       "phase": 2,
+       "pattern": "text/plain",
+       "targets": ["FILE_MIME_TYPE"],
+        "severity": "LOW",
+       "action": "log",
+      "score": 1,
+      "description": "Test log action for file mime type in Phase 2."
+      },
+     {
+       "id": "test-phase2-filemime-block",
+      "phase": 2,
+       "pattern": "text/plain",
+      "targets": ["FILE_MIME_TYPE"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 11,
+       "description": "Test block action for file mime type in Phase 2."
+       },
+    {
+    "id": "test-phase3-header-log",
+    "phase": 3,
+    "pattern": "test-response-header-value",
+    "targets": ["HEADERS:Test-Response-Header"],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1,
+    "description": "Test log action for response headers in Phase 3."
+   },
+     {
+        "id": "test-phase3-header-block",
+         "phase": 3,
+        "pattern": "test-response-header-block",
+        "targets": ["HEADERS:Test-Response-Header-Block"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 11,
+       "description": "Test block action for response headers in Phase 3."
+     },
+     {
+       "id": "test-phase3-header-all-log",
+        "phase": 3,
+        "pattern": "Test-Response-Header: test-response-header-value",
+        "targets": ["RESPONSE_HEADERS"],
+        "severity": "LOW",
+        "action": "log",
+         "score": 1,
+        "description": "Test log action for all response headers in Phase 3."
+        },
+         {
+        "id": "test-phase3-header-all-block",
+         "phase": 3,
+        "pattern": "Test-Response-Header: test-response-header-value",
+        "targets": ["RESPONSE_HEADERS"],
+        "severity": "HIGH",
+        "action": "block",
+        "score": 11,
+        "description": "Test block action for all response headers in Phase 3."
+       },
+  {
+    "id": "test-phase4-body-log",
+    "phase": 4,
+    "pattern": "test-response-body",
+     "targets": ["BODY"],
+    "severity": "LOW",
+    "action": "log",
+    "score": 1,
+    "description": "Test log action for response body in Phase 4."
+  },
+    {
+    "id": "test-phase4-body-block",
+    "phase": 4,
+     "pattern": "test-response-body-block",
+      "targets": ["BODY"],
+    "severity": "HIGH",
+      "action": "block",
+       "score": 11,
+    "description": "Test block action for response body in Phase 4."
+    }
+]
