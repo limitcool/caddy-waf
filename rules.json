@@ -72,18 +72,6 @@
     "description": "Block SQL injection, XSS, and path traversal attempts in headers. Improved pattern matching."
   },
   {
-    "id": "header-suspicious-x-forwarded-for",
-    "phase": 1,
-    "pattern": "(?:127\\.0\\.0\\.1|10\\.|172\\.(?:1[6-9]|2\\d|3[01])\\.|192\\.168\\.|169\\.254\\.|::1)",
-    "targets": [
-      "HEADERS:X-Forwarded-For"
-    ],
-    "severity": "MEDIUM",
-    "action": "block",
-    "score": 6,
-    "description": "Block requests with potentially internal IPs in X-Forwarded-For. Added more internal IP ranges."
-  },
-  {
     "id": "http-request-smuggling",
     "phase": 1,
     "pattern": "(?i)(?:Transfer-Encoding.*?(?:chunked|identity)|Content-Length:\\s*0|(?:Content-Length:\\s*\\d+)(?:\\n.*){2,}|(?:Content-Length:\\s*\\d+)(?:\\n\\w+:\\s*.*?\\n+)|(?:TE:\\s*chunked)(?:\\n.*){2,}|(?:TE:\\s*identity)(?:\\n.*){2,})",
