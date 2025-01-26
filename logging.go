@@ -3,6 +3,7 @@ package caddywaf
 import (
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,7 +11,80 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var sensitiveKeys = []string{"password", "token", "apikey", "authorization", "secret"} // Define sensitive keys for redaction as package variable
+var sensitiveKeys = []string{
+	"password",
+	"token",
+	"apikey",
+	"authorization",
+	"secret",
+	"secretkey",
+	"accesskey",
+	"privatekey",
+	"credentials",
+	"pwd",
+	"pin",
+	"ssn",        // Social Security Number
+	"creditcard", // Credit card number
+	"cvv",        // Card verification value
+	"cvc",        // Card verification code
+	"eamil",      // Email address
+	"phone",      // Phone number
+	"address",    // Physical address
+	"account",    // Bank account number
+	"iban",       // International Bank Account Number
+	"swift",      // Swift code
+	"routing",    // Routing number
+	"mfa",        // Multi-factor authentication code
+	"otp",        // One-time password
+	"code",       // Generic code
+}
+
+var sensitiveKeysMutex sync.RWMutex // Add mutex for thread safety when modifying
+
+func RedactSensitiveData(data map[string]interface{}) map[string]interface{} {
+	redactedData := make(map[string]interface{})
+	sensitiveKeysMutex.RLock() // Lock for reading
+	localSensitiveKeys := make([]string, len(sensitiveKeys))
+	for i, key := range sensitiveKeys {
+		localSensitiveKeys[i] = strings.ToLower(key)
+	}
+	sensitiveKeysMutex.RUnlock() // Unlock after reading
+
+	for k, v := range data {
+		lowerK := strings.ToLower(k)
+		isSensitive := false
+		for _, sk := range localSensitiveKeys {
+			if strings.Contains(lowerK, sk) {
+				isSensitive = true
+				break
+			}
+		}
+		if isSensitive {
+			redactedData[k] = "[REDACTED]"
+		} else {
+			redactedData[k] = v
+		}
+	}
+	return redactedData
+}
+
+// Function to modify sensitiveKeys in thread-safe way
+func AddSensitiveKey(key string) {
+	sensitiveKeysMutex.Lock()
+	defer sensitiveKeysMutex.Unlock()
+	sensitiveKeys = append(sensitiveKeys, key)
+}
+
+func RemoveSensitiveKey(key string) {
+	sensitiveKeysMutex.Lock()
+	defer sensitiveKeysMutex.Unlock()
+	for i, v := range sensitiveKeys {
+		if v == key {
+			sensitiveKeys = append(sensitiveKeys[:i], sensitiveKeys[i+1:]...)
+			return
+		}
+	}
+}
 
 func (m *Middleware) logRequest(level zapcore.Level, msg string, r *http.Request, fields ...zap.Field) {
 	if m.logger == nil || level < m.logLevel {

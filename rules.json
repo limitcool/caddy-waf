@@ -423,19 +423,5 @@
     "action": "log",
     "score": 2,
     "description": "LOG+SCORE: 'document' requests with Sec-Fetch-Site: 'cross-site'. Common for external links, primarily for monitoring cross-site traffic patterns. Lowest confidence, very low false positive risk. Assigns score for traffic analysis."
-  },
-  {
-    "id": "browser-integrity-ua-empty-and-sec-fetch-missing-block-high-score",
-    "phase": 1,
-    "targets": [
-      "HEADERS:User-Agent-Empty-Check",
-      "HEADERS:Sec-Fetch-Dest-Presence-Check",
-      "HEADERS:Sec-Fetch-Mode-Presence-Check",
-      "HEADERS:Sec-Fetch-Site-Presence-Check"
-    ],
-    "severity": "CRITICAL",
-    "action": "block",
-    "score": 15,
-    "description": "BLOCK: Empty User-Agent AND missing Sec-Fetch-Dest, Mode, and Site. Extremely strong indicator of non-browser traffic. Very high confidence, extremely low false positive risk. High score for immediate blocking."
   }
 ]
