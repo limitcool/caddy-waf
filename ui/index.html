@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Security Metrics</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js CDN -->
+    <style>
+        /* --- Minimal Sleek CSS --- */
+        :root {
+            --background-color: #121212; /* Dark background */
+            --container-background-color: #1e1e1e; /* Dark container background */
+            --text-color: #eee; /* Light text */
+            --label-color: #bbb; /* Muted label color */
+            --accent-color: #64b5f6; /* Blue accent color */
+            --success-color: #2ecc71; /* Green for success */
+            --error-color: #e74c3c; /* Red for error */
+            --section-border-color: #333;
+            --toggle-active-color: #64b5f6;
+            --toggle-inactive-color: #555;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .container {
+            background-color: var(--container-background-color);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            width: 95%;
+            max-width: 1200px;
+            margin-top: 30px;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .metric-group {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            flex-wrap: wrap; /* Allow metrics to wrap on smaller screens */
+        }
+
+        .metric {
+            text-align: center;
+            margin-bottom: 20px; /* Add some space between metrics when wrapped */
+            min-width: 150px; /* Minimum width for each metric */
+        }
+
+        .metric-icon {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+            color: var(--label-color);
+            display: block;
+        }
+
+        .metric-label {
+            font-size: 1.1em;
+            color: var(--label-color);
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
+            transition: color 0.3s ease, font-size 0.2s ease;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--section-border-color);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .section-icon {
+            font-size: 1.4em;
+            margin-right: 10px;
+            color: var(--label-color);
+        }
+
+        .section h2 {
+            font-size: 1.8em;
+            margin: 0;
+        }
+
+        #timeline-chart {
+            /* height: 300px; - Removed fixed height */
+            max-height: 30vh; /* Set max height to 50% of viewport height */
+            border-radius: 8px;
+            margin-top: 20px;
+            width: auto !important; /* Ensure responsiveness */
+            height: auto !important; /* Ensure responsiveness */
+        }
+
+        #rules-table-container {
+            margin-top: 20px;
+            overflow-x: auto; /* Enable horizontal scroll if table is wide */
+        }
+
+        #rules-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 1.1em;
+        }
+
+        #rules-table th, #rules-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--section-border-color);
+        }
+
+        #rules-table th {
+            font-weight: bold;
+            color: var(--label-color);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        #rules-table tbody tr:last-child td {
+            border-bottom: none; /* Remove border from last row */
+        }
+
+        /* --- GeoIP Stats styles --- */
+        #geoip-stats-container {
+            margin-top: 20px;
+        }
+
+        #geoip-stats-container p {
+            margin: 8px 0;
+            font-size: 0.95em;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="metric-group">
+            <div class="metric">
+                <i class="metric-icon fas fa-globe" style="color: var(--accent-color);"></i>
+                <div class="metric-label">Total Requests</div>
+                <div class="metric-value" id="total-requests">0</div>
+            </div>
+            <div class="metric">
+                <i class="metric-icon fas fa-check-circle" style="color: var(--success-color);"></i>
+                <div class="metric-label">Allowed Requests</div>
+                <div class="metric-value allowed" id="allowed-requests">0</div>
+            </div>
+            <div class="metric">
+                <i class="metric-icon fas fa-chart-pie" style="color: var(--accent-color);"></i>
+                <div class="metric-label">Blocked %</div>
+                <div class="metric-value blocked-percentage" id="blocked-percentage">0%</div>
+            </div>
+            <div class="metric">
+                <i class="metric-icon fas fa-ban" style="color: var(--error-color);"></i>
+                <div class="metric-label">Blocked Requests</div>
+                <div class="metric-value blocked" id="blocked-requests">0</div>
+            </div>
+            <div class="metric">
+                <i class="metric-icon fas fa-earth-americas" style="color: var(--accent-color);"></i>
+                <div class="metric-label">DNS Blacklist Hits</div>
+                <div class="metric-value" id="dns-blacklist-hits">0</div>
+            </div>
+             <div class="metric">
+                <i class="metric-icon fas fa-ethernet" style="color: var(--error-color);"></i>
+                <div class="metric-label">IP Blacklist Hits</div>
+                <div class="metric-value" id="ip-blacklist-hits">0</div>
+            </div>
+            <div class="metric">
+                <i class="metric-icon fas fa-earth-americas" style="color: var(--accent-color);"></i>
+                <div class="metric-label">Rate Limit Hits</div>
+                <div class="metric-value" id="dns-blacklist-hits">0</div>
+            </div>
+             <div class="metric">
+                <i class="metric-icon fas fa-earth" style="color: var(--error-color);"></i>
+                <div class="metric-label">GeoIP Hits</div>
+                <div class="metric-value" id="ip-blacklist-hits">0</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <i class="section-icon fas fa-chart-line"></i>
+                <h2>Request Timeline</h2>
+            </div>
+            <canvas id="timeline-chart"></canvas> <!-- Changed div to canvas for Chart.js -->
+        </div>
+
+
+        <div class="section">
+            <div class="section-header">
+                <i class="section-icon fas fa-shield-alt"></i>
+                <h2>Top Security Rule Hits</h2>
+            </div>
+            <div id="rules-table-container">
+                <table id="rules-table">
+                    <thead>
+                        <tr>
+                            <th>Rule Name</th>
+                            <th>Hits</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rules-table-body">
+                        <tr>
+                            <td colspan="2" style="text-align: center; padding: 20px; color: var(--label-color);">Loading rule hits...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <i class="section-icon fas fa-layer-group"></i>
+                <h2>Rule Hits by Phase</h2>
+            </div>
+            <div id="phase-hits">
+                <p>Phase 1: <span id="phase-1-hits">0</span></p>
+                <p>Phase 2: <span id="phase-2-hits">0</span></p>
+                <p>Phase 3: <span id="phase-3-hits">0</span></p>
+                <p>Phase 4: <span id="phase-4-hits">0</span></p>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <i class="section-icon fas fa-globe"></i>
+                <h2>GeoIP Stats</h2>
+            </div>
+            <div id="geoip-stats-container">
+                <p>Loading GeoIP data...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* --- Embedded script.js content --- */
+        const totalRequestsElement = document.getElementById('total-requests');
+        const allowedRequestsElement = document.getElementById('allowed-requests');
+        const blockedRequestsElement = document.getElementById('blocked-requests');
+        const blockedPercentageElement = document.getElementById('blocked-percentage');
+        const phase1HitsElement = document.getElementById('phase-1-hits');
+        const phase2HitsElement = document.getElementById('phase-2-hits');
+        const phase3HitsElement = document.getElementById('phase-3-hits');
+        const phase4HitsElement = document.getElementById('phase-4-hits');
+        const dnsBlacklistHitsElement = document.getElementById('dns-blacklist-hits');
+        const ipBlacklistHitsElement = document.getElementById('ip-blacklist-hits');
+        const geoipStatsContainer = document.getElementById('geoip-stats-container');
+
+
+        const rulesTableBody = document.getElementById('rules-table-body'); // For rules table
+        const timelineChartElement = document.getElementById('timeline-chart').getContext('2d'); // Get chart context
+
+        let allRuleHitsData = {};
+
+        // --- Placeholder Timeline Data ---
+        const timelineLabels = ['Now']; // Initial label
+        const totalRequestsData = [0]; // Initial data point
+        const blockedRequestsData = [0]; // Initial data point
+
+        // --- Initialize Chart ---
+        const timelineChart = new Chart(timelineChartElement, {
+            type: 'line',
+            data: {
+                labels: timelineLabels,
+                datasets: [{
+                    label: 'Total Requests',
+                    data: totalRequestsData,
+                    borderColor: '#367edb',
+                    backgroundColor: '#367edb',
+                    tension: 0.4
+                }, {
+                    label: 'Blocked Requests',
+                    data: blockedRequestsData,
+                    borderColor: '#e74c3c',
+                    backgroundColor: '#e74c3c',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#444' },
+                        ticks: { color: '#eee' }
+                    },
+                    x: {
+                        grid: { color: '#444' },
+                        ticks: { color: '#eee' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#eee' }
+                    }
+                }
+            }
+        });
+
+
+        function updateMetrics() {
+            fetch('http://localhost:8080/waf_metrics', {
+                headers: {
+                    'User-Agent': 'caddy-waf-ui'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateValue(totalRequestsElement, data.total_requests);
+                updateValue(allowedRequestsElement, data.allowed_requests);
+                updateValue(blockedRequestsElement, data.blocked_requests);
+                updateValue(dnsBlacklistHitsElement, data.dns_blacklist_hits);
+                updateValue(ipBlacklistHitsElement, data.ip_blacklist_hits);
+
+
+                // Calculate Blocked Percentage
+                const totalRequests = data.total_requests;
+                const blockedRequests = data.blocked_requests;
+                let blockedPercent = 0;
+                if (totalRequests > 0) {
+                    blockedPercent = ((blockedRequests / totalRequests) * 100).toFixed(1);
+                }
+                updateValue(blockedPercentageElement, `${blockedPercent}%`);
+
+                allRuleHitsData = data.rule_hits;
+                updateRulesTableDisplay();
+
+                // Update Phase Hits
+                phase1HitsElement.textContent = data.rule_hits_by_phase['1'] || 0;
+                phase2HitsElement.textContent = data.rule_hits_by_phase['2'] || 0;
+                phase3HitsElement.textContent = data.rule_hits_by_phase['3'] || 0;
+                phase4HitsElement.textContent = data.rule_hits_by_phase['4'] || 0;
+
+                // --- Update GeoIP Stats ---
+                updateGeoIPStatsDisplay(data.geoip_stats);
+
+
+                // --- Update Timeline Chart Data ---
+                const now = new Date().toLocaleTimeString(); // Get current time for label
+                timelineLabels.push(now); // Add new label
+                totalRequestsData.push(data.total_requests); // Add new data point
+                blockedRequestsData.push(data.blocked_requests); // Add new data point
+
+                // Keep only last 10 data points for simplicity
+                if (timelineLabels.length > 10) {
+                    timelineLabels.shift();
+                    totalRequestsData.shift();
+                    blockedRequestsData.shift();
+                }
+
+                timelineChart.update(); // Update chart with new data
+            })
+            .catch(error => {
+                console.error('Error fetching metrics data:', error);
+                rulesTableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: var(--error-color);">Error loading data.</td></tr>`;
+                geoipStatsContainer.innerHTML = `<p style="color: var(--error-color);">Error loading GeoIP data.</p>`;
+            });
+        }
+
+        function updateRulesTableDisplay() {
+            rulesTableBody.innerHTML = ''; // Clear loading message
+
+            const sortedRuleEntries = Object.entries(allRuleHitsData)
+                .sort(([, countA], [, countB]) => countB - countA);
+
+            if (sortedRuleEntries.length === 0) {
+                rulesTableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: var(--label-color);">No rule hits yet.</td></tr>`;
+                return;
+            }
+
+            sortedRuleEntries.forEach(([ruleName, hitCount]) => {
+                const row = rulesTableBody.insertRow();
+                const nameCell = row.insertCell();
+                const hitsCell = row.insertCell();
+
+                nameCell.textContent = ruleName;
+                hitsCell.textContent = hitCount;
+            });
+        }
+
+        function updateGeoIPStatsDisplay(geoipStats) {
+            geoipStatsContainer.innerHTML = ''; // Clear loading message
+
+            if (Object.keys(geoipStats).length === 0) {
+                geoipStatsContainer.innerHTML = `<p style="color: var(--label-color);">No GeoIP data yet.</p>`;
+                return;
+            }
+
+            for (const countryCode in geoipStats) {
+                if (geoipStats.hasOwnProperty(countryCode)) {
+                    const hits = geoipStats[countryCode];
+                    const countryName = getCountryName(countryCode); // Function to get country name from code
+                    const p = document.createElement('p');
+                    p.textContent = `${countryName} (${countryCode.toUpperCase()}): ${hits} hits`;
+                    geoipStatsContainer.appendChild(p);
+                }
+            }
+        }
+
+
+        function updateValue(element, newValue) {
+            element.classList.add('updating');
+            setTimeout(() => {
+                element.textContent = newValue;
+                element.classList.remove('updating');
+            }, 100);
+        }
+
+        // --- Utility function to get country name from country code ---
+        // --- You might want to use a more comprehensive library or API for this in production ---
+        function getCountryName(countryCode) {
+            const countryNames = {
+                "US": "United States",
+                "CA": "Canada",
+                "GB": "United Kingdom",
+                "DE": "Germany",
+                "FR": "France",
+                // Add more country codes and names as needed
+            };
+            return countryNames[countryCode.toUpperCase()] || countryCode.toUpperCase(); // Return code if name not found
+        }
+
+
+        // Initial metrics update and interval
+        updateMetrics();
+        setInterval(updateMetrics, 5000); // Reduced interval to 5 seconds for now
+    </script>
+</body>
+</html>
