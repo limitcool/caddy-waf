@@ -18,3 +18,4 @@ dns_blacklist.txt
 ip_blacklist.txt
 waf_test_results_alt.log
 waf_test_results_extended.log
+log.json

@@ -157,3 +157,335 @@
 {"level":"DEBUG","ts":"2025/01/24 23:19:42.563","msg":"Parsing WAF configuration","file":"","line":0}
 {"level":"INFO","ts":"2025/01/24 23:19:42.563","msg":"WAF request evaluation started","log_id":"29794d7f-7de8-4716-9d36-468a78f66324","method":"GET","uri":"/test","remote_address":"192.0.2.1:1234","user_agent":""}
 {"level":"DEBUG","ts":"2025/01/24 23:19:42.564","msg":"Starting phase evaluation","phase":1,"source_ip":"192.0.2.1:1234","user_agent":""}
+{"level":"INFO","ts":"2025/01/26 14:31:46.268","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/26 14:31:46.268","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/26 14:31:46.268","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/26 14:31:46.268","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.268","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation started","log_id":"4f344b6d-db3c-44a8-9b57-952d81043f8a","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Response body captured for Phase 4 analysis","log_id":"4f344b6d-db3c-44a8-9b57-952d81043f8a"}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation completed","log_id":"4f344b6d-db3c-44a8-9b57-952d81043f8a","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation started","log_id":"60e14c49-3f69-4af0-ac51-eb08a5d94251","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"10.0.0.5","r.RemoteAddr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Response body captured for Phase 4 analysis","log_id":"60e14c49-3f69-4af0-ac51-eb08a5d94251"}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation completed","log_id":"60e14c49-3f69-4af0-ac51-eb08a5d94251","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation started","log_id":"a78461b2-6e22-43d5-8168-a416b1036db2","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Response body captured for Phase 4 analysis","log_id":"a78461b2-6e22-43d5-8168-a416b1036db2"}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation completed","log_id":"a78461b2-6e22-43d5-8168-a416b1036db2","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation started","log_id":"9c0cb1ef-4dd3-46a2-9e76-ba581961ef54","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"192.168.3.3","r.RemoteAddr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Response body captured for Phase 4 analysis","log_id":"9c0cb1ef-4dd3-46a2-9e76-ba581961ef54"}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation completed","log_id":"9c0cb1ef-4dd3-46a2-9e76-ba581961ef54","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation started","log_id":"29563537-5554-4327-b21c-086b0d5446de","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Response body captured for Phase 4 analysis","log_id":"29563537-5554-4327-b21c-086b0d5446de"}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation completed","log_id":"29563537-5554-4327-b21c-086b0d5446de","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation started","log_id":"db2f375f-7977-48b6-9289-6604e054f465","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"","r.RemoteAddr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.269","msg":"Response body captured for Phase 4 analysis","log_id":"db2f375f-7977-48b6-9289-6604e054f465"}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"WAF request evaluation completed","log_id":"db2f375f-7977-48b6-9289-6604e054f465","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:31:46.269","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/26 14:31:46.270","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/26 14:31:46.270","msg":"Skipping file watch, file does not exist","file":"nonexistent.txt"}
+{"level":"WARN","ts":"2025/01/26 14:31:46.270","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/26 14:31:46.270","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/26 14:31:46.270","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/26 14:32:06.259","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/26 14:32:06.260","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation started","log_id":"d41168ff-6ae1-46e4-a399-08eb82a1bece","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Response body captured for Phase 4 analysis","log_id":"d41168ff-6ae1-46e4-a399-08eb82a1bece"}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation completed","log_id":"d41168ff-6ae1-46e4-a399-08eb82a1bece","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation started","log_id":"87fb1733-d146-4369-bded-20dcfccc07e2","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"10.0.0.5","r.RemoteAddr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Response body captured for Phase 4 analysis","log_id":"87fb1733-d146-4369-bded-20dcfccc07e2"}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation completed","log_id":"87fb1733-d146-4369-bded-20dcfccc07e2","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation started","log_id":"72cba0bc-3452-4189-a630-eb30be8241fd","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Response body captured for Phase 4 analysis","log_id":"72cba0bc-3452-4189-a630-eb30be8241fd"}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation completed","log_id":"72cba0bc-3452-4189-a630-eb30be8241fd","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation started","log_id":"55b89e93-f71e-4456-82cb-d91234f14a05","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"192.168.3.3","r.RemoteAddr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Response body captured for Phase 4 analysis","log_id":"55b89e93-f71e-4456-82cb-d91234f14a05"}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation completed","log_id":"55b89e93-f71e-4456-82cb-d91234f14a05","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation started","log_id":"4011563a-9a95-4a4d-839d-dea0c28ca5d9","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Response body captured for Phase 4 analysis","log_id":"4011563a-9a95-4a4d-839d-dea0c28ca5d9"}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation completed","log_id":"4011563a-9a95-4a4d-839d-dea0c28ca5d9","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation started","log_id":"203dc7f9-beab-4f2a-b464-1c2e77037483","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"","r.RemoteAddr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.260","msg":"Response body captured for Phase 4 analysis","log_id":"203dc7f9-beab-4f2a-b464-1c2e77037483"}
+{"level":"INFO","ts":"2025/01/26 14:32:06.260","msg":"WAF request evaluation completed","log_id":"203dc7f9-beab-4f2a-b464-1c2e77037483","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:32:06.261","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/26 14:32:06.261","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/26 14:32:06.261","msg":"Skipping file watch, file does not exist","file":"nonexistent.txt"}
+{"level":"WARN","ts":"2025/01/26 14:32:06.261","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/26 14:32:06.261","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/26 14:32:06.261","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/26 14:33:19.745","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/26 14:33:19.745","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/26 14:33:19.745","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/26 14:33:19.745","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/26 14:33:19.745","msg":"WAF request evaluation started","log_id":"5e1a9e55-7a20-431f-a86a-aca35794136c","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Response body captured for Phase 4 analysis","log_id":"5e1a9e55-7a20-431f-a86a-aca35794136c"}
+{"level":"INFO","ts":"2025/01/26 14:33:19.745","msg":"WAF request evaluation completed","log_id":"5e1a9e55-7a20-431f-a86a-aca35794136c","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:19.745","msg":"WAF request evaluation started","log_id":"949b6990-5d52-4d63-ab5c-1dcdcdda6117","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"10.0.0.5","r.RemoteAddr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.745","msg":"Response body captured for Phase 4 analysis","log_id":"949b6990-5d52-4d63-ab5c-1dcdcdda6117"}
+{"level":"INFO","ts":"2025/01/26 14:33:19.745","msg":"WAF request evaluation completed","log_id":"949b6990-5d52-4d63-ab5c-1dcdcdda6117","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"WAF request evaluation started","log_id":"79085e25-a557-48d7-8f43-b199a1e7460e","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Response body captured for Phase 4 analysis","log_id":"79085e25-a557-48d7-8f43-b199a1e7460e"}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"WAF request evaluation completed","log_id":"79085e25-a557-48d7-8f43-b199a1e7460e","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"WAF request evaluation started","log_id":"0f9cca25-4023-4252-b414-e35363c3858b","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"192.168.3.3","r.RemoteAddr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Response body captured for Phase 4 analysis","log_id":"0f9cca25-4023-4252-b414-e35363c3858b"}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"WAF request evaluation completed","log_id":"0f9cca25-4023-4252-b414-e35363c3858b","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"WAF request evaluation started","log_id":"4f0d0651-e7ab-4697-9711-044e92e90a8a","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Response body captured for Phase 4 analysis","log_id":"4f0d0651-e7ab-4697-9711-044e92e90a8a"}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"WAF request evaluation completed","log_id":"4f0d0651-e7ab-4697-9711-044e92e90a8a","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"WAF request evaluation started","log_id":"89fa8852-282c-40a6-b850-5624ca2a5e4e","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"","r.RemoteAddr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Response body captured for Phase 4 analysis","log_id":"89fa8852-282c-40a6-b850-5624ca2a5e4e"}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"WAF request evaluation completed","log_id":"89fa8852-282c-40a6-b850-5624ca2a5e4e","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/26 14:33:19.746","msg":"Skipping file watch, file does not exist","file":"nonexistent.txt"}
+{"level":"WARN","ts":"2025/01/26 14:33:19.746","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/26 14:33:19.746","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:19.746","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/26 14:33:42.453","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/26 14:33:42.453","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/26 14:33:42.454","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Parsing WAF configuration","file":"","line":0}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"WAF request evaluation started","log_id":"5776225c-0839-4b01-8929-139fe9b58b21","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Response body captured for Phase 4 analysis","log_id":"5776225c-0839-4b01-8929-139fe9b58b21"}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"WAF request evaluation completed","log_id":"5776225c-0839-4b01-8929-139fe9b58b21","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"WAF request evaluation started","log_id":"ba7927fc-62fb-469f-b6ba-89d2371f7f59","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"10.0.0.5","r.RemoteAddr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Response body captured for Phase 4 analysis","log_id":"ba7927fc-62fb-469f-b6ba-89d2371f7f59"}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"WAF request evaluation completed","log_id":"ba7927fc-62fb-469f-b6ba-89d2371f7f59","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"WAF request evaluation started","log_id":"39c9d802-9a56-42b6-a5bd-992e0ee4edd5","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Response body captured for Phase 4 analysis","log_id":"39c9d802-9a56-42b6-a5bd-992e0ee4edd5"}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"WAF request evaluation completed","log_id":"39c9d802-9a56-42b6-a5bd-992e0ee4edd5","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"WAF request evaluation started","log_id":"7ac22bb4-e391-4653-8ecf-d4802af5dbe4","method":"GET","uri":"http://example.com","remote_address":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Checking for IP blacklisting","remote_addr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"192.168.3.3","r.RemoteAddr":"192.168.2.2:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.2.2:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Response body captured for Phase 4 analysis","log_id":"7ac22bb4-e391-4653-8ecf-d4802af5dbe4"}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"WAF request evaluation completed","log_id":"7ac22bb4-e391-4653-8ecf-d4802af5dbe4","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"WAF request evaluation started","log_id":"25b6f719-fcda-455f-a824-5db2e58018f2","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"X-Forwarded-For header not present using r.RemoteAddr"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.454","msg":"Response body captured for Phase 4 analysis","log_id":"25b6f719-fcda-455f-a824-5db2e58018f2"}
+{"level":"INFO","ts":"2025/01/26 14:33:42.454","msg":"WAF request evaluation completed","log_id":"25b6f719-fcda-455f-a824-5db2e58018f2","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:42.455","msg":"WAF request evaluation started","log_id":"16125e85-ea87-4931-ba4a-6bd3ce910dcb","method":"GET","uri":"http://example.com","remote_address":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"Starting phase evaluation","phase":1,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"Checking for IP blacklisting","remote_addr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"Checking IP blacklist with X-Forwarded-For","remote_addr_xff":"","r.RemoteAddr":"192.168.1.1:12345"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"DNS blacklist miss","host":"example.com"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"No rules found for phase","phase":1}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"Starting phase evaluation","phase":2,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"No rules found for phase","phase":2}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"Starting phase evaluation","phase":3,"source_ip":"192.168.1.1:12345","user_agent":""}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"No rules found for phase","phase":3}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"Response body captured for Phase 4 analysis","log_id":"16125e85-ea87-4931-ba4a-6bd3ce910dcb"}
+{"level":"INFO","ts":"2025/01/26 14:33:42.455","msg":"WAF request evaluation completed","log_id":"16125e85-ea87-4931-ba4a-6bd3ce910dcb","total_score":0,"blocked":false,"status_code":200}
+{"level":"INFO","ts":"2025/01/26 14:33:42.455","msg":"Provisioning WAF middleware","log_level":"info","log_path":"log.json","log_json":false,"anomaly_threshold":0}
+{"level":"INFO","ts":"2025/01/26 14:33:42.455","msg":"WAF middleware version","version":"unknown"}
+{"level":"WARN","ts":"2025/01/26 14:33:42.455","msg":"Skipping file watch, file does not exist","file":"nonexistent.txt"}
+{"level":"WARN","ts":"2025/01/26 14:33:42.455","msg":"Skipping file watch, file does not exist","file":""}
+{"level":"INFO","ts":"2025/01/26 14:33:42.455","msg":"Rate limiting is disabled"}
+{"level":"DEBUG","ts":"2025/01/26 14:33:42.455","msg":"Parsing WAF configuration","file":"","line":0}
