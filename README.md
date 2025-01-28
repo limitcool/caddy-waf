@@ -19,7 +19,7 @@ A robust, highly customizable, and feature-rich **Web Application Firewall (WAF)
 *   **File Watchers:** Automatic reloads on rule/blacklist changes.
 
 _Simple at a glance UI :)_
-![demo](https://i.imgur.com/sIxxRAE.png)  
+![demo](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/caddy-waf-ui.png?raw=true)  
 
 ## 🚀 Quick Start
 
