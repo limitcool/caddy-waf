@@ -2,7 +2,7 @@
   {
     "id": "allow-legit-browsers",
     "phase": 1,
-    "pattern": "(?i)(Mozilla|Chrome|Safari|Edge|Firefox|Opera|AppleWebKit|Gecko|Trident|MSIE|Googlebot|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|facebot|facebookexternalhit|Twitterbot|Slackbot|LinkedInBot|TelegramBot)",
+    "pattern": "(?i)(caddy-waf-ui|Mozilla|Chrome|Safari|Edge|Firefox|Opera|AppleWebKit|Gecko|Trident|MSIE|Googlebot|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|facebot|facebookexternalhit|Twitterbot|Slackbot|LinkedInBot|TelegramBot)",
     "targets": [
       "HEADERS:User-Agent"
     ],
@@ -116,7 +116,7 @@
   {
     "id": "jwt-tampering",
     "phase": 1,
-    "pattern": "(?i)(?:eyJ[A-Za-z0-9-_=]+\\.[A-Za-z0-9-_=]+\\.?[A-Za-z0-9-_.+/=]*)",
+    "pattern": "^(eyJ[A-Za-z0-9_-]{0,}\\.eyJ[A-Za-z0-9_-]{0,}\\.[A-Za-z0-9_-]{0,})",
     "targets": [
       "HEADERS:Authorization",
       "COOKIES"
