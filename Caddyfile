@@ -30,7 +30,7 @@
 				requests 100
 				window 10s
 				cleanup_interval 5m
-				paths /ratelimited # List of individual regex patterns
+				paths /ratelimited 	# List of individual regex patterns (example: paths ^/api/.*)
 				match_all_paths false
 			}
 
