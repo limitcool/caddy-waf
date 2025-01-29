@@ -7,12 +7,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write # Grant write permission for release creation
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest # Base build platform, we will do cross-compilation
-
+    runs-on: ubuntu-latest # Base build platform for cross-compilation
     strategy:
       matrix:
         goos: [linux, windows, darwin]
@@ -20,7 +19,6 @@ jobs:
         exclude:
           - goos: windows
             goarch: arm64 # Windows on arm64 is not common, remove it.
-        
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -28,7 +26,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23.4' # Use your desired go version
+          go-version: '1.21' # Use your desired go version
 
       - name: Extract Tag Name
         id: extract_tag
@@ -41,12 +39,12 @@ jobs:
         run: |
           GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags "-X 'github.com/fabriziosalmi/caddy-waf/middleware.ModuleVersion=${{ steps.extract_tag.outputs.TAG_NAME }}'" -o caddy-waf-${GOOS}-${GOARCH}
           tar czf caddy-waf-${GOOS}-${GOARCH}.tar.gz caddy-waf-${GOOS}-${GOARCH}
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-            name: caddy-waf-${{ matrix.goos }}-${{ matrix.goarch }}
-            path: caddy-waf-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          name: caddy-waf-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: caddy-waf-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
 
   create-release:
     runs-on: ubuntu-latest
@@ -54,7 +52,7 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        
+
       - name: Extract Tag Name
         id: extract_tag
         run: echo "TAG_NAME=$(echo ${GITHUB_REF#refs/tags/})" >> $GITHUB_OUTPUT
@@ -71,60 +69,15 @@ jobs:
             This is a release of the Caddy WAF middleware version ${{ steps.extract_tag.outputs.TAG_NAME }}. Please download the appropriate binary for your OS/Architecture.
           draft: false
           prerelease: false
-      
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
-        
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: caddy-waf-linux-amd64/caddy-waf-linux-amd64.tar.gz
-          asset_name: caddy-waf-linux-amd64.tar.gz
-          asset_content_type: application/gzip
 
-      - name: Upload Release Asset (windows-amd64)
-        if: always()
-        uses: actions/upload-release-asset@v1
+      - name: Upload Release Assets
+        run: |
+          for asset in $(ls *.tar.gz); do
+            echo "Uploading ${asset}"
+            gh release upload ${{ steps.create_release.outputs.upload_url }} ${asset} --clobber
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: caddy-waf-windows-amd64/caddy-waf-windows-amd64.tar.gz
-          asset_name: caddy-waf-windows-amd64.tar.gz
-          asset_content_type: application/gzip
-      
-      - name: Upload Release Asset (linux-arm64)
-        if: always()
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: caddy-waf-linux-arm64/caddy-waf-linux-arm64.tar.gz
-          asset_name: caddy-waf-linux-arm64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Release Asset (darwin-amd64)
-        if: always()
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: caddy-waf-darwin-amd64/caddy-waf-darwin-amd64.tar.gz
-          asset_name: caddy-waf-darwin-amd64.tar.gz
-          asset_content_type: application/gzip
-       
-      - name: Upload Release Asset (darwin-arm64)
-        if: always()
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: caddy-waf-darwin-arm64/caddy-waf-darwin-arm64.tar.gz
-          asset_name: caddy-waf-darwin-arm64.tar.gz
-          asset_content_type: application/gzip
