@@ -6,44 +6,42 @@ Here's a comprehensive breakdown of the metrics provided:
 
 ```json
 {
-  "allowed_requests": 1209,
-  "blocked_requests": 6275,
-  "geoip_stats": {},
+  "allowed_requests": 1509,
+  "blocked_requests": 25328,
+  "dns_blacklist_hits": 0,
+  "geoip_blocked": 0,
+  "ip_blacklist_hits": 0,
+  "rate_limiter_blocked_requests": 23640,
+  "rate_limiter_requests": 27004,
   "rule_hits": {
-    "942440": 52,
-    "allow-legit-browsers": 79,
-    "block-scanners": 390,
+    "allow-legit-browsers": 174,
+    "auth-login-form-missing": 304,
+    "block-scanners": 25,
     "crlf-injection-headers": 8,
-    "header-attacks": 13,
-    "header-attacks-consolidated": 279,
-    "header-suspicious-x-forwarded-for": 39,
-    "idor-attacks": 401,
-    "insecure-deserialization-java": 13,
-    "jwt-tampering": 117,
-    "nosql-injection-attacks": 65,
-    "open-redirect-attempt": 179,
-    "path-traversal": 361,
-    "rce-command-injection-args": 13,
-    "rce-command-injection-body": 572,
-    "rce-commands": 234,
-    "rce-commands-expanded": 169,
-    "sensitive-files": 59,
-    "sensitive-files-expanded": 24,
-    "sql-injection": 104,
-    "sql-injection-comment-bypass-args": 416,
-    "sql-injection-improved-basic": 715,
-    "ssti-attacks": 65,
-    "unusual-paths": 373,
-    "xml-injection-attacks": 115,
-    "xss": 156,
-    "xss-attacks": 407,
-    "xss-improved-encoding": 1638
+    "header-attacks-consolidated": 22,
+    "http-request-smuggling": 2,
+    "idor-attacks": 30,
+    "insecure-deserialization-java": 2,
+    "nosql-injection-attacks": 5,
+    "open-redirect-attempt": 6,
+    "path-traversal": 30,
+    "rce-commands-expanded": 28,
+    "rfi-http-url": 29,
+    "sensitive-files": 14,
+    "sql-injection": 7,
+    "sql-injection-improved-basic": 43,
+    "ssrf-internal-ip": 5,
+    "ssti-attacks": 4,
+    "unusual-paths": 1186,
+    "xss-attacks": 8,
+    "xss-improved-encoding": 234
   },
   "rule_hits_by_phase": {
-    "1": 1297,
-    "2": 5759
-   },
-  "total_requests": 7484
+    "1": 1461,
+    "2": 705
+  },
+  "total_requests": 27004,
+  "version": "v0.0.1"
 }
 ```
 
