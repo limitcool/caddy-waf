@@ -60,6 +60,7 @@ jobs:
 
       - name: Create Release
         id: create_release
+        if: "!startsWith(github.ref, 'refs/heads/')"
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,6 +76,7 @@ jobs:
         uses: actions/download-artifact@v4
 
       - name: Upload Release Assets
+        if: "!startsWith(github.ref, 'refs/heads/')"
         run: |
           for asset in $(ls *.tar.gz); do
             echo "Uploading ${asset}"
