@@ -614,6 +614,7 @@
 
         // Function to fetch and update metrics
         function updateMetrics() {
+            // change this to your own metrics endpoint
             fetch('http://localhost:8080/waf_metrics', {
                 headers: {
                     'User-Agent': 'caddy-waf-ui'
