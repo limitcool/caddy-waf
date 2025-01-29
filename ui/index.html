@@ -10,7 +10,7 @@
         crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* --- Minimal Sleek CSS --- */
+        /* --- Default Theme (Dark) --- */
         :root {
             --background-color: #121212;
             --container-background-color: #1e1e1e;
@@ -22,112 +22,189 @@
             --section-border-color: #333;
             --toggle-active-color: #64b5f6;
             --toggle-inactive-color: #555;
+             --transition-duration: 0.2s;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --table-row-bg-even: #282828;
+            --table-row-bg-odd: #303030;
+        }
+
+        /* --- Light Theme --- */
+        :root[data-theme="light"] {
+            --background-color: #f9f9f9;
+            --container-background-color: #fff;
+            --text-color: #333;
+            --label-color: #777;
+            --accent-color: #2196f3;
+            --success-color: #27ae60;
+            --error-color: #c0392b;
+            --section-border-color: #ddd;
+             --toggle-active-color: #2196f3;
+            --toggle-inactive-color: #ccc;
+            --table-row-bg-even: #f0f0f0;
+            --table-row-bg-odd: #e8e8e8;
+        }
+
+        /* --- Automatic Theme Detection --- */
+        @media (prefers-color-scheme: light) {
+            :root {
+                --background-color: #f9f9f9;
+                 --container-background-color: #fff;
+                --text-color: #333;
+                --label-color: #777;
+                --accent-color: #2196f3;
+                --success-color: #27ae60;
+                --error-color: #c0392b;
+                --section-border-color: #ddd;
+                --toggle-active-color: #2196f3;
+                --toggle-inactive-color: #ccc;
+                 --table-row-bg-even: #f0f0f0;
+                --table-row-bg-odd: #e8e8e8;
+
+            }
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--background-color);
+             font-family: var(--font-family);
+             background-color: var(--background-color);
             color: var(--text-color);
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+             margin: 0;
+             padding: 0;
+             display: flex;
+             flex-direction: column;
+             align-items: center;
             min-height: 100vh;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
+            transition: background-color var(--transition-duration) ease, color var(--transition-duration) ease;
+         }
 
         .container {
             background-color: var(--container-background-color);
             padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-            width: 95%;
+            border-radius: 10px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+             width: 95%;
             max-width: 1200px;
-            margin-top: 30px;
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            margin-top: 25px;
+            transition: background-color var(--transition-duration) ease, box-shadow var(--transition-duration) ease;
+        }
+
+        .section-header {
+             display: flex;
+             align-items: center;
+             margin-bottom: 12px;
+        }
+
+        .section-header a {
+            margin-right: auto;
+        }
+          .theme-toggle-container {
+              margin-left: auto;
+          }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+             color: var(--text-color);
+            font-size: 1.4em;
+            cursor: pointer;
+           transition: color var(--transition-duration) ease;
+        }
+
+
+        .section-icon {
+             font-size: 1.6em;
+             margin-right: 10px;
+            color: var(--label-color);
+         }
+
+        .section h2 {
+            font-size: 1.7em;
+             margin: 0;
+            font-weight: 500;
         }
 
         .metric-group {
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+             display: flex;
+             justify-content: space-around;
+             margin-bottom: 20px;
+             flex-wrap: wrap;
+         }
+
+           /* Style for the second metric group to keep metrics in one line */
+       .metric-group.small-metrics {
+            flex-wrap: nowrap;
+         }
+
+         .metric.small-metrics-item {
+             min-width: 120px;
         }
+           .metric.small-metrics-item .metric-icon {
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+       .metric.small-metrics-item .metric-label {
+            font-size: 0.9em;
+             margin-bottom: 4px;
+         }
+         .metric.small-metrics-item .metric-value {
+              font-size: 1.5em;
+         }
 
         .metric {
-            text-align: center;
-            margin-bottom: 20px;
-            min-width: 150px;
-        }
+             text-align: center;
+             margin-bottom: 20px;
+             min-width: 160px;
+         }
 
         .metric-icon {
-            font-size: 2.5em;
-            margin-bottom: 15px;
-            color: var(--label-color);
+            font-size: 2.4em;
+            margin-bottom: 12px;
+             color: var(--label-color);
             display: block;
         }
 
         .metric-label {
             font-size: 1.1em;
             color: var(--label-color);
-            margin-bottom: 8px;
-        }
+            margin-bottom: 6px;
+             font-weight: 400;
+         }
 
         .metric-value {
-            font-size: 2em;
+             font-size: 1.9em;
             font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
-            transition: color 0.3s ease, font-size 0.2s ease;
+             text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+            transition: color var(--transition-duration) ease, font-size var(--transition-duration) ease;
         }
 
         .section {
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--section-border-color);
-        }
-
-        .section-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .section-icon {
-            font-size: 1.4em;
-            margin-right: 10px;
-            color: var(--label-color);
-        }
-
-        .section h2 {
-            font-size: 1.8em;
-            margin: 0;
-        }
+             margin-bottom: 25px;
+             padding-bottom: 18px;
+             border-bottom: 1px solid var(--section-border-color);
+         }
 
         #timeline-chart {
-            max-height: 40vh;
+             max-height: 40vh;
             border-radius: 8px;
-            margin-top: 20px;
-            /* width: auto !important; */ 
-            height: auto !important;
+             margin-top: 18px;
+             height: auto !important;
         }
 
-        #rules-table-container {
-            margin-top: 20px;
-            overflow-x: auto;
-        }
+         #rules-table-container {
+             margin-top: 18px;
+             overflow-x: auto;
+         }
 
         #rules-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 8px;
             font-size: 1.1em;
         }
 
-        #rules-table th,
+         #rules-table th,
         #rules-table td {
-            padding: 12px 15px;
-            text-align: left;
+             padding: 12px 15px;
+             text-align: left;
             border-bottom: 1px solid var(--section-border-color);
         }
 
@@ -135,7 +212,15 @@
             font-weight: bold;
             color: var(--label-color);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+             letter-spacing: 0.04em;
+         }
+
+         #rules-table tbody tr:nth-child(odd) {
+            background-color: var(--table-row-bg-odd);
+        }
+
+         #rules-table tbody tr:nth-child(even) {
+             background-color: var(--table-row-bg-even);
         }
 
         #rules-table tbody tr:last-child td {
@@ -144,27 +229,71 @@
 
         /* --- GeoIP Stats styles --- */
         #geoip-stats-container {
-            margin-top: 20px;
+            margin-top: 18px;
         }
 
         #geoip-stats-container p {
             margin: 8px 0;
             font-size: 0.95em;
         }
+        /* --- Update Animation --- */
+        .updating {
+            animation: pulse 0.3s;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+         .rule-hits-updating {
+            animation: highlight-color 0.3s;
+        }
+
+        @keyframes highlight-color {
+            0% {
+                background-color: transparent;
+                color: var(--text-color);
+            }
+
+             50% {
+                background-color: var(--accent-color);
+                color: var(--background-color);
+            }
+
+            100% {
+                background-color: transparent;
+                color: var(--text-color);
+            }
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
-
         <div class="section">
-            <div class="section-header" style="padding-bottom: 30px;">
-                <a href="https://github.com/fabriziosalmi/caddy-waf" target="_blank"><i class="fa-brands fa-github"
-                        style="color: white; font-size: x-large;"></i></a>
+            <div class="section-header">
+                <a href="https://github.com/fabriziosalmi/caddy-waf" target="_blank">
+                    <i class="fa-brands fa-github" style="color: var(--text-color); font-size: x-large;"></i>
+                </a>
+                <div class="theme-toggle-container">
+                    <button class="theme-toggle" id="theme-toggle">
+                        <i class="fas fa-sun"></i>
+                    </button>
+                </div>
+
             </div>
 
-            <div class="metric-group">
 
+            <div class="metric-group">
                 <div class="metric">
                     <i class="metric-icon fas fa-globe" style="color: var(--accent-color);"></i>
                     <div class="metric-label">Total Requests</div>
@@ -194,50 +323,50 @@
                 </div>
                 <div style="margin-bottom: 10px;">
                     <label style="margin-right: 10px;">Log Scale</label>
-                   <input type="checkbox" id="log-scale-toggle">
+                    <input type="checkbox" id="log-scale-toggle">
                 </div>
                 <canvas id="timeline-chart"></canvas>
             </div>
 
-            <div class="metric-group" style="font-size: small;">
-                <div class="metric">
-                    <i class="metric-icon fas fa-circle-xmark" style="color: whitesmoke;"></i>
+              <div class="metric-group small-metrics" style="font-size: small;">
+                <div class="metric small-metrics-item">
+                    <i class="metric-icon fas fa-circle-xmark" style="color: var(--label-color);"></i>
                     <div class="metric-label">DNS Blacklist Hits</div>
                     <div class="metric-value" id="dns-blacklist-hits">0</div>
                 </div>
-                <div class="metric">
-                    <i class="metric-icon fas fa-ethernet" style="color: whitesmoke;"></i>
+                <div class="metric small-metrics-item">
+                    <i class="metric-icon fas fa-ethernet" style="color: var(--label-color);"></i>
                     <div class="metric-label">IP Blacklist Hits</div>
                     <div class="metric-value" id="ip-blacklist-hits">0</div>
                 </div>
-                <div class="metric">
-                    <i class="metric-icon fas fa-gauge" style="color: whitesmoke;"></i>
+                <div class="metric small-metrics-item">
+                    <i class="metric-icon fas fa-gauge" style="color: var(--label-color);"></i>
                     <div class="metric-label">Rate Limit Hits</div>
                     <div class="metric-value" id="rate-limit-hits">0</div>
                 </div>
-                <div class="metric">
-                    <i class="metric-icon fas fa-earth" style="color: whitesmoke;"></i>
+                <div class="metric small-metrics-item">
+                    <i class="metric-icon fas fa-earth" style="color: var(--label-color);"></i>
                     <div class="metric-label">GeoIP Hits</div>
                     <div class="metric-value" id="geoip-hits">0</div>
                 </div>
 
-                <div class="metric">
-                    <i class="metric-icon fas fa-1" style="color: whitesmoke;"></i>
+                <div class="metric small-metrics-item">
+                    <i class="metric-icon fas fa-1" style="color: var(--label-color);"></i>
                     <div class="metric-label">Phase 1 Hits</div>
                     <div class="metric-value" id="phase-1-hits" style="font-size: 1.7em;">0</div>
                 </div>
-                <div class="metric">
-                    <i class="metric-icon fas fa-2" style="color: whitesmoke;"></i>
+                <div class="metric small-metrics-item">
+                    <i class="metric-icon fas fa-2" style="color: var(--label-color);"></i>
                     <div class="metric-label">Phase 2 Hits</div>
                     <div class="metric-value" id="phase-2-hits" style="font-size: 1.7em;">0</div>
                 </div>
-                <div class="metric">
-                    <i class="metric-icon fas fa-3" style="color: whitesmoke;"></i>
+                <div class="metric small-metrics-item">
+                    <i class="metric-icon fas fa-3" style="color: var(--label-color);"></i>
                     <div class="metric-label">Phase 3 Hits</div>
                     <div class="metric-value" id="phase-3-hits" style="font-size: 1.7em;">0</div>
                 </div>
-                <div class="metric">
-                    <i class="metric-icon fas fa-4" style="color: whitesmoke;"></i>
+                <div class="metric small-metrics-item">
+                    <i class="metric-icon fas fa-4" style="color: var(--label-color);"></i>
                     <div class="metric-label">Phase 4 Hits</div>
                     <div class="metric-value" id="phase-4-hits" style="font-size: 1.7em;">0</div>
                 </div>
@@ -281,317 +410,374 @@
         </div>
     </div>
 
-    <script>
-    const totalRequestsElement = document.getElementById('total-requests');
-    const allowedRequestsElement = document.getElementById('allowed-requests');
-    const blockedRequestsElement = document.getElementById('blocked-requests');
-    const blockedPercentageElement = document.getElementById('blocked-percentage');
-    const phase1HitsElement = document.getElementById('phase-1-hits');
-    const phase2HitsElement = document.getElementById('phase-2-hits');
-    const phase3HitsElement = document.getElementById('phase-3-hits');
-    const phase4HitsElement = document.getElementById('phase-4-hits');
-    const dnsBlacklistHitsElement = document.getElementById('dns-blacklist-hits');
-    const ipBlacklistHitsElement = document.getElementById('ip-blacklist-hits');
-    const rateLimitHitsElement = document.getElementById('rate-limit-hits');
-    const geoipHitsElement = document.getElementById('geoip-hits');
-    const geoipStatsContainer = document.getElementById('geoip-stats-container');
-    const rulesTableBody = document.getElementById('rules-table-body');
-    const timelineChartElement = document.getElementById('timeline-chart').getContext('2d');
-    const logScaleToggle = document.getElementById('log-scale-toggle');
-    let allRuleHitsData = {};
+     <script>
+        // Get DOM elements
+         const totalRequestsElement = document.getElementById('total-requests');
+        const allowedRequestsElement = document.getElementById('allowed-requests');
+         const blockedRequestsElement = document.getElementById('blocked-requests');
+         const blockedPercentageElement = document.getElementById('blocked-percentage');
+        const phase1HitsElement = document.getElementById('phase-1-hits');
+        const phase2HitsElement = document.getElementById('phase-2-hits');
+         const phase3HitsElement = document.getElementById('phase-3-hits');
+        const phase4HitsElement = document.getElementById('phase-4-hits');
+        const dnsBlacklistHitsElement = document.getElementById('dns-blacklist-hits');
+        const ipBlacklistHitsElement = document.getElementById('ip-blacklist-hits');
+         const rateLimitHitsElement = document.getElementById('rate-limit-hits');
+         const geoipHitsElement = document.getElementById('geoip-hits');
+         const geoipStatsContainer = document.getElementById('geoip-stats-container');
+         const rulesTableBody = document.getElementById('rules-table-body');
+         const timelineChartElement = document.getElementById('timeline-chart').getContext('2d');
+         const logScaleToggle = document.getElementById('log-scale-toggle');
+        const themeToggle = document.getElementById('theme-toggle');
+        const root = document.documentElement;
+        let allRuleHitsData = {}; // Store all rule hits
+         let hasGeoIPData = false; // Flag to track if geoip data has loaded
+         const localStorageThemeKey = 'dashboardTheme';
 
-    // --- Placeholder Timeline Data ---
-    const timelineLabels = ['Now']; // Initial label
-    const totalRequestsData = [0]; // Initial data point
-    const blockedRequestsData = [0]; // Initial data point
-    const dnsBlacklistHitsData = [0];
-    const ipBlacklistHitsData = [0];
-    const rateLimitHitsData = [0];
-    const geoipHitsData = [0];
-    const phase1HitsData = [0];
-    const phase2HitsData = [0];
-    const phase3HitsData = [0];
-    const phase4HitsData = [0];
-
-    // --- Initialize Chart ---
-    const initialDatasets = [{
-        label: 'Total Requests',
-        data: totalRequestsData,
-        borderColor: '#367edb',
-        backgroundColor: '#367edb',
-        tension: 0.4
-    }, {
-        label: 'Blocked Requests',
-        data: blockedRequestsData,
-        borderColor: '#e74c3c',
-        backgroundColor: '#e74c3c',
-        tension: 0.4
-    }];
-
-    function hasNonZeroValue(arr) {
-        return arr.some(val => val !== 0);
-    }
+           // --- Placeholder Timeline Data ---
+         const timelineLabels = ['Now']; // Initial label
+         const totalRequestsData = [0]; // Initial data point
+         const blockedRequestsData = [0]; // Initial data point
+         const dnsBlacklistHitsData = [0];
+        const ipBlacklistHitsData = [0];
+         const rateLimitHitsData = [0];
+        const geoipHitsData = [0];
+        const phase1HitsData = [0];
+         const phase2HitsData = [0];
+         const phase3HitsData = [0];
+        const phase4HitsData = [0];
 
 
-     const timelineChart = new Chart(timelineChartElement, {
-        type: 'line',
-        data: {
-            labels: timelineLabels,
-            datasets: initialDatasets,
-         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-             scales: {
-                 y: {
-                    type: 'linear',
-                    beginAtZero: true,
-                     grid: { color: '#444' },
-                    ticks: { color: '#eee', callback: function (value, index, ticks) {
-                           if (value === 0) return 0;
-                           return  value >= 1000 ? value / 1000 + "k" : value;
+        // --- Initialize Chart ---
+         const initialDatasets = [{
+             label: 'Total Requests',
+            data: totalRequestsData,
+             borderColor: '#367edb',
+             backgroundColor: '#367edb',
+             tension: 0.4
+         }, {
+             label: 'Blocked Requests',
+             data: blockedRequestsData,
+             borderColor: '#e74c3c',
+             backgroundColor: '#e74c3c',
+             tension: 0.4
+         }];
 
-                        } }
+         // Helper function to check if any element in an array is non-zero
+         function hasNonZeroValue(arr) {
+             return arr.some(val => val !== 0);
+         }
+
+        // Create the chart
+         const timelineChart = new Chart(timelineChartElement, {
+             type: 'line',
+            data: {
+                 labels: timelineLabels,
+                 datasets: initialDatasets,
+             },
+            options: {
+                 responsive: true,
+                 maintainAspectRatio: false,
+                scales: {
+                     y: {
+                         type: 'linear',
+                         beginAtZero: true,
+                         grid: { color: '#444' },
+                        ticks: {
+                             color: '#eee', callback: function (value, index, ticks) {
+                                 if (value === 0) return 0;
+                                 return value >= 1000 ? value / 1000 + "k" : value;
+                             }
+                         }
+                    },
+                     x: {
+                         grid: { color: '#444' },
+                         ticks: { color: '#eee' }
+                    }
                 },
-                x: {
-                    grid: { color: '#444' },
-                    ticks: { color: '#eee' }
+                plugins: {
+                     legend: {
+                         labels: { color: '#eee' }
+                     }
                 }
-            },
-            plugins: {
-                legend: {
-                    labels: { color: '#eee' }
-                }
-            }
-        }
-    });
-
-     logScaleToggle.addEventListener('change', function() {
-         timelineChart.options.scales.y.type = this.checked ? 'logarithmic' : 'linear';
-         timelineChart.update();
-      });
-
-    function updateChartDatasets() {
-         const datasetsToRemove = [];
-         timelineChart.data.datasets.forEach((dataset, index) => {
-              if (dataset.label === 'DNS Blacklist Hits' && !hasNonZeroValue(dnsBlacklistHitsData))  datasetsToRemove.push(index);
-              if (dataset.label === 'IP Blacklist Hits' && !hasNonZeroValue(ipBlacklistHitsData))  datasetsToRemove.push(index);
-              if (dataset.label === 'Rate Limit Hits' && !hasNonZeroValue(rateLimitHitsData)) datasetsToRemove.push(index);
-             if (dataset.label === 'GeoIP Hits' && !hasNonZeroValue(geoipHitsData)) datasetsToRemove.push(index);
-              if (dataset.label === 'Phase 1 Hits' && !hasNonZeroValue(phase1HitsData)) datasetsToRemove.push(index);
-              if (dataset.label === 'Phase 2 Hits' && !hasNonZeroValue(phase2HitsData)) datasetsToRemove.push(index);
-               if (dataset.label === 'Phase 3 Hits' && !hasNonZeroValue(phase3HitsData)) datasetsToRemove.push(index);
-              if (dataset.label === 'Phase 4 Hits' && !hasNonZeroValue(phase4HitsData)) datasetsToRemove.push(index);
-
+             }
          });
 
-        // Remove datasets in reverse order to avoid index issues
-        for (let i = datasetsToRemove.length - 1; i >= 0; i--) {
-             timelineChart.data.datasets.splice(datasetsToRemove[i], 1);
-        }
+         function updateChartOptions() {
+            const currentTheme = root.getAttribute('data-theme');
+             timelineChart.options.plugins.legend.labels.color = currentTheme === 'light' ? '#333' : '#eee';
+             timelineChart.update()
+         }
 
+        // Event listener for the log scale toggle
+         logScaleToggle.addEventListener('change', function () {
+             timelineChart.options.scales.y.type = this.checked ? 'logarithmic' : 'linear';
+             timelineChart.update();
+         });
 
-
-        if (hasNonZeroValue(dnsBlacklistHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'DNS Blacklist Hits') ) {
-             timelineChart.data.datasets.push({
-                    label: 'DNS Blacklist Hits',
-                    data: dnsBlacklistHitsData,
+        // Function to manage chart dataset visibility
+        function updateChartDatasets() {
+             const datasetsToRemove = [];
+             timelineChart.data.datasets.forEach((dataset, index) => {
+                 if (dataset.label === 'DNS Blacklist Hits' && !hasNonZeroValue(dnsBlacklistHitsData)) datasetsToRemove.push(index);
+                 if (dataset.label === 'IP Blacklist Hits' && !hasNonZeroValue(ipBlacklistHitsData)) datasetsToRemove.push(index);
+                 if (dataset.label === 'Rate Limit Hits' && !hasNonZeroValue(rateLimitHitsData)) datasetsToRemove.push(index);
+                if (dataset.label === 'GeoIP Hits' && !hasNonZeroValue(geoipHitsData)) datasetsToRemove.push(index);
+                 if (dataset.label === 'Phase 1 Hits' && !hasNonZeroValue(phase1HitsData)) datasetsToRemove.push(index);
+                 if (dataset.label === 'Phase 2 Hits' && !hasNonZeroValue(phase2HitsData)) datasetsToRemove.push(index);
+                 if (dataset.label === 'Phase 3 Hits' && !hasNonZeroValue(phase3HitsData)) datasetsToRemove.push(index);
+                 if (dataset.label === 'Phase 4 Hits' && !hasNonZeroValue(phase4HitsData)) datasetsToRemove.push(index);
+            });
+            // Remove datasets in reverse order to avoid index issues
+            for (let i = datasetsToRemove.length - 1; i >= 0; i--) {
+                timelineChart.data.datasets.splice(datasetsToRemove[i], 1);
+            }
+            // Add data sets only if needed
+            if (hasNonZeroValue(dnsBlacklistHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'DNS Blacklist Hits')) {
+                 timelineChart.data.datasets.push({
+                     label: 'DNS Blacklist Hits',
+                     data: dnsBlacklistHitsData,
                     borderColor: '#FFA500',
                     backgroundColor: '#FFA500',
-                    tension: 0.4
-             })
-        }
-
-        if (hasNonZeroValue(ipBlacklistHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'IP Blacklist Hits')) {
-            timelineChart.data.datasets.push({
-                label: 'IP Blacklist Hits',
-                data: ipBlacklistHitsData,
-                borderColor: '#800080',
-                backgroundColor: '#800080',
-                tension: 0.4
-            });
-        }
-
-        if (hasNonZeroValue(rateLimitHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Rate Limit Hits')) {
-              timelineChart.data.datasets.push({
-                label: 'Rate Limit Hits',
-                data: rateLimitHitsData,
-                borderColor: '#008000',
-                backgroundColor: '#008000',
-                tension: 0.4
-              });
-        }
-
-        if (hasNonZeroValue(geoipHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'GeoIP Hits')) {
-             timelineChart.data.datasets.push(  {
-                label: 'GeoIP Hits',
-                data: geoipHitsData,
-                borderColor: '#8B4513',
-                backgroundColor: '#8B4513',
-                tension: 0.4
-                });
-        }
-
-
-       if (hasNonZeroValue(phase1HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 1 Hits')) {
-              timelineChart.data.datasets.push({
-                   label: 'Phase 1 Hits',
-                    data: phase1HitsData,
-                   borderColor: '#0000FF',
-                   backgroundColor: '#0000FF',
-                    tension: 0.4
-              });
-       }
-
-
-        if (hasNonZeroValue(phase2HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 2 Hits')) {
-              timelineChart.data.datasets.push({
-                     label: 'Phase 2 Hits',
-                    data: phase2HitsData,
-                   borderColor: '#FF0000',
-                   backgroundColor: '#FF0000',
-                    tension: 0.4
-             })
-        }
-       if (hasNonZeroValue(phase3HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 3 Hits')) {
-              timelineChart.data.datasets.push({
-                   label: 'Phase 3 Hits',
-                   data: phase3HitsData,
-                   borderColor: '#00FFFF',
-                   backgroundColor: '#00FFFF',
-                   tension: 0.4
-              })
-       }
-
-         if (hasNonZeroValue(phase4HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 4 Hits')) {
-              timelineChart.data.datasets.push( {
-                    label: 'Phase 4 Hits',
-                     data: phase4HitsData,
-                    borderColor: '#FF00FF',
-                    backgroundColor: '#FF00FF',
                      tension: 0.4
+                 })
+            }
+
+            if (hasNonZeroValue(ipBlacklistHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'IP Blacklist Hits')) {
+                timelineChart.data.datasets.push({
+                     label: 'IP Blacklist Hits',
+                     data: ipBlacklistHitsData,
+                    borderColor: '#800080',
+                    backgroundColor: '#800080',
+                    tension: 0.4
+                });
+             }
+
+            if (hasNonZeroValue(rateLimitHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Rate Limit Hits')) {
+                timelineChart.data.datasets.push({
+                     label: 'Rate Limit Hits',
+                     data: rateLimitHitsData,
+                     borderColor: '#008000',
+                     backgroundColor: '#008000',
+                    tension: 0.4
+                });
+            }
+            if (hasNonZeroValue(geoipHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'GeoIP Hits')) {
+                timelineChart.data.datasets.push({
+                     label: 'GeoIP Hits',
+                     data: geoipHitsData,
+                    borderColor: '#8B4513',
+                    backgroundColor: '#8B4513',
+                    tension: 0.4
+                });
+            }
+             if (hasNonZeroValue(phase1HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 1 Hits')) {
+                 timelineChart.data.datasets.push({
+                    label: 'Phase 1 Hits',
+                     data: phase1HitsData,
+                     borderColor: '#0000FF',
+                     backgroundColor: '#0000FF',
+                    tension: 0.4
+                 });
+             }
+
+            if (hasNonZeroValue(phase2HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 2 Hits')) {
+                 timelineChart.data.datasets.push({
+                    label: 'Phase 2 Hits',
+                     data: phase2HitsData,
+                     borderColor: '#FF0000',
+                     backgroundColor: '#FF0000',
+                     tension: 0.4
+                 })
+            }
+            if (hasNonZeroValue(phase3HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 3 Hits')) {
+                 timelineChart.data.datasets.push({
+                     label: 'Phase 3 Hits',
+                    data: phase3HitsData,
+                    borderColor: '#00FFFF',
+                    backgroundColor: '#00FFFF',
+                    tension: 0.4
+                })
+            }
+
+            if (hasNonZeroValue(phase4HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 4 Hits')) {
+                 timelineChart.data.datasets.push({
+                     label: 'Phase 4 Hits',
+                    data: phase4HitsData,
+                     borderColor: '#FF00FF',
+                     backgroundColor: '#FF00FF',
+                    tension: 0.4
+                });
+            }
+             timelineChart.update();
+         }
+
+        // Function to fetch and update metrics
+        function updateMetrics() {
+            fetch('http://localhost:8080/waf_metrics', {
+                headers: {
+                    'User-Agent': 'caddy-waf-ui'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    updateValue(totalRequestsElement, data.total_requests);
+                    updateValue(allowedRequestsElement, data.allowed_requests);
+                     updateValue(blockedRequestsElement, data.blocked_requests);
+                    updateValue(dnsBlacklistHitsElement, data.dns_blacklist_hits);
+                     updateValue(ipBlacklistHitsElement, data.ip_blacklist_hits);
+                    updateValue(rateLimitHitsElement, data.rate_limit_hits);
+                    updateValue(geoipHitsElement, data.geoip_hits);
+                    const totalRequests = data.total_requests;
+                    const blockedRequests = data.blocked_requests;
+                    let blockedPercent = 0;
+                    if (totalRequests > 0) {
+                        blockedPercent = ((blockedRequests / totalRequests) * 100).toFixed(1);
+                    }
+                    updateValue(blockedPercentageElement, `${blockedPercent}%`);
+
+                   allRuleHitsData = data.rule_hits;
+                     updateRulesTableDisplay();
+                    phase1HitsElement.textContent = data.rule_hits_by_phase['1'] || 0;
+                    phase2HitsElement.textContent = data.rule_hits_by_phase['2'] || 0;
+                     phase3HitsElement.textContent = data.rule_hits_by_phase['3'] || 0;
+                   phase4HitsElement.textContent = data.rule_hits_by_phase['4'] || 0;
+                     updateGeoIPStatsDisplay(data.geoip_stats);
+
+                    const now = new Date().toLocaleTimeString();
+                    timelineLabels.push(now);
+                     totalRequestsData.push(data.total_requests);
+                     blockedRequestsData.push(data.blocked_requests);
+                     dnsBlacklistHitsData.push(data.dns_blacklist_hits);
+                     ipBlacklistHitsData.push(data.ip_blacklist_hits);
+                    rateLimitHitsData.push(data.rate_limit_hits);
+                     geoipHitsData.push(data.geoip_hits);
+                    phase1HitsData.push(data.rule_hits_by_phase['1'] || 0);
+                    phase2HitsData.push(data.rule_hits_by_phase['2'] || 0);
+                     phase3HitsData.push(data.rule_hits_by_phase['3'] || 0);
+                    phase4HitsData.push(data.rule_hits_by_phase['4'] || 0);
+
+                     if (timelineLabels.length > 10) {
+                         timelineLabels.shift();
+                         totalRequestsData.shift();
+                         blockedRequestsData.shift();
+                        dnsBlacklistHitsData.shift();
+                        ipBlacklistHitsData.shift();
+                         rateLimitHitsData.shift();
+                        geoipHitsData.shift();
+                        phase1HitsData.shift();
+                        phase2HitsData.shift();
+                        phase3HitsData.shift();
+                         phase4HitsData.shift();
+                     }
+                     updateChartDatasets();
+                })
+                .catch(error => {
+                     console.error('Error fetching metrics data:', error);
+                     rulesTableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: var(--error-color);">Error loading data.</td></tr>`;
+                     geoipStatsContainer.innerHTML = `<p style="color: var(--error-color);">Error loading GeoIP data.</p>`;
                 });
          }
-         timelineChart.update();
-     }
 
-
-    function updateMetrics() {
-        fetch('http://localhost:8080/waf_metrics', {
-            headers: {
-                'User-Agent': 'caddy-waf-ui'
+           // Function to update rule table display
+        function updateRulesTableDisplay() {
+            const previousRuleHits = allRuleHitsData;
+             rulesTableBody.innerHTML = '';
+             const sortedRuleEntries = Object.entries(allRuleHitsData)
+                .sort(([, countA], [, countB]) => countB - countA);
+             if (sortedRuleEntries.length === 0) {
+                 rulesTableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: var(--label-color);">No rule hits yet.</td></tr>`;
+                return;
             }
-        })
-            .then(response => response.json())
-            .then(data => {
-                updateValue(totalRequestsElement, data.total_requests);
-                updateValue(allowedRequestsElement, data.allowed_requests);
-                updateValue(blockedRequestsElement, data.blocked_requests);
-                updateValue(dnsBlacklistHitsElement, data.dns_blacklist_hits);
-                updateValue(ipBlacklistHitsElement, data.ip_blacklist_hits);
-                updateValue(rateLimitHitsElement, data.rate_limit_hits);
-                updateValue(geoipHitsElement, data.geoip_hits);
-                const totalRequests = data.total_requests;
-                const blockedRequests = data.blocked_requests;
-                let blockedPercent = 0;
-                if (totalRequests > 0) {
-                    blockedPercent = ((blockedRequests / totalRequests) * 100).toFixed(1);
-                }
-                updateValue(blockedPercentageElement, `${blockedPercent}%`);
-                allRuleHitsData = data.rule_hits;
-                updateRulesTableDisplay();
-                phase1HitsElement.textContent = data.rule_hits_by_phase['1'] || 0;
-                phase2HitsElement.textContent = data.rule_hits_by_phase['2'] || 0;
-                phase3HitsElement.textContent = data.rule_hits_by_phase['3'] || 0;
-                phase4HitsElement.textContent = data.rule_hits_by_phase['4'] || 0;
-                updateGeoIPStatsDisplay(data.geoip_stats);
+            sortedRuleEntries.forEach(([ruleName, hitCount]) => {
+                 const row = rulesTableBody.insertRow();
+                const nameCell = row.insertCell();
+                const hitsCell = row.insertCell();
+                 nameCell.textContent = ruleName;
+                hitsCell.textContent = hitCount;
 
-                  const now = new Date().toLocaleTimeString();
-                timelineLabels.push(now);
-                totalRequestsData.push(data.total_requests);
-                blockedRequestsData.push(data.blocked_requests);
-                 dnsBlacklistHitsData.push(data.dns_blacklist_hits);
-                 ipBlacklistHitsData.push(data.ip_blacklist_hits);
-                 rateLimitHitsData.push(data.rate_limit_hits);
-                geoipHitsData.push(data.geoip_hits);
-                phase1HitsData.push(data.rule_hits_by_phase['1'] || 0);
-                phase2HitsData.push(data.rule_hits_by_phase['2'] || 0);
-                phase3HitsData.push(data.rule_hits_by_phase['3'] || 0);
-                phase4HitsData.push(data.rule_hits_by_phase['4'] || 0);
-                if (timelineLabels.length > 10) {
-                    timelineLabels.shift();
-                    totalRequestsData.shift();
-                    blockedRequestsData.shift();
-                    dnsBlacklistHitsData.shift();
-                    ipBlacklistHitsData.shift();
-                    rateLimitHitsData.shift();
-                    geoipHitsData.shift();
-                   phase1HitsData.shift();
-                   phase2HitsData.shift();
-                   phase3HitsData.shift();
-                   phase4HitsData.shift();
-                }
-               updateChartDatasets()
-
-            })
-            .catch(error => {
-                console.error('Error fetching metrics data:', error);
-                rulesTableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: var(--error-color);">Error loading data.</td></tr>`;
-                geoipStatsContainer.innerHTML = `<p style="color: var(--error-color);">Error loading GeoIP data.</p>`;
+               if (previousRuleHits[ruleName] !== undefined && previousRuleHits[ruleName] !== hitCount) {
+                    hitsCell.classList.add('rule-hits-updating');
+                     setTimeout(() => {
+                         hitsCell.classList.remove('rule-hits-updating');
+                     }, 300)
+               }
             });
-    }
-
-    function updateRulesTableDisplay() {
-        rulesTableBody.innerHTML = '';
-        const sortedRuleEntries = Object.entries(allRuleHitsData)
-            .sort(([, countA], [, countB]) => countB - countA);
-        if (sortedRuleEntries.length === 0) {
-            rulesTableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: var(--label-color);">No rule hits yet.</td></tr>`;
-            return;
-        }
-        sortedRuleEntries.forEach(([ruleName, hitCount]) => {
-            const row = rulesTableBody.insertRow();
-            const nameCell = row.insertCell();
-            const hitsCell = row.insertCell();
-            nameCell.textContent = ruleName;
-            hitsCell.textContent = hitCount;
-        });
-    }
-    function updateGeoIPStatsDisplay(geoipStats) {
-        geoipStatsContainer.innerHTML = '';
-        if (Object.keys(geoipStats).length === 0) {
-            geoipStatsContainer.innerHTML = `<p style="color: var(--label-color);">No GeoIP data yet.</p>`;
-            return;
-        }
-        for (const countryCode in geoipStats) {
-            if (geoipStats.hasOwnProperty(countryCode)) {
-                const hits = geoipStats[countryCode];
-                const countryName = getCountryName(countryCode);
-                const p = document.createElement('p');
-                p.textContent = `${countryName} (${countryCode.toUpperCase()}): ${hits} hits`;
-                geoipStatsContainer.appendChild(p);
+         }
+          // Function to update GeoIP Stats display
+        function updateGeoIPStatsDisplay(geoipStats) {
+             geoipStatsContainer.innerHTML = '';
+             if (Object.keys(geoipStats).length === 0) {
+                 geoipStatsContainer.innerHTML = `<p style="color: var(--label-color);">No GeoIP data yet.</p>`;
+                hasGeoIPData = true; // Set the flag to prevent repeated updates of initial text
+                return;
             }
+            hasGeoIPData = true; // Set the flag to prevent repeated updates of initial text
+            for (const countryCode in geoipStats) {
+                 if (geoipStats.hasOwnProperty(countryCode)) {
+                     const hits = geoipStats[countryCode];
+                     const countryName = getCountryName(countryCode);
+                     const p = document.createElement('p');
+                    p.textContent = `${countryName} (${countryCode.toUpperCase()}): ${hits} hits`;
+                    geoipStatsContainer.appendChild(p);
+                 }
+            }
+         }
+
+        // Helper function to update value with animation
+        function updateValue(element, newValue) {
+            element.classList.add('updating');
+            setTimeout(() => {
+                element.textContent = newValue;
+                 element.classList.remove('updating');
+           }, 100);
         }
-    }
-    function updateValue(element, newValue) {
-        element.classList.add('updating');
-        setTimeout(() => {
-            element.textContent = newValue;
-            element.classList.remove('updating');
-        }, 100);
-    }
-    function getCountryName(countryCode) {
-        const countryNames = {
-            "US": "United States",
-            "CA": "Canada",
-            "GB": "United Kingdom",
-            "DE": "Germany",
-            "FR": "France",
-        };
-        return countryNames[countryCode.toUpperCase()] || countryCode.toUpperCase();
-    }
-    updateMetrics();
-    setInterval(updateMetrics, 30000);
+
+        // Helper function to get country name from code
+        function getCountryName(countryCode) {
+             const countryNames = {
+                "US": "United States",
+                 "CA": "Canada",
+                 "GB": "United Kingdom",
+                 "DE": "Germany",
+                "FR": "France",
+            };
+            return countryNames[countryCode.toUpperCase()] || countryCode.toUpperCase();
+         }
+
+
+        function setInitialTheme() {
+            const savedTheme = localStorage.getItem(localStorageThemeKey);
+            if (savedTheme) {
+                root.setAttribute('data-theme', savedTheme);
+             }
+             else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                root.setAttribute('data-theme', 'light');
+            } else {
+                 root.setAttribute('data-theme', 'dark'); // Default to dark
+             }
+            updateThemeToggleIcon();
+         }
+          function updateThemeToggleIcon() {
+             const currentTheme = root.getAttribute('data-theme');
+            themeToggle.innerHTML = currentTheme === 'light' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+          }
+        themeToggle.addEventListener('click', () => {
+             const currentTheme = root.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+             root.setAttribute('data-theme', newTheme);
+            localStorage.setItem(localStorageThemeKey, newTheme);
+            updateThemeToggleIcon();
+            updateChartOptions();
+
+         });
+          // Initial metrics update and set interval
+          setInitialTheme();
+         updateMetrics();
+          updateChartOptions();
+          setInterval(updateMetrics, 5000);
+
+
     </script>
 </body>
 
