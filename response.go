@@ -11,83 +11,56 @@ import (
 )
 
 // blockRequest handles blocking a request and logging the details.
-func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, reason, ruleID, matchedValue string, fields ...zap.Field) {
-	if !state.ResponseWritten {
-		state.Blocked = true
-		state.StatusCode = statusCode
-		state.ResponseWritten = true
+func (m *Middleware) blockRequest(recorder http.ResponseWriter, r *http.Request, state *WAFState, statusCode int, reason, ruleID, matchedValue string, fields ...zap.Field) {
 
-		// Custom response handling
-		if resp, ok := m.CustomResponses[statusCode]; ok {
-			m.logger.Debug("Custom response found for status code",
-				zap.Int("status_code", statusCode),
-				zap.String("body", resp.Body),
-			)
-			for key, value := range resp.Headers {
-				w.Header().Set(key, value)
-			}
-			w.WriteHeader(resp.StatusCode)
-			_, err := w.Write([]byte(resp.Body))
-			if err != nil {
-				logID, ok := r.Context().Value(ContextKeyLogId("logID")).(string)
-				if !ok {
-					m.logger.Error("Log ID not found in context, cannot log custom response error")
-					return
-				}
-				m.logger.Error("Failed to write custom block response body", zap.Error(err), zap.Int("status_code", resp.StatusCode), zap.String("log_id", logID))
-			}
-			return
-		}
+	state.Blocked = true
+	state.StatusCode = statusCode
+	state.ResponseWritten = true
 
-		// Default blocking behavior
-		logID := uuid.New().String()
-		if logIDCtx, ok := r.Context().Value(ContextKeyLogId("logID")).(string); ok {
-			logID = logIDCtx
-		}
-
-		// Prepare standard fields for logging
-		blockFields := []zap.Field{
-			zap.String("log_id", logID),
-			zap.String("source_ip", r.RemoteAddr),
-			zap.String("user_agent", r.UserAgent()),
-			zap.String("request_method", r.Method),
-			zap.String("request_path", r.URL.Path),
-			zap.String("query_params", r.URL.RawQuery),
+	// Custom response handling
+	if resp, ok := m.CustomResponses[statusCode]; ok {
+		m.logger.Debug("Custom response found for status code",
 			zap.Int("status_code", statusCode),
-			zap.Time("timestamp", time.Now()),
-			zap.String("reason", reason),              // Include the reason for blocking
-			zap.String("rule_id", ruleID),             // Include the rule ID
-			zap.String("matched_value", matchedValue), // Include the matched value
-		}
-
-		// Debug: Print the blockFields to verify they are correct
-		m.logger.Debug("Block fields being passed to logRequest",
-			zap.Any("blockFields", blockFields),
+			zap.String("body", resp.Body),
 		)
-
-		// Append additional fields if any
-		blockFields = append(blockFields, fields...)
-
-		// Log the blocked request at WARN level
-		m.logRequest(zapcore.WarnLevel, "Request blocked", r, blockFields...)
-
-		// Respond with the status code
-		w.WriteHeader(statusCode)
-	} else {
-		// Debug log when response is already written, including log_id
-		logID, ok := r.Context().Value(ContextKeyLogId("logID")).(string)
-		if !ok {
-			m.logger.Error("Log ID not found in context, cannot log blockRequest when response already written")
-			return
-		}
-
-		m.logger.Debug("blockRequest called but response already written",
-			zap.Int("intended_status_code", statusCode),
-			zap.String("path", r.URL.Path),
-			zap.String("log_id", logID),
-			zap.Int("current_status_code", state.StatusCode),
-		)
+		m.writeCustomResponse(recorder, statusCode)
+		return
 	}
+
+	// Default blocking behavior
+	logID := uuid.New().String()
+	if logIDCtx, ok := r.Context().Value(ContextKeyLogId("logID")).(string); ok {
+		logID = logIDCtx
+	}
+
+	// Prepare standard fields for logging
+	blockFields := []zap.Field{
+		zap.String("log_id", logID),
+		zap.String("source_ip", r.RemoteAddr),
+		zap.String("user_agent", r.UserAgent()),
+		zap.String("request_method", r.Method),
+		zap.String("request_path", r.URL.Path),
+		zap.String("query_params", r.URL.RawQuery),
+		zap.Int("status_code", statusCode),
+		zap.Time("timestamp", time.Now()),
+		zap.String("reason", reason),              // Include the reason for blocking
+		zap.String("rule_id", ruleID),             // Include the rule ID
+		zap.String("matched_value", matchedValue), // Include the matched value
+	}
+
+	// Debug: Print the blockFields to verify they are correct
+	m.logger.Debug("Block fields being passed to logRequest",
+		zap.Any("blockFields", blockFields),
+	)
+
+	// Append additional fields if any
+	blockFields = append(blockFields, fields...)
+
+	// Log the blocked request at WARN level
+	m.logRequest(zapcore.WarnLevel, "Request blocked", r, blockFields...)
+
+	// Write default response with status code using the recorder
+	recorder.WriteHeader(statusCode)
 }
 
 // responseRecorder captures the response status code, headers, and body.
@@ -110,10 +83,8 @@ func NewResponseRecorder(w http.ResponseWriter) *responseRecorder {
 
 // WriteHeader captures the response status code.
 func (r *responseRecorder) WriteHeader(statusCode int) {
-	if !r.written {
-		r.statusCode = statusCode
-		r.ResponseWriter.WriteHeader(statusCode)
-	}
+	r.statusCode = statusCode
+	r.ResponseWriter.WriteHeader(statusCode)
 
 }
 

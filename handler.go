@@ -15,6 +15,7 @@ type ContextKeyLogId string
 type ContextKeyRule string
 
 // ServeHTTP implements caddyhttp.Handler.
+// handler.go
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	logID := uuid.New().String()
 
@@ -58,18 +59,17 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 		return nil
 	}
 
-	m.incrementAllowedRequestsMetric()
-
 	// Handle metrics request separately
 	if m.isMetricsRequest(r) {
 		return m.handleMetricsRequest(w, r)
 	}
 
 	// If not blocked, copy recorded response back to original writer
+	// Moved this inside if check to call only if not blocked
 	if !state.Blocked {
+		m.incrementAllowedRequestsMetric() // Increment here only if not blocked
 		m.copyResponse(w, recorder, r)
 	}
-
 	m.logRequestCompletion(logID, state)
 
 	return err // Return any error from the next handler
