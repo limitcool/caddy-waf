@@ -18,8 +18,6 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/fsnotify/fsnotify"
-
-	"runtime/debug"
 )
 
 // ==================== Constants and Globals ====================
@@ -321,19 +319,8 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 // ==================== Helper Functions ====================
 
 func (m *Middleware) logVersion() {
-	buildInfo, ok := debug.ReadBuildInfo()
-	if !ok {
-		m.logger.Warn("Failed to read build info, version unavailable")
-		return
-	}
 
-	var moduleVersion string
-	for _, mod := range buildInfo.Deps {
-		if mod.Path == "github.com/fabriziosalmi/caddy-waf" {
-			moduleVersion = mod.Version
-			break
-		}
-	}
+	var moduleVersion = "v0.0.1"
 
 	if moduleVersion == "" {
 		moduleVersion = "unknown"
