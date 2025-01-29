@@ -137,6 +137,7 @@ func validateRule(rule *Rule) error {
 }
 
 // loadRules updates the RuleCache and Rules map when rules are loaded and sorts rules by priority.
+// loadRules updates the RuleCache and Rules map when rules are loaded and sorts rules by priority.
 func (m *Middleware) loadRules(paths []string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -161,17 +162,17 @@ func (m *Middleware) loadRules(paths []string) error {
 			m.logger.Warn("Invalid rules in file", zap.String("file", path), zap.Strings("errors", fileInvalidRules))
 			allInvalidRules = append(allInvalidRules, fileInvalidRules...)
 		}
-		fileTotalRules := 0
-		for phase := 1; phase <= 4; phase++ { // Correctly calculate fileTotalRules
-			fileTotalRules += len(fileRules[phase])
-		}
-		m.logger.Info("Rules loaded from file", zap.String("file", path), zap.Int("valid_rules", fileTotalRules), zap.Int("invalid_rules", len(fileInvalidRules)))
 
 		// Merge valid rules from the file into the temporary loadedRules map
 		for phase, rules := range fileRules {
 			loadedRules[phase] = append(loadedRules[phase], rules...)
+			totalRules += len(rules)
 		}
-		totalRules += fileTotalRules // Update total rule count with fileTotalRules
+	}
+
+	ruleCounts := ""
+	for phase := 1; phase <= 4; phase++ {
+		ruleCounts += fmt.Sprintf("Phase %d: %d rules, ", phase, len(loadedRules[phase]))
 	}
 
 	m.Rules = loadedRules // Atomically update m.Rules after loading all files
@@ -189,7 +190,7 @@ func (m *Middleware) loadRules(paths []string) error {
 		m.logger.Warn("No rule files specified, WAF will run without rules.") // Warn if no rule files and no rules loaded
 	}
 
-	m.logger.Info("WAF rules loaded successfully", zap.Int("total_rules", totalRules))
+	m.logger.Info("WAF rules loaded successfully", zap.Int("total_rules", totalRules), zap.String("rule_counts", ruleCounts))
 	return nil
 }
 
