@@ -131,6 +131,9 @@ Here's a comprehensive breakdown of the metrics provided:
 *   **Compliance Auditing:** Metrics can provide data needed to satisfy security and compliance audits.
 *   **Dashboarding:** Visualizing metrics in a dashboard helps with daily monitoring and quick problem identification.
 
+### Prometheus and Grafana
+Instructions on how to expose WAF metrics using the Prometheus format, for integration with your monitoring system are available [here](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/prometheus.md).
+
 ### Important Considerations:
 
 *  **Context is important:** These metrics should always be interpreted in context to fully understand them.
