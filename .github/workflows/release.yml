@@ -76,7 +76,6 @@ jobs:
         uses: actions/download-artifact@v4
 
       - name: Upload Release Assets
-        if: "!startsWith(github.ref, 'refs/heads/')"
         run: |
           for asset in $(ls *.tar.gz); do
             echo "Uploading ${asset}"
