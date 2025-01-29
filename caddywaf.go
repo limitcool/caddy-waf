@@ -520,6 +520,7 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 		"dns_blacklist_hits":            m.DNSBlacklistBlockCount,   // Add DNS blacklist hits metric
 		"rate_limiter_requests":         rateLimiterTotalRequests,   // Add rate limiter total requests
 		"rate_limiter_blocked_requests": rateLimiterBlockedRequests, // Add rate limiter blocked requests
+		"version":                       "v0.0.1",                   // Add version number (quick'n'dirty.. will be improved good way)
 	}
 
 	jsonMetrics, err := json.Marshal(metrics)
