@@ -56,6 +56,14 @@ Here's a comprehensive breakdown of the metrics provided:
     *   A high number of blocked requests indicates the presence of malicious activity targeting the system.
     *   Monitoring this metric in conjunction with rule hit counts can help identify specific attack vectors and sources.
     *   Spikes in this number can be an indicator of an attack in progress and should be examined immediately.
+*   **`dns_blacklist_hits` (Integer):**
+    *   Counts the number of times a request was blocked or flagged due to matching a DNS blacklist.
+    *   This metric indicates how often requests are originating from or interacting with domains known to be associated with malicious activity, as per configured DNS blacklists.
+    *   A non-zero value suggests potential threats originating from or involving blacklisted domains.
+*   **`geoip_blocked` (Integer):**
+    *   Indicates the number of requests that were blocked specifically due to their geographic location, based on GeoIP data.
+    *   This metric reflects the effectiveness of GeoIP-based blocking rules configured in the WAF.
+    *   An increase in this metric might suggest a targeted attack originating from specific geographic regions that are being blocked.
 *   **`geoip_stats` (Object):**
     *   Provides statistics about GeoIP lookups performed during request processing. This object will vary in its structure and content depending on the specific GeoIP implementation and the type of information the system collects.
     *   If no GeoIP lookups are enabled or no data is collected it would appear empty (`{}`).
@@ -75,7 +83,18 @@ Here's a comprehensive breakdown of the metrics provided:
         ```
     *   This metric is essential to understand geographical attack patterns and the effectiveness of country-based blocking/whitelisting.
     *   High numbers of lookups can indicate a lot of traffic originating from various regions.
-
+*   **`ip_blacklist_hits` (Integer):**
+    *   Represents the count of requests that were blocked or flagged because the source IP address was found on a configured IP blacklist.
+    *   This metric indicates the frequency of requests originating from IPs known to be malicious or associated with undesirable activity.
+    *   A higher value suggests that the WAF is effectively blocking traffic from known bad actors.
+*   **`rate_limiter_blocked_requests` (Integer):**
+    *   Indicates the number of requests that were blocked by the rate limiting mechanism.
+    *   This metric shows how many requests exceeded the defined rate limits and were subsequently blocked to protect against brute-force attacks, DDoS attempts, or excessive traffic from a single source.
+    *   A high number might indicate ongoing attacks or misconfigured rate limits.
+*   **`rate_limiter_requests` (Integer):**
+    *   Represents the total number of requests that were subjected to rate limiting checks.
+    *   This metric provides context for `rate_limiter_blocked_requests`, showing the overall volume of traffic that was evaluated by the rate limiter.
+    *   Comparing this with `rate_limiter_blocked_requests` can help understand the proportion of traffic being rate-limited and blocked.
 *   **`rule_hits` (Object):**
     *   A core component of the metrics, this object provides a detailed breakdown of how many times each specific rule was triggered by incoming requests.
     *   The keys within this object represent unique rule identifiers (often the rule's ID or a user-defined name).
@@ -97,6 +116,10 @@ Here's a comprehensive breakdown of the metrics provided:
     *   This metric serves as a baseline for overall traffic volume.
     *   It can be used in conjunction with `allowed_requests` and `blocked_requests` to calculate percentages of allowed/blocked traffic and identify potential anomalies.
     *   Sudden changes in `total_requests` might indicate a change in traffic volume or an ongoing attack.
+*   **`version` (String):**
+    *   Indicates the version of the WAF software currently running.
+    *   This is useful for tracking deployments, identifying if you are running the latest version, and for debugging or support purposes.
+    *   Knowing the version helps in correlating metrics with specific software releases and their features or known issues.
 
 ### Analysis and Usage:
 
