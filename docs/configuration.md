@@ -143,32 +143,8 @@ The WAF provides a variety of configuration options to control its behavior. The
 
 ---
 
-## **Important Considerations**
+- **GeoIP:**  
+> [!NOTE]
+> The request will be geo-whitelisted if both `block_countries` and `whitelist_countries` are used and the same country code is specified on both directives. 
 
-- **Mutual Exclusivity:**  
-  Some options, like `block_countries` and `whitelist_countries`, are mutually exclusive and cannot be used simultaneously.
-
-- **File Paths:**  
-  Ensure the WAF process has the correct permissions to read and write to specified file paths.
-
-- **Option Precedence:**  
-  Some configurations take precedence over others. For example, rate limiting may be overridden by a rule that blocks a request.
-
-- **Validation:**  
-  Test the configuration and review errors during startup to ensure validity.
-
-- **Defaults:**  
-  Be aware of default parameter values to ensure they meet your requirements.
-
-- **Logging:**  
-  Use logging to troubleshoot configuration issues.
-
-- **Security:**  
-  Secure access to configuration and log files to prevent unauthorized modifications.
-
-- **Dynamic Changes:**  
-  Most configuration changes require restarting the service to take effect.
-
----
-
-By carefully configuring these options, you can tailor the WAF's behavior to meet your specific security requirements, balancing protection with performance. Thorough testing after making changes is essential to ensure the WAF operates as expected. This fine-grained control ensures the WAF serves as an effective security layer for your web application.
+By carefully configuring these options, you can tailor the WAF's behavior to meet your specific security requirements, balancing protection with performance. Thorough testing after making changes is essential to ensure the WAF operates as expected. 
