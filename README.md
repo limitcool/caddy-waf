@@ -30,15 +30,16 @@ curl -fsSL -H "Pragma: no-cache" https://raw.githubusercontent.com/fabriziosalmi
 **Example Output:**
 
 ```
-INFO    Provisioning WAF middleware     {"log_level": "info", "log_path": "debug.json", "log_json": true, "anomaly_threshold": 10}
-INFO    http.handlers.waf       Updated Tor exit nodes in IP blacklist  {"count": 1077}
-INFO    WAF middleware version  {"version": "v0.0.0-20250115164938-7f35253f2ffc"}
-INFO    Rate limit configuration        {"requests": 100, "window": 10, "cleanup_interval": 300, "paths": ["/api/v1/.*", "/admin/.*"], "match_all_paths": false}
-WARN    GeoIP database not found. Country blocking/whitelisting will be disabled        {"path": "GeoLite2-Country.mmdb"}
-INFO    IP blacklist loaded successfully        {"file": "ip_blacklist.txt", "valid_entries": 3, "total_lines": 3}
-INFO    DNS blacklist loaded successfully       {"file": "dns_blacklist.txt", "valid_entries": 2, "total_lines": 2}
-INFO    Rules loaded    {"file": "rules.json", "total_rules": 70, "invalid_rules": 0}
-INFO    WAF middleware provisioned successfully
+2025/01/29 13:35:48.028 INFO    Provisioning WAF middleware     {"log_level": "info", "log_path": "debug.json", "log_json": true, "anomaly_threshold": 10}
+2025/01/29 12:35:48.160 INFO    http.handlers.waf       Tor exit nodes updated  {"count": 1093}
+2025/01/29 13:35:48.160 INFO    WAF middleware version  {"version": "v0.0.0-20250128221917-c99e875aaf7c"}
+2025/01/29 13:35:48.160 INFO    Rate limit configuration        {"requests": 100, "window": 10, "cleanup_interval": 300, "paths": ["/api/v1/.*", "/admin/.*"], "match_all_paths": false}
+2025/01/29 13:35:48.160 WARN    GeoIP database not found. Country blocking/whitelisting will be disabled        {"path": "GeoLite2-Country.mmdb"}
+2025/01/29 13:35:48.658 INFO    IP blacklist loaded     {"path": "ip_blacklist.txt", "valid_entries": 223770, "invalid_entries": 0, "total_lines": 223770}
+2025/01/29 13:35:48.800 INFO    DNS blacklist loaded    {"path": "dns_blacklist.txt", "valid_entries": 854479, "total_lines": 854479}
+2025/01/29 13:35:48.801 INFO    Rules loaded from file  {"file": "rules.json", "valid_rules": 33, "invalid_rules": 0}
+2025/01/29 13:35:48.801 INFO    WAF rules loaded successfully   {"total_rules": 33}
+2025/01/29 13:35:48.801 INFO    WAF middleware provisioned successfully
 ```
 
 ## 📑 Table of Contents
