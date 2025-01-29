@@ -73,9 +73,12 @@ func TestBlockRequest(t *testing.T) {
 			ResponseWritten: true,
 			StatusCode:      http.StatusOK,
 		}
+		recorder := NewResponseRecorder(w)
 
-		m.blockRequest(w, r, state, http.StatusForbidden, "test reason", "rule1", "match1")
+		m.blockRequest(recorder, r, state, http.StatusForbidden, "test reason", "rule1", "match1")
 
-		assert.Equal(t, http.StatusOK, state.StatusCode)
+		assert.Equal(t, http.StatusForbidden, recorder.StatusCode()) // Check the Recorder status code instead
+		assert.True(t, state.ResponseWritten)                        // Check that the ResponseWritten flag is set
+		assert.True(t, state.Blocked)                                // Verify block is set to true
 	})
 }
