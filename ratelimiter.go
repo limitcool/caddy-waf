@@ -27,9 +27,12 @@ type RateLimit struct {
 // RateLimiter struct
 type RateLimiter struct {
 	sync.RWMutex
-	requests    map[string]map[string]*requestCounter // Nested map for path-based rate limiting
-	config      RateLimit
-	stopCleanup chan struct{} // Channel to signal cleanup goroutine to stop
+	requests        map[string]map[string]*requestCounter // Nested map for path-based rate limiting
+	config          RateLimit
+	stopCleanup     chan struct{} // Channel to signal cleanup goroutine to stop
+	totalRequests   int64         // Total requests received by this rate limiter
+	blockedRequests int64         // Total requests blocked by this rate limiter
+	muMetrics       sync.RWMutex  // Mutex to protect metrics access
 }
 
 // NewRateLimiter creates a new RateLimiter instance.
@@ -59,6 +62,8 @@ func (rl *RateLimiter) isRateLimited(ip, path string) bool {
 
 	rl.Lock() // Use Lock for write operations or potential creation of nested maps.
 	defer rl.Unlock()
+
+	rl.incrementTotalRequestsMetric() // Increment the total requests received
 
 	var key string
 	if rl.config.MatchAllPaths {
@@ -96,7 +101,11 @@ func (rl *RateLimiter) isRateLimited(ip, path string) bool {
 
 		// Window not expired, increment the counter
 		counter.count++
-		return counter.count > rl.config.Requests
+		if counter.count > rl.config.Requests {
+			rl.incrementBlockedRequestsMetric() // Increment if the request is going to be blocked.
+			return true
+		}
+		return false
 	}
 
 	// IP and path combination doesn't exist, add it
@@ -156,4 +165,32 @@ func (rl *RateLimiter) signalStopCleanup() {
 		log.Println("[INFO] Signaling rate limiter cleanup goroutine to stop")
 		close(rl.stopCleanup)
 	}
+}
+
+// GetTotalRequests returns the total number of requests received by this rate limiter.
+func (rl *RateLimiter) GetTotalRequests() int64 {
+	rl.muMetrics.RLock()
+	defer rl.muMetrics.RUnlock()
+	return rl.totalRequests
+}
+
+// GetBlockedRequests returns the total number of requests blocked by this rate limiter.
+func (rl *RateLimiter) GetBlockedRequests() int64 {
+	rl.muMetrics.RLock()
+	defer rl.muMetrics.RUnlock()
+	return rl.blockedRequests
+}
+
+// incrementTotalRequestsMetric increments the total requests counter
+func (rl *RateLimiter) incrementTotalRequestsMetric() {
+	rl.muMetrics.Lock()
+	defer rl.muMetrics.Unlock()
+	rl.totalRequests++
+}
+
+// incrementBlockedRequestsMetric increments the blocked requests counter
+func (rl *RateLimiter) incrementBlockedRequestsMetric() {
+	rl.muMetrics.Lock()
+	defer rl.muMetrics.Unlock()
+	rl.blockedRequests++
 }

@@ -220,14 +220,17 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				zap.String("message", "Request blocked due to internal error"),
 			)
 			m.logger.Debug("Country blocking phase completed - blocked due to error")
+			m.incrementGeoIPRequestsMetric(false) // Increment with false for error
 			return
 		} else if blocked {
+
 			m.blockRequest(w, r, state, http.StatusForbidden, "country_block", "country_block_rule", r.RemoteAddr,
-				zap.String("message", "Request blocked by country"),
-			)
+				zap.String("message", "Request blocked by country"))
+			m.incrementGeoIPRequestsMetric(true) // Increment with true for blocked
 			return
 		}
 		m.logger.Debug("Country blocking phase completed - not blocked")
+		m.incrementGeoIPRequestsMetric(false) // Increment with false for no block
 	}
 
 	if phase == 1 && m.rateLimiter != nil {
@@ -235,6 +238,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		ip := extractIP(r.RemoteAddr, m.logger) // Pass the logger here
 		path := r.URL.Path                      // Get the request path
 		if m.rateLimiter.isRateLimited(ip, path) {
+			m.incrementRateLimiterBlockedRequestsMetric() // Increment the counter in the Middleware
 			m.blockRequest(w, r, state, http.StatusTooManyRequests, "rate_limit", "rate_limit_rule", r.RemoteAddr,
 				zap.String("message", "Request blocked by rate limit"),
 			)
@@ -385,4 +389,20 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 		zap.Int("total_score", state.TotalScore),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
+}
+
+// incrementRateLimiterBlockedRequestsMetric increments the blocked requests metric for the rate limiter.
+func (m *Middleware) incrementRateLimiterBlockedRequestsMetric() {
+	m.muRateLimiterMetrics.Lock()
+	defer m.muRateLimiterMetrics.Unlock()
+	m.rateLimiterBlockedRequests++
+}
+
+// incrementGeoIPRequestsMetric increments the GeoIP requests metric.
+func (m *Middleware) incrementGeoIPRequestsMetric(blocked bool) {
+	m.muMetrics.Lock()
+	defer m.muMetrics.Unlock()
+	if blocked {
+		m.geoIPBlocked++
+	}
 }

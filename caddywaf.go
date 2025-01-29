@@ -497,19 +497,29 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 	m.logger.Debug("Handling metrics request", zap.String("path", r.URL.Path))
 	w.Header().Set("Content-Type", "application/json")
 
+	// Get rate limiter metrics
+	var rateLimiterTotalRequests int64
+	var rateLimiterBlockedRequests int64
+	if m.rateLimiter != nil {
+		rateLimiterTotalRequests = m.rateLimiter.GetTotalRequests()
+		rateLimiterBlockedRequests = m.rateLimiter.GetBlockedRequests()
+	}
+
 	// Collect rule hits using getRuleHitStats
 	ruleHits := m.getRuleHitStats()
 
 	// Collect all metrics
 	metrics := map[string]interface{}{
-		"total_requests":     m.totalRequests,
-		"blocked_requests":   m.blockedRequests,
-		"allowed_requests":   m.allowedRequests,
-		"rule_hits":          ruleHits,
-		"rule_hits_by_phase": m.ruleHitsByPhase, // Include rule hits by phase
-		"geoip_stats":        m.geoIPStats,
-		"ip_blacklist_hits":  m.IPBlacklistBlockCount,  // Add IP blacklist hits metric
-		"dns_blacklist_hits": m.DNSBlacklistBlockCount, // Add DNS blacklist hits metric
+		"total_requests":                m.totalRequests,
+		"blocked_requests":              m.blockedRequests,
+		"allowed_requests":              m.allowedRequests,
+		"rule_hits":                     ruleHits,
+		"rule_hits_by_phase":            m.ruleHitsByPhase,          // Include rule hits by phase
+		"geoip_blocked":                 m.geoIPBlocked,             // Add the new geoIPBlocked metric
+		"ip_blacklist_hits":             m.IPBlacklistBlockCount,    // Add IP blacklist hits metric
+		"dns_blacklist_hits":            m.DNSBlacklistBlockCount,   // Add DNS blacklist hits metric
+		"rate_limiter_requests":         rateLimiterTotalRequests,   // Add rate limiter total requests
+		"rate_limiter_blocked_requests": rateLimiterBlockedRequests, // Add rate limiter blocked requests
 	}
 
 	jsonMetrics, err := json.Marshal(metrics)

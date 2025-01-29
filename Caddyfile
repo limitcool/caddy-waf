@@ -30,7 +30,7 @@
 				requests 100
 				window 10s
 				cleanup_interval 5m
-				paths /api/v1/.* /admin/.* # List of individual regex patterns
+				paths /* # List of individual regex patterns
 				match_all_paths false
 			}
 

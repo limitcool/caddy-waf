@@ -186,6 +186,11 @@ type Middleware struct {
 	geoIPStats      map[string]int64 // Key: country code, Value: count
 	muMetrics       sync.RWMutex     // Mutex for metrics synchronization
 
+	rateLimiterBlockedRequests int64        // Add rate limiter blocked requests metric
+	muRateLimiterMetrics       sync.RWMutex // Mutex to protect rate limiter metrics
+
+	geoIPBlocked int
+
 	Tor TorConfig `json:"tor,omitempty"`
 
 	logChan chan LogEntry // Buffered channel for log entries
