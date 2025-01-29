@@ -18,9 +18,6 @@ type RequestValueExtractor struct {
 	redactSensitiveData bool // Add this field
 }
 
-// Define a custom type for context keys
-type ContextKeyLogId string
-
 // Extraction Target Constants - Improved Readability and Maintainability
 const (
 	TargetMethod                = "METHOD"

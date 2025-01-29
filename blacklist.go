@@ -128,6 +128,7 @@ func extractIP(remoteAddr string, logger *zap.Logger) string {
 }
 
 // LoadIPBlacklistFromFile loads IP addresses from a file into the provided map.
+// LoadIPBlacklistFromFile loads IP addresses from a file into the provided map.
 func (bl *BlacklistLoader) LoadIPBlacklistFromFile(path string, ipBlacklist map[string]struct{}) error {
 	bl.logger.Debug("Loading IP blacklist", zap.String("path", path))
 
@@ -141,6 +142,7 @@ func (bl *BlacklistLoader) LoadIPBlacklistFromFile(path string, ipBlacklist map[
 	scanner := bufio.NewScanner(file)
 	validEntries := 0
 	totalLines := 0
+	invalidEntries := 0
 
 	for scanner.Scan() {
 		totalLines++
@@ -156,6 +158,9 @@ func (bl *BlacklistLoader) LoadIPBlacklistFromFile(path string, ipBlacklist map[
 				zap.Int("line", totalLines),
 				zap.String("entry", line),
 			)
+			invalidEntries++
+			// If you want the entire load to fail if any single IP entry is invalid, uncomment the line below
+			// return fmt.Errorf("failed to add IP entry %s : %w", line, err)
 		} else {
 			validEntries++
 		}
@@ -169,6 +174,7 @@ func (bl *BlacklistLoader) LoadIPBlacklistFromFile(path string, ipBlacklist map[
 	bl.logger.Info("IP blacklist loaded",
 		zap.String("path", path),
 		zap.Int("valid_entries", validEntries),
+		zap.Int("invalid_entries", invalidEntries),
 		zap.Int("total_lines", totalLines),
 	)
 	return nil

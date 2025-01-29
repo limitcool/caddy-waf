@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -29,6 +28,7 @@ var (
 	_ caddy.Provisioner           = (*Middleware)(nil)
 	_ caddyhttp.MiddlewareHandler = (*Middleware)(nil)
 	_ caddyfile.Unmarshaler       = (*Middleware)(nil)
+	_ caddy.Validator             = (*Middleware)(nil)
 )
 
 // ==================== Initialization and Setup ====================
@@ -209,19 +209,18 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Load IP blacklist
-	m.ipBlacklist = NewCIDRTrie()
-	m.logger.Debug("ipBlacklist initialized in Provision", zap.Bool("isNil", m.ipBlacklist == nil))
 	if m.IPBlacklistFile != "" {
-		err = m.loadIPBlacklistIntoMap(m.IPBlacklistFile, m.ipBlacklist)
+		m.ipBlacklist = NewCIDRTrie()
+		err = m.loadIPBlacklist(m.IPBlacklistFile, m.ipBlacklist)
 		if err != nil {
 			return fmt.Errorf("failed to load IP blacklist: %w", err)
 		}
 	}
 
 	// Load DNS blacklist
-	m.dnsBlacklist = make(map[string]struct{}) // Changed to map[string]struct{}
 	if m.DNSBlacklistFile != "" {
-		err = m.blacklistLoader.LoadDNSBlacklistFromFile(m.DNSBlacklistFile, m.dnsBlacklist)
+		m.dnsBlacklist = make(map[string]struct{})
+		err = m.loadDNSBlacklist(m.DNSBlacklistFile, m.dnsBlacklist)
 		if err != nil {
 			return fmt.Errorf("failed to load DNS blacklist: %w", err)
 		}
@@ -414,25 +413,21 @@ func (m *Middleware) ReloadConfig() error {
 	defer m.mu.Unlock()
 
 	m.logger.Info("Reloading WAF configuration")
-
-	newIPBlacklist := NewCIDRTrie()
 	if m.IPBlacklistFile != "" {
-		if err := m.loadIPBlacklistIntoMap(m.IPBlacklistFile, newIPBlacklist); err != nil {
+		newIPBlacklist := NewCIDRTrie()
+		if err := m.loadIPBlacklist(m.IPBlacklistFile, newIPBlacklist); err != nil {
 			m.logger.Error("Failed to reload IP blacklist", zap.String("file", m.IPBlacklistFile), zap.Error(err))
 			return fmt.Errorf("failed to reload IP blacklist: %v", err)
 		}
-	} else {
-		m.logger.Debug("No IP blacklist file specified, skipping reload")
+		m.ipBlacklist = newIPBlacklist
 	}
-
-	newDNSBlacklist := make(map[string]struct{})
 	if m.DNSBlacklistFile != "" {
-		if err := m.loadDNSBlacklistIntoMap(m.DNSBlacklistFile, newDNSBlacklist); err != nil {
+		newDNSBlacklist := make(map[string]struct{})
+		if err := m.loadDNSBlacklist(m.DNSBlacklistFile, newDNSBlacklist); err != nil {
 			m.logger.Error("Failed to reload DNS blacklist", zap.String("file", m.DNSBlacklistFile), zap.Error(err))
 			return fmt.Errorf("failed to reload DNS blacklist: %v", err)
 		}
-	} else {
-		m.logger.Debug("No DNS blacklist file specified, skipping reload")
+		m.dnsBlacklist = newDNSBlacklist
 	}
 
 	// Call the external loadRules function
@@ -441,62 +436,38 @@ func (m *Middleware) ReloadConfig() error {
 		return fmt.Errorf("failed to reload rules: %v", err)
 	}
 
-	m.ipBlacklist = newIPBlacklist
-	m.dnsBlacklist = newDNSBlacklist
-
 	m.logger.Info("WAF configuration reloaded successfully")
-
 	return nil
 }
 
-func (m *Middleware) loadIPBlacklistIntoMap(path string, blacklistMap *CIDRTrie) error {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("failed to read IP blacklist file: %v", err)
+func (m *Middleware) loadIPBlacklist(path string, blacklistMap *CIDRTrie) error {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		m.logger.Warn("Skipping IP blacklist load, file does not exist", zap.String("file", path))
+		return nil
 	}
 
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
+	blacklist := make(map[string]struct{})
+	err := m.blacklistLoader.LoadIPBlacklistFromFile(path, blacklist)
+	if err != nil {
+		return fmt.Errorf("failed to load IP blacklist: %w", err)
+	}
 
-		if !strings.Contains(line, "/") {
-			// Handle single IP addresses
-			ip := net.ParseIP(line)
-			if ip == nil {
-				m.logger.Warn("Skipping invalid IP address format in blacklist", zap.String("address", line))
-				continue
-			}
-
-			if ip.To4() != nil {
-				line = line + "/32"
-			} else {
-				line = line + "/128"
-			}
-		}
-
-		if err := blacklistMap.Insert(line); err != nil {
-			m.logger.Warn("Failed to insert CIDR into trie", zap.String("cidr", line), zap.Error(err))
-		}
+	// Convert the map to CIDRTrie
+	for ip := range blacklist {
+		blacklistMap.Insert(ip)
 	}
 	return nil
 }
 
-func (m *Middleware) loadDNSBlacklistIntoMap(path string, blacklistMap map[string]struct{}) error {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("failed to read DNS blacklist file: %v", err)
+func (m *Middleware) loadDNSBlacklist(path string, blacklistMap map[string]struct{}) error {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		m.logger.Warn("Skipping DNS blacklist load, file does not exist", zap.String("file", path))
+		return nil
 	}
 
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		line = strings.ToLower(strings.TrimSpace(line))
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		blacklistMap[line] = struct{}{} // Changed to struct{}{}
+	err := m.blacklistLoader.LoadDNSBlacklistFromFile(path, blacklistMap)
+	if err != nil {
+		return fmt.Errorf("failed to load DNS blacklist: %w", err)
 	}
 	return nil
 }
@@ -569,4 +540,12 @@ func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		m.configLoader = NewConfigLoader(m.logger)
 	}
 	return m.configLoader.UnmarshalCaddyfile(d, m)
+}
+
+// Validate implements caddy.Validator.
+func (m *Middleware) Validate() error {
+	if m.logLevel == 0 {
+		m.logLevel = zapcore.InfoLevel // Default log level
+	}
+	return nil
 }

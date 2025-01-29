@@ -29,14 +29,19 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 			w.WriteHeader(resp.StatusCode)
 			_, err := w.Write([]byte(resp.Body))
 			if err != nil {
-				m.logger.Error("Failed to write custom block response body", zap.Error(err), zap.Int("status_code", resp.StatusCode), zap.String("log_id", r.Context().Value("logID").(string)))
+				logID, ok := r.Context().Value(ContextKeyLogId("logID")).(string)
+				if !ok {
+					m.logger.Error("Log ID not found in context, cannot log custom response error")
+					return
+				}
+				m.logger.Error("Failed to write custom block response body", zap.Error(err), zap.Int("status_code", resp.StatusCode), zap.String("log_id", logID))
 			}
 			return
 		}
 
 		// Default blocking behavior
 		logID := uuid.New().String()
-		if logIDCtx, ok := r.Context().Value("logID").(string); ok {
+		if logIDCtx, ok := r.Context().Value(ContextKeyLogId("logID")).(string); ok {
 			logID = logIDCtx
 		}
 
@@ -70,7 +75,11 @@ func (m *Middleware) blockRequest(w http.ResponseWriter, r *http.Request, state 
 		w.WriteHeader(statusCode)
 	} else {
 		// Debug log when response is already written, including log_id
-		logID, _ := r.Context().Value("logID").(string)
+		logID, ok := r.Context().Value(ContextKeyLogId("logID")).(string)
+		if !ok {
+			m.logger.Error("Log ID not found in context, cannot log blockRequest when response already written")
+			return
+		}
 
 		m.logger.Debug("blockRequest called but response already written",
 			zap.Int("intended_status_code", statusCode),

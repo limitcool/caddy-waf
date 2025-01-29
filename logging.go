@@ -36,7 +36,7 @@ var sensitiveKeys = []string{
 	"routing",    // Routing number
 	"mfa",        // Multi-factor authentication code
 	"otp",        // One-time password
-	"code",       // Generic code
+	//"code",       // Generic code <------ REMOVED THIS
 }
 
 var sensitiveKeysMutex sync.RWMutex // Add mutex for thread safety when modifying

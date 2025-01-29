@@ -11,6 +11,9 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type ContextKeyLogId string
+type ContextKeyRule string
+
 // ServeHTTP implements caddyhttp.Handler.
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	logID := uuid.New().String()
@@ -41,7 +44,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next cadd
 	err := next.ServeHTTP(recorder, r)
 
 	// Phase 3: Response Header analysis
-	if m.isResponseHeaderPhaseBlocked(recorder, r, 3, state) {
+	if m.isPhaseBlocked(recorder, r, 3, state) {
 		return nil // Request blocked in Phase 3, short-circuit
 	}
 
@@ -83,17 +86,6 @@ func (m *Middleware) isPhaseBlocked(w http.ResponseWriter, r *http.Request, phas
 	return false
 }
 
-// isResponseHeaderPhaseBlocked encapsulates the response header phase handling and blocking check logic.
-func (m *Middleware) isResponseHeaderPhaseBlocked(recorder *responseRecorder, r *http.Request, phase int, state *WAFState) bool {
-	m.handlePhase(recorder, r, phase, state)
-	if state.Blocked {
-		m.incrementBlockedRequestsMetric()
-		recorder.WriteHeader(state.StatusCode)
-		return true
-	}
-	return false
-}
-
 // logRequestStart logs the start of WAF evaluation.
 func (m *Middleware) logRequestStart(r *http.Request, logID string) {
 	m.logger.Info("WAF request evaluation started",
@@ -126,15 +118,20 @@ func (m *Middleware) initializeWAFState() *WAFState {
 func (m *Middleware) handleResponseBodyPhase(recorder *responseRecorder, r *http.Request, state *WAFState) {
 	// No need to check if recorder.body is nil here, it's always initialized in NewResponseRecorder
 	body := recorder.BodyString()
-	m.logger.Debug("Response body captured for Phase 4 analysis", zap.String("log_id", r.Context().Value(ContextKeyLogId("logID")).(string)))
+	logID, ok := r.Context().Value(ContextKeyLogId("logID")).(string)
+
+	if !ok {
+		m.logger.Error("Log ID not found in context")
+		return
+	}
+	m.logger.Debug("Response body captured for Phase 4 analysis", zap.String("log_id", logID))
 
 	for _, rule := range m.Rules[4] {
 		if rule.regex.MatchString(body) {
-			m.processRuleMatch(recorder, r, &rule, body, state)
-			if state.Blocked {
-				m.incrementBlockedRequestsMetric()
+			if m.processRuleMatch(recorder, r, &rule, body, state) {
 				return
 			}
+
 		}
 	}
 }
@@ -191,9 +188,16 @@ func (m *Middleware) copyResponse(w http.ResponseWriter, recorder *responseRecor
 	}
 	w.WriteHeader(recorder.StatusCode())
 
+	logID, ok := r.Context().Value(ContextKeyLogId("logID")).(string)
+
+	if !ok {
+		m.logger.Error("Log ID not found in context")
+		return
+	}
+
 	_, err := w.Write(recorder.body.Bytes()) // Copy body from recorder to original writer
 	if err != nil {
-		m.logger.Error("Failed to write recorded response body to client", zap.Error(err), zap.String("log_id", r.Context().Value("logID").(string)))
+		m.logger.Error("Failed to write recorded response body to client", zap.Error(err), zap.String("log_id", logID))
 	}
 }
 
@@ -221,7 +225,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			m.blockRequest(w, r, state, http.StatusForbidden, "country_block", "country_block_rule", r.RemoteAddr,
 				zap.String("message", "Request blocked by country"),
 			)
-			m.logger.Debug("Country blocking phase completed - blocked by country")
 			return
 		}
 		m.logger.Debug("Country blocking phase completed - not blocked")
@@ -235,7 +238,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			m.blockRequest(w, r, state, http.StatusTooManyRequests, "rate_limit", "rate_limit_rule", r.RemoteAddr,
 				zap.String("message", "Request blocked by rate limit"),
 			)
-			m.logger.Debug("Rate limiting phase completed - blocked by rate limit")
 			return
 		}
 		m.logger.Debug("Rate limiting phase completed - not blocked")
@@ -254,7 +256,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 					m.blockRequest(w, r, state, http.StatusForbidden, "ip_blacklist", "ip_blacklist_rule", firstIP,
 						zap.String("message", "Request blocked by IP blacklist"),
 					)
-					m.logger.Debug("IP blacklist phase completed - blocked")
 					return
 				}
 			} else {
@@ -269,7 +270,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				m.blockRequest(w, r, state, http.StatusForbidden, "ip_blacklist", "ip_blacklist_rule", r.RemoteAddr,
 					zap.String("message", "Request blocked by IP blacklist"),
 				)
-				m.logger.Debug("IP blacklist phase completed - blocked")
 				return
 			}
 		}
@@ -281,7 +281,6 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 			zap.String("message", "Request blocked by DNS blacklist"),
 			zap.String("host", r.Host),
 		)
-		m.logger.Debug("DNS blacklist phase completed - blocked")
 		return
 	}
 
@@ -292,6 +291,7 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 	}
 
 	m.logger.Debug("Starting rule evaluation for phase", zap.Int("phase", phase), zap.Int("rule_count", len(rules)))
+
 	for _, rule := range rules {
 		m.logger.Debug("Processing rule", zap.String("rule_id", string(rule.ID)), zap.Int("target_count", len(rule.Targets)))
 
@@ -338,16 +338,16 @@ func (m *Middleware) handlePhase(w http.ResponseWriter, r *http.Request, phase i
 				)
 				if phase == 3 || phase == 4 {
 					if recorder, ok := w.(*responseRecorder); ok {
-						if !m.processRuleMatch(recorder, r, &rule, value, state) {
+						if m.processRuleMatch(recorder, r, &rule, value, state) {
 							return // Stop processing if the rule match indicates blocking
 						}
 					} else {
-						if !m.processRuleMatch(w, r, &rule, value, state) {
+						if m.processRuleMatch(w, r, &rule, value, state) {
 							return // Stop processing if the rule match indicates blocking
 						}
 					}
 				} else {
-					if !m.processRuleMatch(w, r, &rule, value, state) {
+					if m.processRuleMatch(w, r, &rule, value, state) {
 						return // Stop processing if the rule match indicates blocking
 					}
 				}

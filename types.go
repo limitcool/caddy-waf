@@ -25,9 +25,6 @@ var (
 	_ caddyfile.Unmarshaler       = (*Middleware)(nil)
 )
 
-// Define a custom type for context keys
-type ContextKeyRule string
-
 // Define custom types for rule hits
 type RuleID string
 type HitCount int
