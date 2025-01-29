@@ -56,7 +56,6 @@ jobs:
 
       - name: Extract Tag Name
         id: extract_tag
-        if: "!startsWith(github.ref, 'refs/heads/')"
         run: echo "TAG_NAME=$(echo ${GITHUB_REF#refs/tags/})" >> $GITHUB_OUTPUT
 
       - name: Create Release
