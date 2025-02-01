@@ -30,7 +30,7 @@ var (
 )
 
 // Add or update the version constant as needed
-const wafVersion = "v0.0.2" // update this value to the new release version when tagging
+const wafVersion = "v0.0.1" // update this value to the new release version when tagging
 
 // ==================== Initialization and Setup ====================
 
@@ -168,7 +168,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	m.geoIPStats = make(map[string]int64)
 
 	// Configure GeoIP-based country blocking/whitelisting
-	if (m.CountryBlock.Enabled || m.CountryWhitelist.Enabled) {
+	if m.CountryBlock.Enabled || m.CountryWhitelist.Enabled {
 		geoIPPath := m.CountryBlock.GeoIPDBPath
 		if m.CountryWhitelist.Enabled && m.CountryWhitelist.GeoIPDBPath != "" {
 			geoIPPath = m.CountryWhitelist.GeoIPDBPath
