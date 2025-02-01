@@ -114,14 +114,21 @@ func (m *Middleware) initializeWAFState() *WAFState {
 	}
 }
 
+// getLogID extracts the logID from the request context.
+func getLogID(ctx context.Context) string {
+	if logID, ok := ctx.Value(ContextKeyLogId("logID")).(string); ok {
+		return logID
+	}
+	return "unknown"
+}
+
 // handleResponseBodyPhase processes Phase 4 (response body).
 func (m *Middleware) handleResponseBodyPhase(recorder *responseRecorder, r *http.Request, state *WAFState) {
 	// No need to check if recorder.body is nil here, it's always initialized in NewResponseRecorder
 	body := recorder.BodyString()
-	logID, ok := r.Context().Value(ContextKeyLogId("logID")).(string)
-
-	if !ok {
-		m.logger.Error("Log ID not found in context")
+	logID := getLogID(r.Context())
+	if logID == "unknown" {
+		m.logger.Error("Log ID missing in context")
 		return
 	}
 	m.logger.Debug("Response body captured for Phase 4 analysis", zap.String("log_id", logID))
@@ -188,13 +195,10 @@ func (m *Middleware) copyResponse(w http.ResponseWriter, recorder *responseRecor
 	}
 	w.WriteHeader(recorder.StatusCode())
 
-	logID, ok := r.Context().Value(ContextKeyLogId("logID")).(string)
-
-	if !ok {
-		m.logger.Error("Log ID not found in context")
-		return
+	logID := getLogID(r.Context())
+	if logID == "unknown" {
+		m.logger.Error("Log ID not found in context during response copy") // added error log for clarity
 	}
-
 	_, err := w.Write(recorder.body.Bytes()) // Copy body from recorder to original writer
 	if err != nil {
 		m.logger.Error("Failed to write recorded response body to client", zap.Error(err), zap.String("log_id", logID))

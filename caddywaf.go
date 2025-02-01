@@ -29,6 +29,9 @@ var (
 	_ caddy.Validator             = (*Middleware)(nil)
 )
 
+// Add or update the version constant as needed
+const wafVersion = "v0.0.2" // update this value to the new release version when tagging
+
 // ==================== Initialization and Setup ====================
 
 func init() {
@@ -69,9 +72,8 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	}
 
 	// Set default log file path if not provided
-	logFilePath := m.LogFilePath
-	if logFilePath == "" {
-		logFilePath = "log.json"
+	if m.LogFilePath == "" {
+		m.LogFilePath = "log.json"
 	}
 
 	// Parse log severity level
@@ -100,9 +102,9 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	fileCfg.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	fileEncoder := zapcore.NewJSONEncoder(fileCfg.EncoderConfig)
 
-	fileSync, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	fileSync, err := os.OpenFile(m.LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		m.logger.Warn("Failed to open log file, logging only to console", zap.String("path", logFilePath), zap.Error(err))
+		m.logger.Warn("Failed to open log file, logging only to console", zap.String("path", m.LogFilePath), zap.Error(err))
 		m.logger = zap.New(zapcore.NewCore(consoleEncoder, consoleSync, logLevel))
 		return nil
 	}
@@ -116,7 +118,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	m.logger = zap.New(core)
 	m.logger.Info("Provisioning WAF middleware",
 		zap.String("log_level", m.LogSeverity),
-		zap.String("log_path", logFilePath),
+		zap.String("log_path", m.LogFilePath),
 		zap.Bool("log_json", m.LogJSON),
 		zap.Int("anomaly_threshold", m.AnomalyThreshold),
 	)
@@ -136,6 +138,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	m.logVersion()
 
 	// Start file watchers for rule files and blacklist files
+	// Context cancellation could be added in the future to gracefully stop watchers.
 	m.startFileWatcher(m.RuleFiles)
 	m.startFileWatcher([]string{m.IPBlacklistFile, m.DNSBlacklistFile})
 
@@ -165,7 +168,7 @@ func (m *Middleware) Provision(ctx caddy.Context) error {
 	m.geoIPStats = make(map[string]int64)
 
 	// Configure GeoIP-based country blocking/whitelisting
-	if m.CountryBlock.Enabled || m.CountryWhitelist.Enabled {
+	if (m.CountryBlock.Enabled || m.CountryWhitelist.Enabled) {
 		geoIPPath := m.CountryBlock.GeoIPDBPath
 		if m.CountryWhitelist.Enabled && m.CountryWhitelist.GeoIPDBPath != "" {
 			geoIPPath = m.CountryWhitelist.GeoIPDBPath
@@ -319,13 +322,8 @@ func (m *Middleware) Shutdown(ctx context.Context) error {
 // ==================== Helper Functions ====================
 
 func (m *Middleware) logVersion() {
-
-	var moduleVersion = "v0.0.1"
-
-	if moduleVersion == "" {
-		moduleVersion = "unknown"
-	}
-	m.logger.Info("WAF middleware version", zap.String("version", moduleVersion))
+	// Updated to use wafVersion constant
+	m.logger.Info("WAF middleware version", zap.String("version", wafVersion))
 }
 
 func (m *Middleware) startFileWatcher(filePaths []string) {
@@ -338,6 +336,7 @@ func (m *Middleware) startFileWatcher(filePaths []string) {
 			continue
 		}
 
+		// Note: In future, a context may be used here for cancellation.
 		go func(file string) {
 			watcher, err := fsnotify.NewWatcher()
 			if err != nil {
@@ -507,7 +506,7 @@ func (m *Middleware) handleMetricsRequest(w http.ResponseWriter, r *http.Request
 		"dns_blacklist_hits":            m.DNSBlacklistBlockCount,   // Add DNS blacklist hits metric
 		"rate_limiter_requests":         rateLimiterTotalRequests,   // Add rate limiter total requests
 		"rate_limiter_blocked_requests": rateLimiterBlockedRequests, // Add rate limiter blocked requests
-		"version":                       "v0.0.1",                   // Add version number (quick'n'dirty.. will be improved good way)
+		"version":                       wafVersion,
 	}
 
 	jsonMetrics, err := json.Marshal(metrics)

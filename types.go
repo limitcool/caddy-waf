@@ -309,5 +309,5 @@ func (t *CIDRTrie) containsIPv6(ip net.IP) bool {
 			return true
 		}
 	}
-	return node.isLeaf
+	return false
 }
