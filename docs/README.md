@@ -34,3 +34,7 @@ This documentation provides everything you need to deploy and manage the Caddy W
 
 13.  **[Testing](testing.md)** - *Guidance on how to test the WAF's effectiveness using the provided testing tools, with different ways of testing the WAF functionality.*
 14.  **[Docker Support](docker.md)** - *Instructions on how to build and run the WAF using Docker, including best practices for containerized deployments.*
+
+### 🖥️ Extending caddy-waf
+
+15. **[ELK observability](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/caddy-waf-elk.md)** - *Observability of caddy-waf with ELK stack.*
