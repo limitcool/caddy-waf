@@ -153,9 +153,10 @@ For complete documentation, including configuration options, rule format details
 8.  [**Dynamic Updates**](docs/dynamicupdates.md) - *How to dynamically update the WAF rules and other settings without downtime.*
 9.  [**Metrics**](docs/metrics.md) - *Details about the WAF's metrics endpoint and the different metrics collected.*
 10. [**Prometheus Metrics**](docs/prometheus.md) - *Instructions on how to expose WAF metrics using the Prometheus format.*
-11. [**Rule/Blacklist Population Scripts**](docs/scripts.md) - *Documentation on the provided scripts to automatically fetch, update and generate rules and blacklists.*
-12. [**Testing**](docs/testing.md) - *Guidance on how to test the WAF's effectiveness using the provided testing tools.*
-13.  [**Docker Support**](docs/docker.md) - *Instructions on how to build and run the WAF using Docker.*
+11. [**ELK Observability**](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/caddy-waf-elk.md) - *Instructions on how to configure caddy-waf ELK stack observability.*
+12. [**Rule/Blacklist Population Scripts**](docs/scripts.md) - *Documentation on the provided scripts to automatically fetch, update and generate rules and blacklists.*
+13. [**Testing**](docs/testing.md) - *Guidance on how to test the WAF's effectiveness using the provided testing tools.*
+14.  [**Docker Support**](docs/docker.md) - *Instructions on how to build and run the WAF using Docker.*
 
 ---
 
