@@ -2,6 +2,8 @@
 
 You can push debug.json log to an ELK stack to have better observability and gather caddy-waf logs from multiple caddy servers.
 
+![#caddy-waf-elk](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/caddy-waf-elk.png?raw=true)
+
 ## Quick start
 
 ```
