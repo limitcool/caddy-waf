@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
         integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <style>
         /* --- Default Theme (Dark) --- */
         :root {
@@ -110,6 +110,9 @@
             transition: color var(--transition-duration) ease;
         }
 
+        .theme-toggle:focus {
+            outline: 2px solid var(--accent-color);
+        }
 
         .section-icon {
             font-size: 1.6em;
@@ -168,7 +171,7 @@
 
         .metric-label {
             font-size: 1.1em;
-            color: var(--label-color);
+            color: var (--label-color);
             margin-bottom: 6px;
             font-weight: 400;
         }
@@ -280,6 +283,12 @@
                 color: var(--text-color);
             }
         }
+
+        /* New rule for the horizontal rule */
+        hr.custom-hr {
+            margin-bottom: 40px;
+            border: 1px solid var(--section-border-color);
+        }
     </style>
 </head>
 
@@ -287,11 +296,11 @@
     <div class="container">
         <div class="section">
             <div class="section-header">
-                <a href="https://github.com/fabriziosalmi/caddy-waf" target="_blank">
+                <a href="https://github.com/fabriziosalmi/caddy-waf" target="_blank" aria-label="GitHub Repository">
                     <i class="fa-brands fa-github" style="color: var(--text-color); font-size: x-large;"></i>
                 </a>
                 <div class="theme-toggle-container">
-                    <button class="theme-toggle" id="theme-toggle">
+                    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
                         <i class="fas fa-sun"></i>
                     </button>
                 </div>
@@ -316,12 +325,12 @@
                     <div class="metric-value blocked" id="blocked-requests">0</div>
                 </div>
                 <div class="metric">
-                    <i class="metric-icon fas fa-chart-pie" style="color: var(--error-color);"></i>
+                    <i class="metric-icon fas fa-chart-pie" style="color: var (--error-color);"></i>
                     <div class="metric-label">Blocked %</div>
                     <div class="metric-value blocked-percentage" id="blocked-percentage">0%</div>
                 </div>
             </div>
-            <hr style="margin-bottom: 40px; border: 1px solid var(--section-border-color);">
+            <hr class="custom-hr">
             <div class="section">
                 <div class="section-header">
                     <i class="section-icon fas fa-chart-line"></i>
@@ -406,7 +415,7 @@
         </div>
 
         <div class="section">
-            <div class="section-header">
+            <div class="section-header"></div>
                 <i class="section-icon fas fa-globe"></i>
                 <h2>GeoIP Stats</h2>
             </div>
