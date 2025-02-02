@@ -17,6 +17,7 @@ A robust, highly customizable, and feature-rich **Web Application Firewall (WAF)
 *   **Detailed Monitoring:** JSON endpoint for performance tracking & analysis.
 *   **Dynamic Config Reloads:** Seamless updates without restarts.
 *   **File Watchers:** Automatic reloads on rule/blacklist changes.
+*   **Observability:** Seamless integration with ELK stack and Prometheus.
 
 _Simple at a glance UI :)_
 ![demo](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/caddy-waf-ui.png?raw=true)  
