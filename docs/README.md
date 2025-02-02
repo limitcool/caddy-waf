@@ -37,4 +37,5 @@ This documentation provides everything you need to deploy and manage the Caddy W
 
 ### 🖥️ Extending caddy-waf
 
-15. **[ELK observability](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/caddy-waf-elk.md)** - *Observability of caddy-waf with ELK stack.*
+15. **[ELK](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/caddy-waf-elk.md)** - *Observability of caddy-waf with ELK stack.*
+16. **[Prometheus](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/prometheus.md)** - *Observability of caddy-waf with Prometheus.*
