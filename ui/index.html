@@ -426,377 +426,377 @@
     </div>
 
     <script>
-        // Get DOM elements
-        const totalRequestsElement = document.getElementById('total-requests');
-        const allowedRequestsElement = document.getElementById('allowed-requests');
-        const blockedRequestsElement = document.getElementById('blocked-requests');
-        const blockedPercentageElement = document.getElementById('blocked-percentage');
-        const phase1HitsElement = document.getElementById('phase-1-hits');
-        const phase2HitsElement = document.getElementById('phase-2-hits');
-        const phase3HitsElement = document.getElementById('phase-3-hits');
-        const phase4HitsElement = document.getElementById('phase-4-hits');
-        const dnsBlacklistHitsElement = document.getElementById('dns-blacklist-hits');
-        const ipBlacklistHitsElement = document.getElementById('ip-blacklist-hits');
-        const rateLimitHitsElement = document.getElementById('rate-limit-hits');
-        const geoipHitsElement = document.getElementById('geoip-hits');
-        const geoipStatsContainer = document.getElementById('geoip-stats-container');
-        const rulesTableBody = document.getElementById('rules-table-body');
-        const timelineChartElement = document.getElementById('timeline-chart').getContext('2d');
-        const logScaleToggle = document.getElementById('log-scale-toggle');
-        const themeToggle = document.getElementById('theme-toggle');
-        const root = document.documentElement;
-        let allRuleHitsData = {}; // Store all rule hits
-        let hasGeoIPData = false; // Flag to track if geoip data has loaded
-        const localStorageThemeKey = 'dashboardTheme';
+        window.addEventListener('DOMContentLoaded', function() {
+            // Get DOM elements
+            const totalRequestsElement = document.getElementById('total-requests');
+            const allowedRequestsElement = document.getElementById('allowed-requests');
+            const blockedRequestsElement = document.getElementById('blocked-requests');
+            const blockedPercentageElement = document.getElementById('blocked-percentage');
+            const phase1HitsElement = document.getElementById('phase-1-hits');
+            const phase2HitsElement = document.getElementById('phase-2-hits');
+            const phase3HitsElement = document.getElementById('phase-3-hits');
+            const phase4HitsElement = document.getElementById('phase-4-hits');
+            const dnsBlacklistHitsElement = document.getElementById('dns-blacklist-hits');
+            const ipBlacklistHitsElement = document.getElementById('ip-blacklist-hits');
+            const rateLimitHitsElement = document.getElementById('rate-limit-hits');
+            const geoipHitsElement = document.getElementById('geoip-hits');
+            const geoipStatsContainer = document.getElementById('geoip-stats-container');
+            const rulesTableBody = document.getElementById('rules-table-body');
+            const timelineChartElement = document.getElementById('timeline-chart').getContext('2d');
+            const logScaleToggle = document.getElementById('log-scale-toggle');
+            const themeToggle = document.getElementById('theme-toggle');
+            const root = document.documentElement;
+            let allRuleHitsData = {}; // Store all rule hits
+            let hasGeoIPData = false; // Flag to track if geoip data has loaded
+            const localStorageThemeKey = 'dashboardTheme';
 
-        // --- Placeholder Timeline Data ---
-        const timelineLabels = ['Now']; // Initial label
-        const totalRequestsData = [0]; // Initial data point
-        const blockedRequestsData = [0]; // Initial data point
-        const dnsBlacklistHitsData = [0];
-        const ipBlacklistHitsData = [0];
-        const rateLimitHitsData = [0];
-        const geoipHitsData = [0];
-        const phase1HitsData = [0];
-        const phase2HitsData = [0];
-        const phase3HitsData = [0];
-        const phase4HitsData = [0];
+            // --- Placeholder Timeline Data ---
+            const timelineLabels = ['Now']; // Initial label
+            const totalRequestsData = [0]; // Initial data point
+            const blockedRequestsData = [0]; // Initial data point
+            const dnsBlacklistHitsData = [0];
+            const ipBlacklistHitsData = [0];
+            const rateLimitHitsData = [0];
+            const geoipHitsData = [0];
+            const phase1HitsData = [0];
+            const phase2HitsData = [0];
+            const phase3HitsData = [0];
+            const phase4HitsData = [0];
 
 
-        // --- Initialize Chart ---
-        const initialDatasets = [{
-            label: 'Total Requests',
-            data: totalRequestsData,
-            borderColor: '#367edb',
-            backgroundColor: '#367edb',
-            tension: 0.4
-        }, {
-            label: 'Blocked Requests',
-            data: blockedRequestsData,
-            borderColor: '#e74c3c',
-            backgroundColor: '#e74c3c',
-            tension: 0.4
-        }];
+            // --- Initialize Chart ---
+            const initialDatasets = [{
+                label: 'Total Requests',
+                data: totalRequestsData,
+                borderColor: '#367edb',
+                backgroundColor: '#367edb',
+                tension: 0.4
+            }, {
+                label: 'Blocked Requests',
+                data: blockedRequestsData,
+                borderColor: '#e74c3c',
+                backgroundColor: '#e74c3c',
+                tension: 0.4
+            }];
 
-        // Helper function to check if any element in an array is non-zero
-        function hasNonZeroValue(arr) {
-            return arr.some(val => val !== 0);
-        }
+            // Helper function to check if any element in an array is non-zero
+            function hasNonZeroValue(arr) {
+                return arr.some(val => val !== 0);
+            }
 
-        // Create the chart
-        const timelineChart = new Chart(timelineChartElement, {
-            type: 'line',
-            data: {
-                labels: timelineLabels,
-                datasets: initialDatasets,
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        type: 'linear',
-                        beginAtZero: true,
-                        grid: { color: '#444' },
-                        ticks: {
-                            color: '#eee', callback: function (value, index, ticks) {
-                                if (value === 0) return 0;
-                                return value >= 1000 ? value / 1000 + "k" : value;
+            // Create the chart
+            const timelineChart = new Chart(timelineChartElement, {
+                type: 'line',
+                data: {
+                    labels: timelineLabels,
+                    datasets: initialDatasets,
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            beginAtZero: true,
+                            grid: { color: '#444' },
+                            ticks: {
+                                color: '#eee', callback: function (value, index, ticks) {
+                                    if (value === 0) return 0;
+                                    return value >= 1000 ? value / 1000 + "k" : value;
+                                }
                             }
+                        },
+                        x: {
+                            grid: { color: '#444' },
+                            ticks: { color: '#eee' }
                         }
                     },
-                    x: {
-                        grid: { color: '#444' },
-                        ticks: { color: '#eee' }
+                    plugins: {
+                        legend: {
+                            labels: { color: '#eee' }
+                        }
                     }
-                },
-                plugins: {
-                    legend: {
-                        labels: { color: '#eee' }
-                    }
-                }
-            }
-        });
-
-        function updateChartOptions() {
-            const currentTheme = root.getAttribute('data-theme');
-            timelineChart.options.plugins.legend.labels.color = currentTheme === 'light' ? '#333' : '#eee';
-            timelineChart.update()
-        }
-
-        // Event listener for the log scale toggle
-        logScaleToggle.addEventListener('change', function () {
-            timelineChart.options.scales.y.type = this.checked ? 'logarithmic' : 'linear';
-            timelineChart.update();
-        });
-
-        // Function to manage chart dataset visibility
-        function updateChartDatasets() {
-            const datasetsToRemove = [];
-            timelineChart.data.datasets.forEach((dataset, index) => {
-                if (dataset.label === 'DNS Blacklist Hits' && !hasNonZeroValue(dnsBlacklistHitsData)) datasetsToRemove.push(index);
-                if (dataset.label === 'IP Blacklist Hits' && !hasNonZeroValue(ipBlacklistHitsData)) datasetsToRemove.push(index);
-                if (dataset.label === 'Rate Limit Hits' && !hasNonZeroValue(rateLimitHitsData)) datasetsToRemove.push(index);
-                if (dataset.label === 'GeoIP Hits' && !hasNonZeroValue(geoipHitsData)) datasetsToRemove.push(index);
-                if (dataset.label === 'Phase 1 Hits' && !hasNonZeroValue(phase1HitsData)) datasetsToRemove.push(index);
-                if (dataset.label === 'Phase 2 Hits' && !hasNonZeroValue(phase2HitsData)) datasetsToRemove.push(index);
-                if (dataset.label === 'Phase 3 Hits' && !hasNonZeroValue(phase3HitsData)) datasetsToRemove.push(index);
-                if (dataset.label === 'Phase 4 Hits' && !hasNonZeroValue(phase4HitsData)) datasetsToRemove.push(index);
-            });
-            // Remove datasets in reverse order to avoid index issues
-            for (let i = datasetsToRemove.length - 1; i >= 0; i--) {
-                timelineChart.data.datasets.splice(datasetsToRemove[i], 1);
-            }
-            // Add data sets only if needed
-            if (hasNonZeroValue(dnsBlacklistHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'DNS Blacklist Hits')) {
-                timelineChart.data.datasets.push({
-                    label: 'DNS Blacklist Hits',
-                    data: dnsBlacklistHitsData,
-                    borderColor: '#FFA500',
-                    backgroundColor: '#FFA500',
-                    tension: 0.4
-                })
-            }
-
-            if (hasNonZeroValue(ipBlacklistHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'IP Blacklist Hits')) {
-                timelineChart.data.datasets.push({
-                    label: 'IP Blacklist Hits',
-                    data: ipBlacklistHitsData,
-                    borderColor: '#800080',
-                    backgroundColor: '#800080',
-                    tension: 0.4
-                });
-            }
-
-            if (hasNonZeroValue(rateLimitHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Rate Limit Hits')) {
-                timelineChart.data.datasets.push({
-                    label: 'Rate Limit Hits',
-                    data: rateLimitHitsData,
-                    borderColor: '#008000',
-                    backgroundColor: '#008000',
-                    tension: 0.4
-                });
-            }
-            if (hasNonZeroValue(geoipHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'GeoIP Hits')) {
-                timelineChart.data.datasets.push({
-                    label: 'GeoIP Hits',
-                    data: geoipHitsData,
-                    borderColor: '#8B4513',
-                    backgroundColor: '#8B4513',
-                    tension: 0.4
-                });
-            }
-            if (hasNonZeroValue(phase1HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 1 Hits')) {
-                timelineChart.data.datasets.push({
-                    label: 'Phase 1 Hits',
-                    data: phase1HitsData,
-                    borderColor: '#0000FF',
-                    backgroundColor: '#0000FF',
-                    tension: 0.4
-                });
-            }
-
-            if (hasNonZeroValue(phase2HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 2 Hits')) {
-                timelineChart.data.datasets.push({
-                    label: 'Phase 2 Hits',
-                    data: phase2HitsData,
-                    borderColor: '#FF0000',
-                    backgroundColor: '#FF0000',
-                    tension: 0.4
-                })
-            }
-            if (hasNonZeroValue(phase3HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 3 Hits')) {
-                timelineChart.data.datasets.push({
-                    label: 'Phase 3 Hits',
-                    data: phase3HitsData,
-                    borderColor: '#00FFFF',
-                    backgroundColor: '#00FFFF',
-                    tension: 0.4
-                })
-            }
-
-            if (hasNonZeroValue(phase4HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 4 Hits')) {
-                timelineChart.data.datasets.push({
-                    label: 'Phase 4 Hits',
-                    data: phase4HitsData,
-                    borderColor: '#FF00FF',
-                    backgroundColor: '#FF00FF',
-                    tension: 0.4
-                });
-            }
-            timelineChart.update();
-        }
-
-        // Function to fetch and update metrics
-        function updateMetrics() {
-            // change this to your own metrics endpoint
-            fetch('http://localhost:8080/waf_metrics', {
-                headers: {
-                    'User-Agent': 'caddy-waf-ui'
-                }
-            })
-                .then(response => response.json())
-                .then(data => {
-                    updateValue(totalRequestsElement, data.total_requests);
-                    updateValue(allowedRequestsElement, data.allowed_requests);
-                    updateValue(blockedRequestsElement, data.blocked_requests);
-                    updateValue(dnsBlacklistHitsElement, data.dns_blacklist_hits);
-                    updateValue(ipBlacklistHitsElement, data.ip_blacklist_hits);
-                    // Update the rate-limit-hits with rate_limiter_blocked_requests
-                    updateValue(rateLimitHitsElement, data.rate_limiter_blocked_requests);
-                    // Use the length of the geoip_stats object
-                    updateValue(geoipHitsElement, Object.keys(data.geoip_stats || {}).length);
-                    const totalRequests = data.total_requests;
-                    const blockedRequests = data.blocked_requests;
-                    let blockedPercent = 0;
-                    if (totalRequests > 0) {
-                        blockedPercent = ((blockedRequests / totalRequests) * 100).toFixed(1);
-                    }
-                    updateValue(blockedPercentageElement, `${blockedPercent}%`);
-
-                    allRuleHitsData = data.rule_hits;
-                    updateRulesTableDisplay();
-                    phase1HitsElement.textContent = data.rule_hits_by_phase['1'] || 0;
-                    phase2HitsElement.textContent = data.rule_hits_by_phase['2'] || 0;
-                    phase3HitsElement.textContent = data.rule_hits_by_phase['3'] || 0;
-                    phase4HitsElement.textContent = data.rule_hits_by_phase['4'] || 0;
-                    updateGeoIPStatsDisplay(data.geoip_stats);
-
-                    const now = new Date().toLocaleTimeString();
-                    timelineLabels.push(now);
-                    totalRequestsData.push(data.total_requests);
-                    blockedRequestsData.push(data.blocked_requests);
-                    dnsBlacklistHitsData.push(data.dns_blacklist_hits);
-                    ipBlacklistHitsData.push(data.ip_blacklist_hits);
-                    // Update timeline for rateLimitHitsData with rate_limiter_blocked_requests
-                    rateLimitHitsData.push(data.rate_limiter_blocked_requests);
-                    geoipHitsData.push(Object.keys(data.geoip_stats || {}).length);
-                    phase1HitsData.push(data.rule_hits_by_phase['1'] || 0);
-                    phase2HitsData.push(data.rule_hits_by_phase['2'] || 0);
-                    phase3HitsData.push(data.rule_hits_by_phase['3'] || 0);
-                    phase4HitsData.push(data.rule_hits_by_phase['4'] || 0);
-
-                    if (timelineLabels.length > 10) {
-                        timelineLabels.shift();
-                        totalRequestsData.shift();
-                        blockedRequestsData.shift();
-                        dnsBlacklistHitsData.shift();
-                        ipBlacklistHitsData.shift();
-                        rateLimitHitsData.shift();
-                        geoipHitsData.shift();
-                        phase1HitsData.shift();
-                        phase2HitsData.shift();
-                        phase3HitsData.shift();
-                        phase4HitsData.shift();
-                    }
-                    updateChartDatasets();
-                })
-                .catch(error => {
-                    console.error('Error fetching metrics data:', error);
-                    rulesTableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: var(--error-color);">Error loading data.</td></tr>`;
-                    geoipStatsContainer.innerHTML = `<p style="color: var(--error-color);">Error loading GeoIP data.</p>`;
-                });
-        }
-
-        // Function to update rule table display
-        function updateRulesTableDisplay() {
-            const previousRuleHits = allRuleHitsData;
-            rulesTableBody.innerHTML = '';
-            const sortedRuleEntries = Object.entries(allRuleHitsData)
-                .sort(([, countA], [, countB]) => countB - countA);
-            if (sortedRuleEntries.length === 0) {
-                rulesTableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: var(--label-color);">No rule hits yet.</td></tr>`;
-                return;
-            }
-            sortedRuleEntries.forEach(([ruleName, hitCount]) => {
-                const row = rulesTableBody.insertRow();
-                const nameCell = row.insertCell();
-                const hitsCell = row.insertCell();
-                nameCell.textContent = ruleName;
-                hitsCell.textContent = hitCount;
-
-                if (previousRuleHits[ruleName] !== undefined && previousRuleHits[ruleName] !== hitCount) {
-                    hitsCell.classList.add('rule-hits-updating');
-                    setTimeout(() => {
-                        hitsCell.classList.remove('rule-hits-updating');
-                    }, 300)
                 }
             });
-        }
-        // Function to update GeoIP Stats display
-        function updateGeoIPStatsDisplay(geoipStats) {
-            geoipStatsContainer.innerHTML = '';
-            if (!geoipStats || Object.keys(geoipStats).length === 0) {
-                geoipStatsContainer.innerHTML = `<p style="color: var(--label-color);">No GeoIP data yet.</p>`;
+
+            function updateChartOptions() {
+                const currentTheme = root.getAttribute('data-theme');
+                timelineChart.options.plugins.legend.labels.color = currentTheme === 'light' ? '#333' : '#eee';
+                timelineChart.update()
+            }
+
+            // Event listener for the log scale toggle
+            logScaleToggle.addEventListener('change', function () {
+                timelineChart.options.scales.y.type = this.checked ? 'logarithmic' : 'linear';
+                timelineChart.update();
+            });
+
+            // Function to manage chart dataset visibility
+            function updateChartDatasets() {
+                const datasetsToRemove = [];
+                timelineChart.data.datasets.forEach((dataset, index) => {
+                    if (dataset.label === 'DNS Blacklist Hits' && !hasNonZeroValue(dnsBlacklistHitsData)) datasetsToRemove.push(index);
+                    if (dataset.label === 'IP Blacklist Hits' && !hasNonZeroValue(ipBlacklistHitsData)) datasetsToRemove.push(index);
+                    if (dataset.label === 'Rate Limit Hits' && !hasNonZeroValue(rateLimitHitsData)) datasetsToRemove.push(index);
+                    if (dataset.label === 'GeoIP Hits' && !hasNonZeroValue(geoipHitsData)) datasetsToRemove.push(index);
+                    if (dataset.label === 'Phase 1 Hits' && !hasNonZeroValue(phase1HitsData)) datasetsToRemove.push(index);
+                    if (dataset.label === 'Phase 2 Hits' && !hasNonZeroValue(phase2HitsData)) datasetsToRemove.push(index);
+                    if (dataset.label === 'Phase 3 Hits' && !hasNonZeroValue(phase3HitsData)) datasetsToRemove.push(index);
+                    if (dataset.label === 'Phase 4 Hits' && !hasNonZeroValue(phase4HitsData)) datasetsToRemove.push(index);
+                });
+                // Remove datasets in reverse order to avoid index issues
+                for (let i = datasetsToRemove.length - 1; i >= 0; i--) {
+                    timelineChart.data.datasets.splice(datasetsToRemove[i], 1);
+                }
+                // Add data sets only if needed
+                if (hasNonZeroValue(dnsBlacklistHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'DNS Blacklist Hits')) {
+                    timelineChart.data.datasets.push({
+                        label: 'DNS Blacklist Hits',
+                        data: dnsBlacklistHitsData,
+                        borderColor: '#FFA500',
+                        backgroundColor: '#FFA500',
+                        tension: 0.4
+                    })
+                }
+
+                if (hasNonZeroValue(ipBlacklistHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'IP Blacklist Hits')) {
+                    timelineChart.data.datasets.push({
+                        label: 'IP Blacklist Hits',
+                        data: ipBlacklistHitsData,
+                        borderColor: '#800080',
+                        backgroundColor: '#800080',
+                        tension: 0.4
+                    });
+                }
+
+                if (hasNonZeroValue(rateLimitHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Rate Limit Hits')) {
+                    timelineChart.data.datasets.push({
+                        label: 'Rate Limit Hits',
+                        data: rateLimitHitsData,
+                        borderColor: '#008000',
+                        backgroundColor: '#008000',
+                        tension: 0.4
+                    });
+                }
+                if (hasNonZeroValue(geoipHitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'GeoIP Hits')) {
+                    timelineChart.data.datasets.push({
+                        label: 'GeoIP Hits',
+                        data: geoipHitsData,
+                        borderColor: '#8B4513',
+                        backgroundColor: '#8B4513',
+                        tension: 0.4
+                    });
+                }
+                if (hasNonZeroValue(phase1HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 1 Hits')) {
+                    timelineChart.data.datasets.push({
+                        label: 'Phase 1 Hits',
+                        data: phase1HitsData,
+                        borderColor: '#0000FF',
+                        backgroundColor: '#0000FF',
+                        tension: 0.4
+                    });
+                }
+
+                if (hasNonZeroValue(phase2HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 2 Hits')) {
+                    timelineChart.data.datasets.push({
+                        label: 'Phase 2 Hits',
+                        data: phase2HitsData,
+                        borderColor: '#FF0000',
+                        backgroundColor: '#FF0000',
+                        tension: 0.4
+                    })
+                }
+                if (hasNonZeroValue(phase3HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 3 Hits')) {
+                    timelineChart.data.datasets.push({
+                        label: 'Phase 3 Hits',
+                        data: phase3HitsData,
+                        borderColor: '#00FFFF',
+                        backgroundColor: '#00FFFF',
+                        tension: 0.4
+                    })
+                }
+
+                if (hasNonZeroValue(phase4HitsData) && !timelineChart.data.datasets.find(dataset => dataset.label === 'Phase 4 Hits')) {
+                    timelineChart.data.datasets.push({
+                        label: 'Phase 4 Hits',
+                        data: phase4HitsData,
+                        borderColor: '#FF00FF',
+                        backgroundColor: '#FF00FF',
+                        tension: 0.4
+                    });
+                }
+                timelineChart.update();
+            }
+
+            // Function to fetch and update metrics
+            function updateMetrics() {
+                // change this to your own metrics endpoint
+                fetch('http://localhost:8080/waf_metrics', {
+                    headers: {
+                        'User-Agent': 'caddy-waf-ui'
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        updateValue(totalRequestsElement, data.total_requests);
+                        updateValue(allowedRequestsElement, data.allowed_requests);
+                        updateValue(blockedRequestsElement, data.blocked_requests);
+                        updateValue(dnsBlacklistHitsElement, data.dns_blacklist_hits);
+                        updateValue(ipBlacklistHitsElement, data.ip_blacklist_hits);
+                        // Update the rate-limit-hits with rate_limiter_blocked_requests
+                        updateValue(rateLimitHitsElement, data.rate_limiter_blocked_requests);
+                        // Use the length of the geoip_stats object
+                        updateValue(geoipHitsElement, Object.keys(data.geoip_stats || {}).length);
+                        const totalRequests = data.total_requests;
+                        const blockedRequests = data.blocked_requests;
+                        let blockedPercent = 0;
+                        if (totalRequests > 0) {
+                            blockedPercent = ((blockedRequests / totalRequests) * 100).toFixed(1);
+                        }
+                        updateValue(blockedPercentageElement, `${blockedPercent}%`);
+
+                        allRuleHitsData = data.rule_hits;
+                        updateRulesTableDisplay();
+                        phase1HitsElement.textContent = data.rule_hits_by_phase['1'] || 0;
+                        phase2HitsElement.textContent = data.rule_hits_by_phase['2'] || 0;
+                        phase3HitsElement.textContent = data.rule_hits_by_phase['3'] || 0;
+                        phase4HitsElement.textContent = data.rule_hits_by_phase['4'] || 0;
+                        updateGeoIPStatsDisplay(data.geoip_stats);
+
+                        const now = new Date().toLocaleTimeString();
+                        timelineLabels.push(now);
+                        totalRequestsData.push(data.total_requests);
+                        blockedRequestsData.push(data.blocked_requests);
+                        dnsBlacklistHitsData.push(data.dns_blacklist_hits);
+                        ipBlacklistHitsData.push(data.ip_blacklist_hits);
+                        // Update timeline for rateLimitHitsData with rate_limiter_blocked_requests
+                        rateLimitHitsData.push(data.rate_limiter_blocked_requests);
+                        geoipHitsData.push(Object.keys(data.geoip_stats || {}).length);
+                        phase1HitsData.push(data.rule_hits_by_phase['1'] || 0);
+                        phase2HitsData.push(data.rule_hits_by_phase['2'] || 0);
+                        phase3HitsData.push(data.rule_hits_by_phase['3'] || 0);
+                        phase4HitsData.push(data.rule_hits_by_phase['4'] || 0);
+
+                        if (timelineLabels.length > 10) {
+                            timelineLabels.shift();
+                            totalRequestsData.shift();
+                            blockedRequestsData.shift();
+                            dnsBlacklistHitsData.shift();
+                            ipBlacklistHitsData.shift();
+                            rateLimitHitsData.shift();
+                            geoipHitsData.shift();
+                            phase1HitsData.shift();
+                            phase2HitsData.shift();
+                            phase3HitsData.shift();
+                            phase4HitsData.shift();
+                        }
+                        updateChartDatasets();
+                    })
+                    .catch(error => {
+                        console.error('Error fetching metrics data:', error);
+                        rulesTableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: var(--error-color);">Error loading data.</td></tr>`;
+                        geoipStatsContainer.innerHTML = `<p style="color: var(--error-color);">Error loading GeoIP data.</p>`;
+                    });
+            }
+
+            // Function to update rule table display
+            function updateRulesTableDisplay() {
+                const previousRuleHits = allRuleHitsData;
+                rulesTableBody.innerHTML = '';
+                const sortedRuleEntries = Object.entries(allRuleHitsData)
+                    .sort(([, countA], [, countB]) => countB - countA);
+                if (sortedRuleEntries.length === 0) {
+                    rulesTableBody.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 20px; color: var(--label-color);">No rule hits yet.</td></tr>`;
+                    return;
+                }
+                sortedRuleEntries.forEach(([ruleName, hitCount]) => {
+                    const row = rulesTableBody.insertRow();
+                    const nameCell = row.insertCell();
+                    const hitsCell = row.insertCell();
+                    nameCell.textContent = ruleName;
+                    hitsCell.textContent = hitCount;
+
+                    if (previousRuleHits[ruleName] !== undefined && previousRuleHits[ruleName] !== hitCount) {
+                        hitsCell.classList.add('rule-hits-updating');
+                        setTimeout(() => {
+                            hitsCell.classList.remove('rule-hits-updating');
+                        }, 300)
+                    }
+                });
+            }
+            // Function to update GeoIP Stats display
+            function updateGeoIPStatsDisplay(geoipStats) {
+                geoipStatsContainer.innerHTML = '';
+                if (!geoipStats || Object.keys(geoipStats).length === 0) {
+                    geoipStatsContainer.innerHTML = `<p style="color: var(--label-color);">No GeoIP data yet.</p>`;
+                    hasGeoIPData = true; // Set the flag to prevent repeated updates of initial text
+                    return;
+                }
                 hasGeoIPData = true; // Set the flag to prevent repeated updates of initial text
-                return;
-            }
-            hasGeoIPData = true; // Set the flag to prevent repeated updates of initial text
-            for (const countryCode in geoipStats) {
-                if (geoipStats.hasOwnProperty(countryCode)) {
-                    const hits = geoipStats[countryCode];
-                    const countryName = getCountryName(countryCode);
-                    const p = document.createElement('p');
-                    p.textContent = `${countryName} (${countryCode.toUpperCase()}): ${hits} hits`;
-                    geoipStatsContainer.appendChild(p);
+                for (const countryCode in geoipStats) {
+                    if (geoipStats.hasOwnProperty(countryCode)) {
+                        const hits = geoipStats[countryCode];
+                        const countryName = getCountryName(countryCode);
+                        const p = document.createElement('p');
+                        p.textContent = `${countryName} (${countryCode.toUpperCase()}): ${hits} hits`;
+                        geoipStatsContainer.appendChild(p);
+                    }
                 }
             }
-        }
 
-        // Helper function to update value with animation
-        function updateValue(element, newValue) {
-            element.classList.add('updating');
-            setTimeout(() => {
-                element.textContent = newValue;
-                element.classList.remove('updating');
-            }, 100);
-        }
-
-        // Helper function to get country name from code
-        function getCountryName(countryCode) {
-            const countryNames = {
-                "US": "United States",
-                "CA": "Canada",
-                "GB": "United Kingdom",
-                "DE": "Germany",
-                "FR": "France",
-            };
-            return countryNames[countryCode.toUpperCase()] || countryCode.toUpperCase();
-        }
-
-
-        function setInitialTheme() {
-            const savedTheme = localStorage.getItem(localStorageThemeKey);
-            if (savedTheme) {
-                root.setAttribute('data-theme', savedTheme);
+            // Helper function to update value with animation
+            function updateValue(element, newValue) {
+                element.classList.add('updating');
+                setTimeout(() => {
+                    element.textContent = newValue;
+                    element.classList.remove('updating');
+                }, 100);
             }
-            else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-                root.setAttribute('data-theme', 'light');
-            } else {
-                root.setAttribute('data-theme', 'dark'); // Default to dark
+
+            // Helper function to get country name from code
+            function getCountryName(countryCode) {
+                const countryNames = {
+                    "US": "United States",
+                    "CA": "Canada",
+                    "GB": "United Kingdom",
+                    "DE": "Germany",
+                    "FR": "France",
+                };
+                return countryNames[countryCode.toUpperCase()] || countryCode.toUpperCase();
             }
-            updateThemeToggleIcon();
-        }
-        function updateThemeToggleIcon() {
-            const currentTheme = root.getAttribute('data-theme');
-            themeToggle.innerHTML = currentTheme === 'light' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
-        }
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = root.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            root.setAttribute('data-theme', newTheme);
-            localStorage.setItem(localStorageThemeKey, newTheme);
-            updateThemeToggleIcon();
+
+
+            function setInitialTheme() {
+                const savedTheme = localStorage.getItem(localStorageThemeKey);
+                if (savedTheme) {
+                    root.setAttribute('data-theme', savedTheme);
+                }
+                else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                    root.setAttribute('data-theme', 'light');
+                } else {
+                    root.setAttribute('data-theme', 'dark'); // Default to dark
+                }
+                updateThemeToggleIcon();
+            }
+            function updateThemeToggleIcon() {
+                const currentTheme = root.getAttribute('data-theme');
+                themeToggle.innerHTML = currentTheme === 'light' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+            }
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = root.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                root.setAttribute('data-theme', newTheme);
+                localStorage.setItem(localStorageThemeKey, newTheme);
+                updateThemeToggleIcon();
+                updateChartOptions();
+
+            });
+            // Initial metrics update and set interval
+            setInitialTheme();
+            updateMetrics();
             updateChartOptions();
-
+            setInterval(updateMetrics, 5000);
         });
-        // Initial metrics update and set interval
-        setInitialTheme();
-        updateMetrics();
-        updateChartOptions();
-        setInterval(updateMetrics, 5000);
-
-
     </script>
 </body>
 
