@@ -63,19 +63,3 @@ Here's a comprehensive breakdown of the configuration options:
 *   **Non-Blocking:** If the request count from an IP does not exceed the limit, the request is allowed to proceed normally.
 *  **Multiple rules** It is possible to configure multiple `rate_limit` blocks, each with a different configurations. The order in which the rate limiters appear is not important.
 
-### Considerations and Best Practices:
-
-*   **Choosing Limits:** Choose `requests` and `window` values carefully based on your application's normal traffic patterns and requirements. A value that is too low could cause denial of service for legitimate users, whereas a value that is too high might not provide adequate protection.
-*   **Monitoring:** Continuously monitor the rate limiter's effectiveness and adjust the values as needed. Use logging and metrics to gain insights into how the rate limiter performs.
-*   **Dynamic Rate Limiting:** For more advanced scenarios, consider implementing dynamic rate limiting, where the limits are adjusted based on real-time traffic conditions and historical patterns.
-*   **Multiple Rate Limiters:** It's recommended to apply different rate limit rules for various endpoints or resources based on their criticality and anticipated usage patterns.
-*   **Global vs. Local:** Use rate limiting along with other security methods for better protection. Also consider using rate limiting at other levels, including load balancers, and reverse proxies to provide multi-layered protection.
-*   **IP Spoofing:** Rate limiting based on IP addresses might be bypassed by sophisticated attackers who spoof IP addresses; take this into consideration when configuring your WAF.
-* **Log information** Each time a request is rate limited, logs should provide relevant information for debugging (client IP, blocked path and other relevant information).
-*   **Testing:** Test rate limiting thoroughly to ensure that it does not affect legitimate users and that it is working as intended, particularly when complex path matching is involved.
-
-### Advanced scenarios
-
-*   **Varying window based on request path:** It might be useful to configure different time windows and request limits based on the path that is being accessed, e.g. stricter limits on authentication endpoints and looser limits on static files.
-*   **Combining with other security features:** Rate limiting can be combined with other WAF features such as IP blocking, country blocking, and rule-based blocking to provide a holistic approach to security.
-
