@@ -27,7 +27,7 @@ var sensitiveKeys = []string{
 	"creditcard", // Credit card number
 	"cvv",        // Card verification value
 	"cvc",        // Card verification code
-	"eamil",      // Email address
+	"email",      // Email address
 	"phone",      // Phone number
 	"address",    // Physical address
 	"account",    // Bank account number
@@ -208,6 +208,8 @@ func (m *Middleware) redactQueryParams(queryParams string) string {
 }
 
 func (m *Middleware) isSensitiveQueryParamKey(key string) bool {
+	sensitiveKeysMutex.RLock()
+	defer sensitiveKeysMutex.RUnlock()
 	for _, sensitiveKey := range sensitiveKeys { // Use package level sensitiveKeys variable
 		if strings.Contains(key, sensitiveKey) {
 			return true

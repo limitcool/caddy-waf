@@ -298,6 +298,11 @@ func (t *CIDRTrie) containsIPv6(ip net.IP) bool {
 		return false
 	}
 
+	// Add this check to ensure ip is not empty
+	if len(ip) == 0 {
+		return false
+	}
+
 	node := t.ipv6Root
 	for i := 0; i < len(ip)*8; i++ {
 		bit := (ip[i/8] >> (7 - uint(i%8))) & 1
