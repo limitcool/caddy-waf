@@ -67,7 +67,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.extract_tag.outputs.TAG_NAME }}
-          release_name: Release ${{ steps.extract_tag.outputs.TAG_NAME }}
+          release_name: ${{ steps.extract_tag.outputs.TAG_NAME }}
           body: |
             This is a release of the Caddy WAF middleware version ${{ steps.extract_tag.outputs.TAG_NAME }}. Please download the appropriate binary for your OS/Architecture.
           draft: false
