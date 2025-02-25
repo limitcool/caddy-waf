@@ -18,6 +18,7 @@ A robust, highly customizable, and feature-rich **Web Application Firewall (WAF)
 *   **Dynamic Config Reloads:** Seamless updates without restarts.
 *   **File Watchers:** Automatic reloads on rule/blacklist changes.
 *   **Observability:** Seamless integration with ELK stack and Prometheus.
+*   **Rules generator**: powered by custom GPT, [try it here](https://chatgpt.com/g/g-677d07dd07e48191b799b9e5d6da7828-caddy-waf-ruler)
 
 _Simple at a glance UI :)_
 ![demo](https://github.com/fabriziosalmi/caddy-waf/blob/main/docs/caddy-waf-ui.png?raw=true)  
